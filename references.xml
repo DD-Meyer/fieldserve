@@ -1,0 +1,364 @@
+<b:Sources SelectedStyle="" xmlns:b="http://openxmlformats.org" xmlns="http://openxmlformats.org">
+<dataset>
+<b:Source>
+<b:Tag>1</b:Tag>
+<b:SourceType>Book</b:SourceType>
+<author>Amershi, S., Weld, D., Vorvoreanu, M., Fourney, A., Nushi, B., Collisson, P., Suh, J., Iqbal, S., Bennett, P.N., Inkpen, K., Teevan, J., Kikin-Gil, R. and Horvitz, E.</author>
+    <date>(2019)</date>
+    <title>'Guidelines for human-AI interaction',</title>
+    <container-title>in Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems.</container-title>
+    <location>New York:</location>
+    <publisher>ACM,</publisher>
+    <genre>paper 3,</genre>
+    <pages>pp. 1–13.</pages>
+</b:Source>
+
+<b:Source>
+    <b:Tag>2</b:Tag>
+    <b:SourceType>Article</b:SourceType>
+    <author>Apple</author>
+    <date>(2024)</date>
+    <title>Human Interface Guidelines: Touch targets and gestures. Apple Developer Documentation.</title>
+    <url>Available at: https://developer.apple.com/design/human-interface-guidelines</url>
+    <note>(Accessed: May 2026).</note>
+</b:Source>
+<b:Source>
+    <author>Bangor, A., Kortum, P.T. and Miller, J.T.</author>
+    <date>(2008)</date>
+    <title>'An empirical evaluation of the System Usability Scale',</title>
+    <journal>International Journal of Human–Computer Interaction,</journal>
+    <volume>24(6),</volume>
+    <pages>pp. 574–594.</pages>
+</b:Source>
+<b:Source>
+<author>Bengio, Y., Lodi, A. and Prouvost, A.</author>
+<date>(2021)</date>
+<title>'Machine learning for combinatorial optimization: A methodological tour d'horizon',</title>
+<journal>European Journal of Operational Research,</journal>
+<volume>290(2),</volume>
+<pages>pp. 405–421.</pages>
+</b:Source>
+<b:Source>
+<author>Brooke, J.</author>
+<date>(1996)</date>
+<title>'SUS: A quick and dirty usability scale',</title>
+<editor>in Jordan, P.W., Thomas, B., Weerdmeester, B.A. and McClelland, A.L. (eds.)</editor>
+<container-title>Usability Evaluation in Industry.</container-title>
+<location>London:</location>
+<publisher>Taylor & Francis,</publisher>
+<pages>pp. 189–194.</pages>
+</b:Source>
+<b:Source>
+<author>Brunsdon, C.</author>
+<date>(1995)</date>
+<title>'Estimating probability surfaces for geographical point data: an adaptive kernel algorithm',</title>
+<journal>Computers & Geosciences,</journal>
+<volume>21(7),</volume>
+<pages>pp. 877–894.</pages>
+</b:Source>
+<b:Source>
+<author>Buckinx, W. and Van den Poel, D.</author>
+<date>(2005)</date>
+<title>'Customer base analysis: partial defection of behaviourally loyal clients in a non-contractual FMCG retail setting',</title>
+<journal>European Journal of Operational Research,</journal>
+<volume>164(1),</volume>
+<pages>pp. 252–268.</pages>
+</b:Source>
+<b:Source>
+<author>Castillo-Salazar, J.A., Landa-Silva, D. and Qu, R.</author>
+<date>(2016)</date>
+<title>'Workforce scheduling and routing problems: literature survey and computational study',</title>
+<journal>Annals of Operations Research,</journal>
+<volume>239(1),</volume>
+<pages>pp. 39–67.</pages>
+</b:Source>
+<b:Source>
+<author>Cesaro, J., Caetano, T.S., Carvalho, A.C.P.L.F. and Faceli, K.</author>
+<date>(2021)</date>
+<title>'Service time prediction for field operations using gradient boosting',</title>
+<journal>Expert Systems with Applications,</journal>
+<volume>178,</volume>
+<pages>115006.</pages>
+</b:Source>
+<b:Source>
+<author>Chawla, N.V., Bowyer, K.W., Hall, L.O. and Kegelmeyer, W.P.</author>
+<date>(2002)</date>
+<title>'SMOTE: Synthetic Minority Over-sampling Technique',</title>
+<journal>Journal of Artificial Intelligence Research,</journal>
+<volume>16,</volume>
+<pages>pp. 321–357.</pages>
+</b:Source>
+<b:Source>
+<author>Clarke, G. and Wright, J.W.</author>
+<date>(1964)</date>
+<title>'Scheduling of vehicles from a central depot to a number of delivery points',</title>
+<journal>Operations Research,</journal>
+<volume>12(4),</volume>
+<pages>pp. 568–581.</pages>
+</b:Source>
+<b:Source>
+<author>Dantzig, G.B. and Ramser, J.H.</author>
+<date>(1959)</date>
+<title>'The truck dispatching problem',</title>
+<journal>Management Science,</journal>
+<volume>6(1),</volume>
+<pages>pp. 80–91.</pages>
+</b:Source>
+<b:Source>
+<author>De Caigny, A., Coussement, K. and De Bock, K.W.</author>
+<date>(2018)</date>
+<title>'A new hybrid classification algorithm for customer churn prediction based on logistic regression and decision trees',</title>
+<journal>European Journal of Operational Research,</journal>
+<volume>269(2),</volume>
+<pages>pp. 760–772.</pages>
+</b:Source>
+<b:Source>
+<author>De Caigny, A., Coussement, K., De Bock, K.W. and Lessmann, S.</author>
+<date>(2020)</date>
+<title>'Incorporating textual information in customer churn prediction models based on a convolutional neural network',</title>
+<journal>International Journal of Forecasting,</journal>
+<volume>36(4),</volume>
+<pages>pp. 1563–1578.</pages>
+</b:Source>
+<b:Source>
+<author>Dierks, Z.</author>
+<date>(2026)</date>
+<title>Leading barriers to using or buying SaaS for micro, small, and medium enterprises in Africa in 2023. Statista.</title>
+<url>Available at: https://www.statista.com/</url>
+<note>(Accessed: May 2026).</note>
+</b:Source>
+<b:Source>
+<author>Donthu, N. and Rust, R.T.</author>
+<date>(1989)</date>
+<title>'Estimating geographic customer densities using kernel density estimation',</title>
+<journal>Marketing Science,</journal>
+<volume>8(2),</volume>
+<pages>pp. 191–203.</pages>
+</b:Source>
+<b:Source>
+<author>Duvvuri, V.C.</author>
+<date>(2025)</date>
+<title>Lift and Shift of Model Code Using Machine Learning Microservices with Generative AI Mapping Layer in Enterprise SaaS Applications.</title>
+<genre>Doctoral dissertation.</genre>
+<publisher>Purdue University.</publisher>
+</b:Source>
+<b:Source>
+<author>Eller, R., Alford, P., Kallmunzer, A. and Peters, M.</author>
+<date>(2020)</date>
+<title>'Antecedents, consequences, and challenges of small and medium-sized enterprise digitalization',</title>
+<journal>Journal of Business Research,</journal>
+<volume>112,</volume>
+<pages>pp. 119–127.</pages>
+</b:Source>
+<b:Source>
+<author>Geiler, L., Affeldt, S. and Nadif, M.</author>
+<date>(2022)</date>
+<title>'A survey on machine learning methods for churn prediction',</title>
+<journal>International Journal of Data Science and Analytics,</journal>
+<volume>14(3),</volume>
+<pages>pp. 217–242.</pages>
+</b:Source>
+<b:Source>
+<author>Gelb, J. and Apparicio, P.</author>
+<date>(2024)</date>
+<title>'Temporal network kernel density estimation',</title>
+<journal>Geographical Analysis,</journal>
+<volume>56(1),</volume>
+<pages>pp. 62–78.</pages>
+</b:Source>
+<b:Source>
+<author>Google</author>
+<date>(2024)</date>
+<title>Material Design 3: Accessibility, Touch targets.</title>
+<url>Available at: https://m3.material.io/foundations/accessible-design</url>
+<note>(Accessed: May 2026).</note>
+</b:Source>
+<b:Source>
+<author>Hu, Y., Wang, F., Guin, C. and Zhu, H.</author>
+<date>(2018)</date>
+<title>'A spatio-temporal kernel density estimation framework for predictive crime hotspot mapping and evaluation',</title>
+<journal>Applied Geography,</journal>
+<volume>99,</volume>
+<pages>pp. 89–97.</pages>
+</b:Source>
+<b:Source>
+<author>Hughes, A.M.</author>
+<date>(1994)</date>
+<title>Strategic Database Marketing.</title>
+<location>Chicago:</location>
+<publisher>Probus Publishing.</publisher>
+</b:Source>
+<b:Source>
+<author>ISO</author>
+<date>(2018)</date>
+<title>ISO 9241-11:2018 Ergonomics of human-system interaction, Part 11: Usability: Definitions and concepts.</title>
+<location>Geneva:</location>
+<publisher>International Organization for Standardization.</publisher>
+</b:Source>
+<b:Source>
+<author>Jordahl, K., Van den Bossche, J., Fleischmann, M., Wasserman, J. et al.</author>
+<date>(2020)</date>
+<title>GeoPandas: Python tools for geographic data (Version 0.8).</title>
+<journal>Zenodo.</journal>
+<doi>doi:10.5281/zenodo.3946761.</doi>
+</b:Source>
+<b:Source>
+<author>Kergroach, S.</author>
+<date>(2020)</date>
+<title>'Giving momentum to SME digitalization',</title>
+<journal>Journal of the International Council for Small Business,</journal>
+<volume>1(1),</volume>
+<pages>pp. 28–31.</pages>
+</b:Source>
+<b:Source>
+<author>Microsoft</author>
+<date>(2024)</date>
+<title>Announcing the General Availability of the New UX in Field Service Mobile. Microsoft Dynamics 365 Blog.</title>
+<url>Available at: https://www.microsoft.com/en-us/dynamics365/blog/</url>
+<note>(Accessed: May 2026).</note>
+</b:Source>
+<b:Source>
+<author>Neslin, S.A., Gupta, S., Kamakura, W., Lu, J. and Mason, C.H.</author>
+<date>(2006)</date>
+<title>'Defection detection: Measuring and understanding the predictive accuracy of customer churn models',</title>
+<journal>Journal of Marketing Research,</journal>
+<volume>43(2),</volume>
+<pages>pp. 204–211.</pages>
+</b:Source>
+<b:Source>
+<author>Obe, R.O. and Hsu, L.S.</author>
+<date>(2021)</date>
+<title>PostGIS in Action.</title>
+<edition>3rd edn.</edition>
+<location>Shelter Island, NY:</location>
+<publisher>Manning Publications.</publisher>
+</b:Source>
+<b:Source>
+<author>OECD</author>
+<date>(2021)</date>
+<title>The Digital Transformation of SMEs.</title>
+<location>Paris:</location>
+<publisher>OECD Publishing.</publisher>
+<url>Available at: https://doi.org/10.1787/bdb9256a-en.</url>
+</b:Source>
+<b:Source>
+<author>Oulasvirta, A., Tamminen, S., Roto, V. and Kuorelahti, J.</author>
+<date>(2005)</date>
+<title>'Interaction in 4-second bursts: the fragmented nature of attentional resources in mobile HCI',</title>
+<container-title>in Proceedings of CHI '05.</container-title>
+<location>New York:</location>
+<publisher>ACM,</publisher>
+<pages>pp. 919–928.</pages>
+</b:Source>
+<b:Source>
+<author>Pascoe, J., Ryan, N. and Morse, D.</author>
+<date>(2000)</date>
+<title>'Using while moving: HCI issues in fieldwork environments',</title>
+<journal>ACM Transactions on Computer-Human Interaction,</journal>
+<volume>7(3),</volume>
+<pages>pp. 417–437.</pages>
+</b:Source>
+<b:Source>
+<author>Perron, L. and Furnon, V.</author>
+<date>(2024)</date>
+<title>OR-Tools (Version 9.x). Google.</title>
+<url>Available at: https://developers.google.com/optimization</url>
+<note>(Accessed: May 2026).</note>
+</b:Source>
+<b:Source>
+<author>Reichheld, F.F. and Sasser, W.E.</author>
+<date>(1990)</date>
+<title>'Zero defections: Quality comes to services',</title>
+<journal>Harvard Business Review,</journal>
+<volume>68(5),</volume>
+<pages>pp. 105–111.</pages>
+</b:Source>
+<b:Source>
+<author>Ribeiro, M.T., Singh, S. and Guestrin, C.</author>
+<date>(2016)</date>
+<title>'Why should I trust you?: Explaining the predictions of any classifier',</title>
+<container-title>in Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.</container-title>
+<location>New York:</location>
+<publisher>ACM,</publisher>
+<pages>pp. 1135–1144.</pages>
+</b:Source>
+<b:Source>
+<author>Saito, T. and Rehmsmeier, M.</author>
+<date>(2015)</date>
+<title>'The precision-recall plot is more informative than the ROC plot when evaluating binary classifiers on imbalanced datasets',</title>
+<journal>PLOS ONE,</journal>
+<volume>10(3),</volume>
+<pages>e0118432.</pages>
+</b:Source>
+<b:Source>
+<author>Sauro, J. and Lewis, J.R.</author>
+<date>(2016)</date>
+<title>Quantifying the User Experience: Practical Statistics for User Research.</title>
+<edition>2nd edn.</edition>
+<location>Cambridge, MA:</location>
+<publisher>Morgan Kaufmann.</publisher>
+</b:Source>
+<b:Source>
+<author>Shahbazian, R., Pugliese, L.D.P., Guerriero, F. and Macrina, G.</author>
+<date>(2024)</date>
+<title>'Integrating Machine Learning into Vehicle Routing Problem: Methods and Applications',</title>
+<journal>IEEE Access,</journal>
+<volume>12,</volume>
+<pages>pp. 93087–93115.</pages>
+</b:Source>
+<b:Source>
+<author>Silverman, B.W.</author>
+<date>(1986)</date>
+<title>Density Estimation for Statistics and Data Analysis.</title>
+<location>London:</location>
+<publisher>Chapman & Hall.</publisher>
+</b:Source>
+<b:Source>
+<author>Sluis, S.</author>
+<date>(2014)</date>
+<title>'Could mobile CRM solve field sales biggest problems?',</title>
+<journal>Customer Relationship Management Magazine,</journal>
+<volume>18(9),</volume>
+<pages>pp. 32–36.</pages>
+</b:Source>
+<b:Source>
+<author>Solomon, M.M.</author>
+<date>(1987)</date>
+<title>'Algorithms for the vehicle routing and scheduling problems with time window constraints',</title>
+<journal>Operations Research,</journal>
+<volume>35(2),</volume>
+<pages>pp. 254–265.</pages>
+</b:Source>
+<b:Source>
+<author>Tju, H., Putra, P.O.H. and Handayani, P.W.</author>
+<date>(2020)</date>
+<title>'Software as a Service Adoption in Micro, Small and Medium Enterprise in Indonesia',</title>
+<container-title>in Proceedings of ICACSIS.</container-title>
+<publisher>IEEE.</publisher>
+</b:Source>
+<b:Source>
+<editor>Toth, P. and Vigo, D. (eds.)</editor>
+<date>(2014)</date>
+<title>Vehicle Routing: Problems, Methods, and Applications.</title>
+<edition>2nd edn.</edition>
+<location>Philadelphia:</location>
+<publisher>SIAM.</publisher>
+</b:Source>
+<b:Source>
+<author>Wei, J.-T., Lin, S.-Y. and Wu, H.-H.</author>
+<date>(2010)</date>
+<title>'A review of the application of RFM model',</title>
+<journal>African Journal of Business Management,</journal>
+<volume>4(19),</volume>
+<pages>pp. 4199–4206.</pages>
+</b:Source>
+<b:Source>
+<author>Wu, Y., Song, W., Cao, Z. and Zhang, J.</author>
+<date>(2021)</date>
+<title>'Learning to delegate for large-scale vehicle routing',</title>
+<container-title>Advances in Neural Information Processing Systems (NeurIPS</container-title>
+<date>2021),</date>
+<volume>34,</volume>
+<pages>pp. 26198–26211.</pages>
+</b:Source>
+</b:Sources>
