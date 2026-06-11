@@ -4,6 +4,7 @@ import { ScrollView, Text, View } from "react-native";
 import CatchmentZoneRow, { type CatchmentZone } from "../CatchmentZoneRow";
 import FilterPills from "../FilterPills";
 import HeatmapPlaceholder from "../HeatmapPlaceholder";
+import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 
 const RANGES = [
   { key: "all", label: "All Time" },
@@ -22,9 +23,10 @@ const ZONES: CatchmentZone[] = [
 
 export default function MapFixed() {
   const [range, setRange] = useState("90d");
+  const tabBarSpace = useTabBarSpace();
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
       <Text className="text-xl font-bold text-slate-900">Customer Catchment</Text>
       <Text className="text-xs text-slate-500 mt-1 mb-4">
         Where your customers come from — KDE on home postcodes

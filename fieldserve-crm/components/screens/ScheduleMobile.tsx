@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from "react-native";
 
 import RouteStopRow, { type RouteStop } from "../RouteStopRow";
 import SegmentedToggle from "../SegmentedToggle";
+import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 
 const OPTIMIZED: RouteStop[] = [
   { order: 1, time: "09:00", customer: "Sarah Johnson", location: "12 Riverside Ave", durationMin: 60, distanceKm: 3.2 },
@@ -37,6 +38,7 @@ function formatHours(min: number) {
 
 export default function ScheduleMobile() {
   const [mode, setMode] = useState("optimized");
+  const tabBarSpace = useTabBarSpace();
 
   const stops = mode === "optimized" ? OPTIMIZED : MANUAL;
 
@@ -50,7 +52,7 @@ export default function ScheduleMobile() {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
       <Text className="text-xl font-bold text-slate-900">
         Smart Schedule Optimizer
       </Text>

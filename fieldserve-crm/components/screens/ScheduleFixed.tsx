@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from "react-native";
 
 import AppointmentRow, { type Appointment } from "../AppointmentRow";
 import SegmentedToggle from "../SegmentedToggle";
+import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 
 const STAFF_COLORS = {
   Mia: "#2563eb",
@@ -37,6 +38,7 @@ const VIEW_OPTIONS = [
 
 export default function ScheduleFixed() {
   const [view, setView] = useState("staff");
+  const tabBarSpace = useTabBarSpace();
   const appointments =
     view === "staff" ? APPOINTMENTS_BY_STAFF : APPOINTMENTS_BY_CHAIR;
 
@@ -44,7 +46,7 @@ export default function ScheduleFixed() {
   const utilisationPct = 78;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
       <Text className="text-xl font-bold text-slate-900">Today's Schedule</Text>
       <Text className="text-xs text-slate-500 mt-1 mb-4">
         Appointment slots, staff allocation, and no-show risk
