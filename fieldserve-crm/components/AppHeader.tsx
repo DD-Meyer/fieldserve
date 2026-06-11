@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { icons } from "../constants/icons";
 import NavDrawer from "./NavDrawer";
+import { Background } from "@react-navigation/elements";
+import { colors } from "@/constants/theme";
 
 const AVATAR = require("../assets/images/avatar.png");
 
@@ -20,8 +22,8 @@ export default function AppHeader({ title }: Props) {
   return (
     <>
       <View
-        style={{ paddingTop: insets.top }}
-        className="bg-slate-900"
+        style={{ paddingTop: insets.top,}}
+        className="bg-background"
       >
         <View className="h-14 flex-row items-center justify-between px-4">
           <Pressable
@@ -32,12 +34,12 @@ export default function AppHeader({ title }: Props) {
           >
             <Image
               source={icons.menu}
-              style={{ width: 22, height: 22, tintColor: "#ffffff" }}
+              style={{ width: 22, height: 22, tintColor: colors.primary }}
               resizeMode="contain"
             />
           </Pressable>
 
-          <Text className="text-base font-semibold text-white" numberOfLines={1}>
+          <Text className="text-base font-semibold" style={{ color: colors.primary }} numberOfLines={1}>
             {title}
           </Text>
 

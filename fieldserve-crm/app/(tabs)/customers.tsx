@@ -8,6 +8,11 @@ import CustomerChurnCard, {
 } from "../../components/CustomerChurnCard";
 import FilterPills from "../../components/FilterPills";
 import { levelFromProb } from "../../components/RiskBadge";
+import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { styled } from "nativewind";
+import { SafeAreaView as RNSafeAreaVIew} from "react-native-safe-area-context";
+
+const SafeAreaView = styled(RNSafeAreaVIew);
 
 const PILLS = [
   { key: "all", label: "All" },
@@ -75,6 +80,7 @@ const CUSTOMERS: ChurnCustomer[] = [
 
 export default function Customers() {
   const [active, setActive] = useState("all");
+  const tabBarSpace = useTabBarSpace();
 
   const filtered = useMemo(() => {
     if (active === "all") return CUSTOMERS;
@@ -90,10 +96,10 @@ export default function Customers() {
   }, []);
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="Customers" />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
         <Text className="text-xl font-bold text-slate-900">
           Customer Churn Analysis
         </Text>
@@ -130,6 +136,6 @@ export default function Customers() {
           filtered.map((c) => <CustomerChurnCard key={c.id} customer={c} />)
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

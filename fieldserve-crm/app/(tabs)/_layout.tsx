@@ -1,35 +1,38 @@
 import { Tabs } from "expo-router";
-import { tabs } from "../../constants/data";
+import { tabs } from "@/constants/data";
+import { colors, components } from "@/constants/theme";
 import "../../global.css";
-import { View } from "react-native";
-import { clsx } from "clsx";
-import { Image } from "expo-image";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
+import { Image, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const ACTIVE_COLOR = "#2563eb";
-const INACTIVE_COLOR = "#6b7280";
+const tabBar = components.tabBar;
 
 const TabLayout = () => {
   const insets = useSafeAreaInsets();
+  const bottomOffset = Math.max(insets.bottom, 50);
+
   const TabIcon = ({ focused, icon }: TabIconProps) => {
+    const iconColor = focused ? colors.background : colors.primary;
     return (
-      <View className="items-center justify-center">
-        <View
-          className={clsx(
-            "h-12 w-12 items-center justify-center rounded-full",
-            focused && "bg-blue-100"
-          )}
-        >
-          <Image
-            source={icon}
-            style={{
-              width: 24,
-              height: 24,
-              tintColor: focused ? ACTIVE_COLOR : INACTIVE_COLOR,
-            }}
-            contentFit="contain"
-          />
-        </View>
+      <View
+        style={{
+          width: tabBar.iconFrame,
+          height: tabBar.iconFrame,
+          borderRadius: tabBar.iconFrame / 2,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: focused ? colors.primary : "transparent",
+        }}
+      >
+        <Image
+          source={icon}
+          style={{
+            width: 22,
+            height: 22,
+            tintColor: iconColor,
+          }}
+          resizeMode="contain"
+        />
       </View>
     );
   };
@@ -38,13 +41,29 @@ const TabLayout = () => {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: ACTIVE_COLOR,
-        tabBarInactiveTintColor: INACTIVE_COLOR,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          height: 64 + insets.bottom,
-          paddingBottom: insets.bottom + 8,
-          paddingTop: 6,
+          position: "absolute",
+          bottom: bottomOffset,
+          height: tabBar.height,
+          marginHorizontal: tabBar.horizontalInset,
+          borderRadius: tabBar.radius,
+          backgroundColor: colors.nav,
+          borderColor: colors.border,
+          borderWidth: 1,
+          elevation: 0,
         },
+
+        tabBarItemStyle: {
+          paddingVertical: tabBar.height / 2 - tabBar.iconFrame / 1.6
+        },
+
+        tabBarIconStyle: {
+          width: tabBar.iconFrame,
+          height: tabBar.iconFrame,
+          alignItems: "center",
+        },
+
       }}
     >
       {tabs.map((tab) => (

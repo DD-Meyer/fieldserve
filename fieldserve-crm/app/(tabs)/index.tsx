@@ -1,11 +1,15 @@
 import { ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import "../../global.css";
-
 import AppHeader from "../../components/AppHeader";
 import FeatureCard from "../../components/FeatureCard";
 import StatCard from "../../components/StatCard";
 import UpcomingJobRow, { type UpcomingJob } from "../../components/UpcomingJobRow";
+import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { styled } from "nativewind";
+import { SafeAreaView as RNSafeAreaVIew} from "react-native-safe-area-context";
+
+const SafeAreaView = styled(RNSafeAreaVIew);
 
 const UPCOMING: UpcomingJob[] = [
   {
@@ -40,12 +44,13 @@ const UPCOMING: UpcomingJob[] = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const tabBarSpace = useTabBarSpace();
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="FieldServe CRM" />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
         <View className="flex-row gap-3">
           <StatCard label="Jobs Today" value="8" delta="+2 vs yesterday" />
           <StatCard label="Revenue" value="$1,240" delta="+12% this week" />
@@ -91,6 +96,6 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
