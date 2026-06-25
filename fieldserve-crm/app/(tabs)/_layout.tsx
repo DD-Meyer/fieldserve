@@ -51,7 +51,7 @@ const TabLayout = () => {
           backgroundColor: colors.nav,
           borderColor: colors.border,
           borderWidth: 1,
-          elevation: 0,
+          elevation: 1,
         },
 
         tabBarItemStyle: {
