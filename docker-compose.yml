@@ -1,31 +1,25 @@
 services:
   db:
     image: postgis/postgis:15-3.3
+    env_file: .env
     environment:
-      POSTGRES_DB: fieldserve
-      POSTGRES_USER: fieldserve_user
-      POSTGRES_PASSWORD: fieldserve_pass
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fieldserve_user -d fieldserve"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   backend:
     build: ./fieldserve_backend
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: fieldserve
-      POSTGRES_USER: fieldserve_user
-      POSTGRES_PASSWORD: fieldserve_pass
-      DJANGO_DEBUG: "1"
-      DJANGO_ALLOWED_HOSTS: "*"
-      ML_SERVICE_URL: http://ml:8001
+    env_file: .env
     ports:
       - "8000:8000"
     depends_on:
@@ -33,13 +27,16 @@ services:
         condition: service_healthy
     volumes:
       - ./fieldserve_backend:/app
+    restart: unless-stopped
 
   ml:
     build: ./ml_service
+    env_file: .env
     ports:
       - "8001:8001"
     volumes:
       - ./ml_service:/app
+    restart: unless-stopped
 
 volumes:
   postgres_data:

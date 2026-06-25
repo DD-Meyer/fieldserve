@@ -1,0 +1,35 @@
+# Secrets
+.env
+.env.local
+*.local.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Django
+fieldserve_backend/staticfiles/
+fieldserve_backend/media/
+db.sqlite3
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Editor / OS
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker volumes (named volumes live in the docker root, but ignore any local bind mounts)
+postgres_data/

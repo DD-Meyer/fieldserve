@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import "../../global.css";
 import AppHeader from "../../components/AppHeader";
@@ -6,45 +6,38 @@ import FeatureCard from "../../components/FeatureCard";
 import StatCard from "../../components/StatCard";
 import UpcomingJobRow, { type UpcomingJob } from "../../components/UpcomingJobRow";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useJobs, type Job } from "../../lib/hooks/useJobs";
 import { styled } from "nativewind";
-import { SafeAreaView as RNSafeAreaVIew} from "react-native-safe-area-context";
+import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
-const UPCOMING: UpcomingJob[] = [
-  {
-    id: 1,
-    time: "09:00",
-    customer: "Sarah Johnson",
-    service: "Full Detail · Sedan",
-    location: "12 Riverside Ave",
-  },
-  {
-    id: 2,
-    time: "11:30",
-    customer: "Marcus Lee",
-    service: "Exterior Wash",
-    location: "Apt 4B, 88 Pine St",
-  },
-  {
-    id: 3,
-    time: "14:00",
-    customer: "Priya Patel",
-    service: "Interior Detail · SUV",
-    location: "31 Oak Lane",
-  },
-  {
-    id: 4,
-    time: "16:15",
-    customer: "Tom Becker",
-    service: "Ceramic Coating",
-    location: "204 Market Sq",
-  },
-];
+function toUpcoming(j: Job): UpcomingJob {
+  const d = new Date(j.scheduled_at);
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return {
+    id: j.id,
+    time,
+    customer: j.customer_name || `Customer #${j.customer}`,
+    service: j.service_type,
+    location: j.address || j.customer_address || "",
+  };
+}
+
+function moneyTotal(jobs: Job[]): number {
+  return jobs.reduce((sum, j) => sum + (Number(j.price) || 0), 0);
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const tabBarSpace = useTabBarSpace();
+  const { data, isLoading, error } = useJobs({
+    date: "today",
+    ordering: "scheduled_at",
+  });
+
+  const jobs = data?.results ?? [];
+  const total = moneyTotal(jobs);
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
@@ -52,8 +45,16 @@ export default function HomeScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
         <View className="flex-row gap-3">
-          <StatCard label="Jobs Today" value="8" delta="+2 vs yesterday" />
-          <StatCard label="Revenue" value="$1,240" delta="+12% this week" />
+          <StatCard
+            label="Jobs Today"
+            value={isLoading ? "—" : String(jobs.length)}
+            delta={isLoading ? "Loading…" : "Live"}
+          />
+          <StatCard
+            label="Revenue"
+            value={isLoading ? "—" : `$${total.toFixed(0)}`}
+            delta={isLoading ? "Loading…" : "Sum of today's jobs"}
+          />
         </View>
 
         <Text className="mt-6 mb-3 text-base font-semibold text-slate-900">
@@ -91,9 +92,21 @@ export default function HomeScreen() {
           <Text className="text-xs text-slate-500">Today</Text>
         </View>
         <View className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          {UPCOMING.map((job) => (
-            <UpcomingJobRow key={job.id} job={job} />
-          ))}
+          {isLoading ? (
+            <View className="p-6 items-center">
+              <ActivityIndicator />
+            </View>
+          ) : error ? (
+            <View className="p-6 items-center">
+              <Text className="text-xs text-red-600">Could not load jobs.</Text>
+            </View>
+          ) : jobs.length === 0 ? (
+            <View className="p-6 items-center">
+              <Text className="text-xs text-slate-500">No jobs scheduled today.</Text>
+            </View>
+          ) : (
+            jobs.map((j: Job) => <UpcomingJobRow key={j.id} job={toUpcoming(j)} />)
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

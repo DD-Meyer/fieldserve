@@ -1,5 +1,10 @@
 Django>=6.0,<6.1
 djangorestframework>=3.16
-djangorestframework-simplejwt>=5.5
 django-cors-headers>=4.9
+django-filter>=24.0
 psycopg2-binary>=2.9
+PyJWT[crypto]>=2.8
+cryptography>=42
+requests>=2.31
+svix>=1.21
+python-dotenv>=1.0

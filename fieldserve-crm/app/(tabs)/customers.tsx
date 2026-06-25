@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import "../../global.css";
 
 import AppHeader from "../../components/AppHeader";
@@ -9,8 +17,13 @@ import CustomerChurnCard, {
 import FilterPills from "../../components/FilterPills";
 import { levelFromProb } from "../../components/RiskBadge";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import {
+  useCreateCustomer,
+  useCustomers,
+  type Customer,
+} from "../../lib/hooks/useCustomers";
 import { styled } from "nativewind";
-import { SafeAreaView as RNSafeAreaVIew} from "react-native-safe-area-context";
+import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
@@ -21,90 +34,66 @@ const PILLS = [
   { key: "low", label: "Low Risk" },
 ];
 
-const CUSTOMERS: ChurnCustomer[] = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    lastVisit: "92 days ago",
-    probability: 0.86,
-    recencyDays: 92,
-    frequency: 2,
-    monetary: 240,
-  },
-  {
-    id: 2,
-    name: "Marcus Lee",
-    lastVisit: "45 days ago",
-    probability: 0.62,
-    recencyDays: 45,
-    frequency: 4,
-    monetary: 580,
-  },
-  {
-    id: 3,
-    name: "Priya Patel",
-    lastVisit: "12 days ago",
-    probability: 0.18,
-    recencyDays: 12,
-    frequency: 9,
-    monetary: 1420,
-  },
-  {
-    id: 4,
-    name: "Tom Becker",
-    lastVisit: "120 days ago",
-    probability: 0.81,
-    recencyDays: 120,
-    frequency: 1,
-    monetary: 95,
-  },
-  {
-    id: 5,
-    name: "Elena Rossi",
-    lastVisit: "5 days ago",
-    probability: 0.09,
-    recencyDays: 5,
-    frequency: 12,
-    monetary: 2150,
-  },
-  {
-    id: 6,
-    name: "David Kim",
-    lastVisit: "61 days ago",
-    probability: 0.47,
-    recencyDays: 61,
-    frequency: 3,
-    monetary: 420,
-  },
-];
+function daysSince(iso: string | null | undefined): number {
+  if (!iso) return 999;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+// Placeholder churn calc until the ML service wires up.
+function toChurn(c: Customer): ChurnCustomer {
+  const recency = daysSince(c.last_seen_at);
+  const probability = Math.min(0.95, recency / 120);
+  return {
+    id: c.id,
+    name: c.full_name,
+    lastVisit: c.last_seen_at ? `${recency} days ago` : "Never",
+    probability,
+    recencyDays: recency,
+    frequency: 0,
+    monetary: 0,
+  };
+}
 
 export default function Customers() {
   const [active, setActive] = useState("all");
+  const [showAdd, setShowAdd] = useState(false);
   const tabBarSpace = useTabBarSpace();
 
+  const { data, isLoading, error, refetch } = useCustomers();
+  const customers = (data?.results ?? []).map(toChurn);
+
   const filtered = useMemo(() => {
-    if (active === "all") return CUSTOMERS;
-    return CUSTOMERS.filter((c) => levelFromProb(c.probability) === active);
-  }, [active]);
+    if (active === "all") return customers;
+    return customers.filter((c) => levelFromProb(c.probability) === active);
+  }, [active, customers]);
 
   const counts = useMemo(() => {
     const c = { high: 0, medium: 0, low: 0 };
-    CUSTOMERS.forEach((cust) => {
+    customers.forEach((cust) => {
       c[levelFromProb(cust.probability)]++;
     });
     return c;
-  }, []);
+  }, [customers]);
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="Customers" />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-        <Text className="text-xl font-bold text-slate-900">
-          Customer Churn Analysis
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-xl font-bold text-slate-900">
+            Customer Churn Analysis
+          </Text>
+          <Pressable
+            onPress={() => setShowAdd(true)}
+            className="bg-blue-600 rounded-full px-3 py-1.5"
+          >
+            <Text className="text-white text-xs font-semibold">+ Add</Text>
+          </Pressable>
+        </View>
         <Text className="text-xs text-slate-500 mt-1 mb-4">
-          AI-powered predictions based on RFM model
+          Placeholder scores — real RFM model coming once ML service is wired.
         </Text>
 
         <View className="flex-row gap-2 mb-4">
@@ -128,14 +117,138 @@ export default function Customers() {
           <FilterPills pills={PILLS} active={active} onChange={setActive} />
         </View>
 
-        {filtered.length === 0 ? (
+        {isLoading ? (
           <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
-            <Text className="text-slate-500 text-sm">No customers in this group.</Text>
+            <ActivityIndicator />
+          </View>
+        ) : error ? (
+          <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
+            <Text className="text-xs text-red-600">Could not load customers.</Text>
+          </View>
+        ) : filtered.length === 0 ? (
+          <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
+            <Text className="text-slate-500 text-sm">
+              No customers in this group.
+            </Text>
           </View>
         ) : (
           filtered.map((c) => <CustomerChurnCard key={c.id} customer={c} />)
         )}
       </ScrollView>
+
+      <AddCustomerModal
+        visible={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={() => {
+          setShowAdd(false);
+          refetch();
+        }}
+      />
     </SafeAreaView>
+  );
+}
+
+function AddCustomerModal({
+  visible,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const create = useCreateCustomer();
+
+  const submit = async () => {
+    setErr(null);
+    try {
+      await create.mutateAsync({
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+      });
+      setFullName("");
+      setEmail("");
+      setPhone("");
+      setAddress("");
+      onCreated();
+    } catch (e: any) {
+      setErr(e?.message || "Could not create customer");
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 justify-end bg-black/40">
+        <View className="bg-white rounded-t-3xl p-5">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-bold text-slate-900">New Customer</Text>
+            <Pressable onPress={onClose}>
+              <Text className="text-slate-500 text-base">Close</Text>
+            </Pressable>
+          </View>
+
+          <Text className="text-xs text-slate-500 mb-1">Full name *</Text>
+          <TextInput
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Jane Doe"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+          />
+
+          <Text className="text-xs text-slate-500 mb-1">Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="jane@example.com"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+          />
+
+          <Text className="text-xs text-slate-500 mb-1">Phone</Text>
+          <TextInput
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            placeholder="+44 7700 900000"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+          />
+
+          <Text className="text-xs text-slate-500 mb-1">Address</Text>
+          <TextInput
+            value={address}
+            onChangeText={setAddress}
+            placeholder="12 Riverside Ave, London"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+          />
+
+          {err ? <Text className="text-xs text-red-600 mb-2">{err}</Text> : null}
+
+          <Pressable
+            onPress={submit}
+            disabled={create.isPending || !fullName}
+            className="bg-blue-600 rounded-xl py-3.5 items-center disabled:opacity-50"
+          >
+            {create.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white font-semibold">Create customer</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
