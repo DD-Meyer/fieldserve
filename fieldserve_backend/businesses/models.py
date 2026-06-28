@@ -38,6 +38,8 @@ class Business(models.Model):
     brand_color = models.CharField(max_length=9, default="#2563EB")
     logo_url = models.URLField(blank=True)
 
+    public_booking_enabled = models.BooleanField(default=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -80,3 +82,26 @@ class Membership(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} @ {self.business} ({self.role})"
+
+
+class Service(models.Model):
+    """A bookable service that customers can pick on the public booking page."""
+
+    business = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name="services"
+    )
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140)
+    description = models.TextField(blank=True)
+    duration_minutes = models.PositiveIntegerField(default=60)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("business", "slug")
+        ordering = ["business_id", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.business})"

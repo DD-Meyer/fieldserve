@@ -42,6 +42,7 @@ export type JobQuery = {
   date?: string; // "today" or "YYYY-MM-DD"
   status?: JobStatus;
   assigned_to?: number | "me";
+  customer?: number;
   ordering?: string;
 };
 
@@ -55,10 +56,25 @@ export function useJobs(query: JobQuery = {}) {
         date: query.date,
         status: query.status,
         assigned_to: query.assigned_to as string | number | undefined,
+        customer: query.customer,
         ordering: query.ordering,
       }),
     staleTime: 15_000,
     enabled: !!isSignedIn,
+  });
+}
+
+export function useCustomer(customerId: number | null) {
+  const api = useApi();
+  const { isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: ["customer", customerId],
+    queryFn: () =>
+      api.get<import("./useCustomers").Customer>(
+        `/api/customers/${customerId}/`,
+      ),
+    staleTime: 30_000,
+    enabled: !!isSignedIn && customerId != null,
   });
 }
 

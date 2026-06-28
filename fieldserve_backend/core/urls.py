@@ -17,4 +17,6 @@ urlpatterns = [
     path("api/auth/me/", MeView.as_view(), name="me"),
     path("api/webhooks/clerk/", ClerkWebhookView.as_view(), name="clerk-webhook"),
     path("api/", include(router.urls)),
+    path("api/public/", include("businesses.public_urls")),
+    path("api/analytics/", include("analytics.urls")),
 ]

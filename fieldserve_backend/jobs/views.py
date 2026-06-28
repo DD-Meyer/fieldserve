@@ -38,7 +38,7 @@ class JobViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsBusinessMember]
     search_fields = ["service_type", "notes", "customer__full_name"]
     ordering_fields = ["scheduled_at", "created_at", "status", "price"]
-    filterset_fields = ["business", "status", "assigned_to"]
+    filterset_fields = ["business", "status", "assigned_to", "customer"]
 
     def get_queryset(self):
         qs = (
