@@ -91,7 +91,7 @@ export default function RootLayout() {
       <ClerkLoading>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc" }}>
           <ActivityIndicator size="large" />
-          <Text style={{ marginTop: 12, color: "#64748b" }}>Connecting to Clerk…</Text>
+          <Text style={{ marginTop: 12, color: "#64748b" }}>Connecting to FieldServe…</Text>
         </View>
       </ClerkLoading>
       <ClerkLoaded>

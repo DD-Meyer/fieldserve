@@ -9,6 +9,7 @@ import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useJobs, type Job } from "../../lib/hooks/useJobs";
 import { styled } from "nativewind";
 import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
+import { isLoading } from "expo-font";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
@@ -31,29 +32,64 @@ function moneyTotal(jobs: Job[]): number {
 export default function HomeScreen() {
   const router = useRouter();
   const tabBarSpace = useTabBarSpace();
-  const { data, isLoading, error } = useJobs({
+
+  // Load today's jobs
+  const {
+    data: todayData,
+    isLoading: todayLoading,
+    error: todayError
+  } = useJobs({
     date: "today",
-    ordering: "scheduled_at",
+    ordering: "scheduled_at"
   });
 
-  const jobs = data?.results ?? [];
-  const total = moneyTotal(jobs);
+  // Load all jobs for total count
+  const {
+    data: lastWeekData,
+    isLoading: lastWeekLoading,
+    error: lastWeekError
+  } = useJobs({
+    date: (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      return d.toISOString().split("T")[0];
+    })(), // 7 days ago in the format "YYYY-MM-DD"
+    ordering: "scheduled_at"
+  });
+
+  const todayJobs = todayData?.results ?? [];
+  const lastWeekJobs = lastWeekData?.results ?? [];
+
+  const todayRevenue = moneyTotal(todayJobs);
+  const totalRevenue = moneyTotal(lastWeekJobs);
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="FieldServe CRM" />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-        <View className="flex-row gap-3">
+        <View className="flex-row gap-3 justify-between">
           <StatCard
             label="Jobs Today"
-            value={isLoading ? "—" : String(jobs.length)}
-            delta={isLoading ? "Loading…" : "Live"}
+            value={todayLoading ? "—" : String(todayJobs.length)}
+            delta={todayLoading ? "Loading…" : "Live"}
           />
           <StatCard
-            label="Revenue"
-            value={isLoading ? "—" : `$${total.toFixed(0)}`}
-            delta={isLoading ? "Loading…" : "Sum of today's jobs"}
+            label="Revenue this week"
+            value={todayLoading ? "—" : `$${todayRevenue.toFixed(0)}`}
+            delta={todayLoading ? "Loading…" : "Sum of today's revenue"}
+          />
+        </View>
+        <View className="flex-row gap-3 mt-3 justify-between">
+          <StatCard
+            label="Last Week's Jobs"
+            value={lastWeekLoading ? "—" : String(lastWeekJobs.length)}
+            delta={lastWeekLoading ? "Loading…" : "Live"}
+          />
+          <StatCard
+            label="Last week's Revenue"
+            value={lastWeekLoading ? "—" : `$${totalRevenue.toFixed(0)}`}
+            delta={lastWeekLoading ? "Loading…" : "Sum of total revenue"}
           />
         </View>
 
@@ -92,20 +128,20 @@ export default function HomeScreen() {
           <Text className="text-xs text-slate-500">Today</Text>
         </View>
         <View className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          {isLoading ? (
+          {todayLoading ? (
             <View className="p-6 items-center">
               <ActivityIndicator />
             </View>
-          ) : error ? (
+          ) : todayError ? (
             <View className="p-6 items-center">
               <Text className="text-xs text-red-600">Could not load jobs.</Text>
             </View>
-          ) : jobs.length === 0 ? (
+          ) : todayJobs.length === 0 ? (
             <View className="p-6 items-center">
               <Text className="text-xs text-slate-500">No jobs scheduled today.</Text>
             </View>
           ) : (
-            jobs.map((j: Job) => <UpcomingJobRow key={j.id} job={toUpcoming(j)} />)
+            todayJobs.map((j: Job) => <UpcomingJobRow key={j.id} job={toUpcoming(j)} />)
           )}
         </View>
       </ScrollView>

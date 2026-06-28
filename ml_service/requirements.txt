@@ -5,3 +5,6 @@ numpy>=2.0
 pandas>=2.2
 scikit-learn>=1.5
 scipy>=1.13
+joblib>=1.4
+imbalanced-learn>=0.12
+xgboost>=2.0

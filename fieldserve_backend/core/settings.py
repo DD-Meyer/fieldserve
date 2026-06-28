@@ -127,6 +127,10 @@ CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL", "")
 CLERK_ISSUER = os.environ.get("CLERK_ISSUER", "")
 CLERK_WEBHOOK_SECRET = os.environ.get("CLERK_WEBHOOK_SECRET", "")
 
+# --- ML service (FastAPI) ---
+ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://ml:8001")
+ML_INTERNAL_TOKEN = os.environ.get("ML_INTERNAL_TOKEN", "")
+
 # --- CORS ---
 _cors_env = os.environ.get("DJANGO_CORS_ORIGINS", "").strip()
 if _cors_env:

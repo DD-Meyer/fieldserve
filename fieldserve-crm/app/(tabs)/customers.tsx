@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import "../../global.css";
 
 import AppHeader from "../../components/AppHeader";
@@ -15,8 +16,12 @@ import CustomerChurnCard, {
   type ChurnCustomer,
 } from "../../components/CustomerChurnCard";
 import FilterPills from "../../components/FilterPills";
-import { levelFromProb } from "../../components/RiskBadge";
+import { levelFromProb, type RiskLevel } from "../../components/RiskBadge";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import {
+  useChurnScores,
+  type ChurnScore,
+} from "../../lib/hooks/useChurn";
 import {
   useCreateCustomer,
   useCustomers,
@@ -34,24 +39,62 @@ const PILLS = [
   { key: "low", label: "Low Risk" },
 ];
 
-function daysSince(iso: string | null | undefined): number {
-  if (!iso) return 999;
+const BUCKET_TO_LEVEL: Record<ChurnScore["risk_bucket"], RiskLevel> = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+};
+
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
   const ms = Date.now() - new Date(iso).getTime();
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
-// Placeholder churn calc until the ML service wires up.
-function toChurn(c: Customer): ChurnCustomer {
-  const recency = daysSince(c.last_seen_at);
-  const probability = Math.min(0.95, recency / 120);
+function formatLastVisit(c: Customer, snapRecency: number | null): string {
+  const recency = snapRecency ?? daysSince(c.last_seen_at);
+  if (recency == null) return "Never";
+  return `${recency} day${recency === 1 ? "" : "s"} ago`;
+}
+
+function toChurnRow(c: Customer, score?: ChurnScore): ChurnCustomer & {
+  level: RiskLevel;
+  scored: boolean;
+} {
+  if (score) {
+    const snap = score.feature_snapshot ?? {};
+    const recency =
+      typeof snap.recency_days === "number"
+        ? Math.round(snap.recency_days)
+        : daysSince(c.last_seen_at) ?? 0;
+    return {
+      id: c.id,
+      name: c.full_name,
+      lastVisit: formatLastVisit(c, recency),
+      probability: Number(score.probability),
+      level: BUCKET_TO_LEVEL[score.risk_bucket],
+      recencyDays: recency,
+      frequency:
+        typeof snap.freq_12m === "number" ? Math.round(snap.freq_12m) : 0,
+      monetary:
+        typeof snap.total_spend_12m === "number"
+          ? Math.round(snap.total_spend_12m)
+          : 0,
+      scored: true,
+    };
+  }
+
+  const recency = daysSince(c.last_seen_at) ?? 999;
   return {
     id: c.id,
     name: c.full_name,
     lastVisit: c.last_seen_at ? `${recency} days ago` : "Never",
-    probability,
+    probability: 0,
+    level: "low",
     recencyDays: recency,
     frequency: 0,
     monetary: 0,
+    scored: false,
   };
 }
 
@@ -59,22 +102,55 @@ export default function Customers() {
   const [active, setActive] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const tabBarSpace = useTabBarSpace();
+  const router = useRouter();
 
-  const { data, isLoading, error, refetch } = useCustomers();
-  const customers = (data?.results ?? []).map(toChurn);
+  const {
+    data: customerData,
+    isLoading: customersLoading,
+    error: customersError,
+    refetch,
+  } = useCustomers();
+  const { data: churnData, isLoading: churnLoading } = useChurnScores();
+
+  const scoreByCustomer = useMemo(() => {
+    const map = new Map<number, ChurnScore>();
+    (churnData?.results ?? []).forEach((s) => map.set(s.customer, s));
+    return map;
+  }, [churnData]);
+
+  const rows = useMemo(
+    () =>
+      (customerData?.results ?? []).map((c) =>
+        toChurnRow(c, scoreByCustomer.get(c.id)),
+      ),
+    [customerData, scoreByCustomer],
+  );
 
   const filtered = useMemo(() => {
-    if (active === "all") return customers;
-    return customers.filter((c) => levelFromProb(c.probability) === active);
-  }, [active, customers]);
+    if (active === "all") return rows;
+    return rows.filter((r) => r.scored && r.level === active);
+  }, [active, rows]);
 
   const counts = useMemo(() => {
-    const c = { high: 0, medium: 0, low: 0 };
-    customers.forEach((cust) => {
-      c[levelFromProb(cust.probability)]++;
+    const c = { high: 0, medium: 0, low: 0, unscored: 0 };
+    rows.forEach((r) => {
+      if (!r.scored) c.unscored++;
+      else c[r.level]++;
     });
     return c;
-  }, [customers]);
+  }, [rows]);
+
+  const modelMeta = useMemo(() => {
+    const first = (churnData?.results ?? [])[0];
+    if (!first) return null;
+    return {
+      name: first.model_name,
+      featureSet: first.feature_set,
+      trainedAt: first.model_version,
+    };
+  }, [churnData]);
+
+  const isLoading = customersLoading || churnLoading;
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
@@ -93,7 +169,9 @@ export default function Customers() {
           </Pressable>
         </View>
         <Text className="text-xs text-slate-500 mt-1 mb-4">
-          Placeholder scores — real RFM model coming once ML service is wired.
+          {modelMeta
+            ? `${modelMeta.name} · ${modelMeta.featureSet} · trained ${modelMeta.trainedAt}`
+            : "No churn scores yet — run `score_churn` on the backend."}
         </Text>
 
         <View className="flex-row gap-2 mb-4">
@@ -111,6 +189,12 @@ export default function Customers() {
             <Text className="text-lg font-bold text-green-600">{counts.low}</Text>
             <Text className="text-[11px] text-slate-500">Low</Text>
           </View>
+          <View className="flex-1 bg-white rounded-xl border border-slate-200 p-3 items-center">
+            <Text className="text-lg font-bold text-slate-500">
+              {counts.unscored}
+            </Text>
+            <Text className="text-[11px] text-slate-500">Unscored</Text>
+          </View>
         </View>
 
         <View className="mb-4">
@@ -121,7 +205,7 @@ export default function Customers() {
           <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
             <ActivityIndicator />
           </View>
-        ) : error ? (
+        ) : customersError ? (
           <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
             <Text className="text-xs text-red-600">Could not load customers.</Text>
           </View>
@@ -132,7 +216,14 @@ export default function Customers() {
             </Text>
           </View>
         ) : (
-          filtered.map((c) => <CustomerChurnCard key={c.id} customer={c} />)
+          filtered.map((c) => (
+            <Pressable
+              key={c.id}
+              onPress={() => router.push(`/customer/${c.id}`)}
+            >
+              <CustomerChurnCard customer={c} />
+            </Pressable>
+          ))
         )}
       </ScrollView>
 

@@ -52,6 +52,7 @@ export function useApi() {
       if (body !== undefined) headers["Content-Type"] = "application/json";
       if (isSignedIn) {
         const token = await getToken();
+        console.log("CLERK_TOKEN", token);
         if (token) headers["Authorization"] = `Bearer ${token}`;
       }
       console.log(
