@@ -19,6 +19,7 @@ type MenuItem = {
 };
 
 const MENU: MenuItem[] = [
+  { label: "Bookings", route: "/bookings", description: "All jobs — filter by status" },
   { label: "Services", route: "/services", description: "Manage offerings & pricing" },
   { label: "Team Management", route: "/team", description: "Staff, roles & assignments" },
   { label: "Company Info", route: "/company", description: "Business profile" },

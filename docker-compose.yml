@@ -38,5 +38,18 @@ services:
       - ./ml_service:/app
     restart: unless-stopped
 
+  scheduler:
+    build: ./fieldserve_backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      ml:
+        condition: service_started
+    volumes:
+      - ./fieldserve_backend:/app
+    command: ["python", "manage.py", "run_scheduler"]
+    restart: unless-stopped
+
 volumes:
   postgres_data:
