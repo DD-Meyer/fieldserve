@@ -5,6 +5,7 @@ import CatchmentZoneRow, { type CatchmentZone } from "../CatchmentZoneRow";
 import FilterPills from "../FilterPills";
 import HeatmapPlaceholder from "../HeatmapPlaceholder";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useHeatmap } from "../../lib/hooks/usePredictions";
 
 const RANGES = [
   { key: "all", label: "All Time" },
@@ -24,6 +25,7 @@ const ZONES: CatchmentZone[] = [
 export default function MapFixed() {
   const [range, setRange] = useState("90d");
   const tabBarSpace = useTabBarSpace();
+  const heatmap = useHeatmap({ weight_by: "count" });
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
@@ -36,7 +38,13 @@ export default function MapFixed() {
         <FilterPills pills={RANGES} active={range} onChange={setRange} />
       </View>
 
-      <HeatmapPlaceholder />
+      <HeatmapPlaceholder
+        cells={heatmap.data?.cells}
+        bounds={heatmap.data?.bounds}
+        pointCount={heatmap.data?.point_count}
+        loading={heatmap.isLoading}
+        error={heatmap.error}
+      />
 
       <View className="mt-6 mb-2 flex-row items-center justify-between">
         <Text className="text-base font-semibold text-slate-900">

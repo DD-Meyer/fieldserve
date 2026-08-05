@@ -33,11 +33,14 @@ function AuthGate() {
   useEffect(() => {
     if (!isLoaded) return;
     const inAuthGroup = segments[0] === "(auth)";
+    const inPublicGroup = segments[0] === "book";
     console.log("[FieldServe] AuthGate effect", {
       isSignedIn,
       firstSegment: segments[0],
       inAuthGroup,
+      inPublicGroup,
     });
+    if (inPublicGroup) return;
     if (!isSignedIn && !inAuthGroup) {
       router.replace("/(auth)/sign-in");
     } else if (isSignedIn && inAuthGroup) {

@@ -51,6 +51,35 @@ class MLClient:
         """GET /predict/churn/info — diagnostic metadata for the live bundle."""
         return self._get("/predict/churn/info")
 
+    def heatmap(
+        self,
+        points: list[dict[str, Any]],
+        *,
+        grid_size: int = 40,
+        bandwidth: float | None = None,
+    ) -> dict[str, Any]:
+        """POST /predict/heatmap — KDE grid of demand density."""
+        payload: dict[str, Any] = {"points": points, "grid_size": grid_size}
+        if bandwidth is not None:
+            payload["bandwidth"] = bandwidth
+        return self._post("/predict/heatmap", payload)
+
+    def optimise_schedule(
+        self,
+        depot: tuple[float, float],
+        jobs: list[dict[str, Any]],
+        *,
+        average_speed_kmh: float = 40.0,
+    ) -> dict[str, Any]:
+        """POST /predict/schedule — nearest-neighbour route ordering."""
+        payload = {
+            "depot_latitude": depot[0],
+            "depot_longitude": depot[1],
+            "jobs": jobs,
+            "average_speed_kmh": average_speed_kmh,
+        }
+        return self._post("/predict/schedule", payload)
+
     # ---- admin (token-gated) ---------------------------------------------
 
     def train_from_features(

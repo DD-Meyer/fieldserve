@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import RouteStopRow, { type RouteStop } from "../RouteStopRow";
 import SegmentedToggle from "../SegmentedToggle";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useJobs, type Job } from "../../lib/hooks/useJobs";
+import {
+  useOptimiseSchedule,
+  type ScheduleResponse,
+} from "../../lib/hooks/usePredictions";
 
 const OPTIONS = [
   { key: "optimized", label: "Optimized" },
@@ -13,12 +17,12 @@ const OPTIONS = [
 
 function formatHours(min: number) {
   const h = Math.floor(Math.abs(min) / 60);
-  const m = Math.abs(min) % 60;
+  const m = Math.round(Math.abs(min) % 60);
   const sign = min < 0 ? "-" : "";
   return h > 0 ? `${sign}${h}h ${m}m` : `${sign}${m}m`;
 }
 
-function toStop(j: Job, order: number): RouteStop {
+function toStop(j: Job, order: number, distanceKm = 0): RouteStop {
   const d = new Date(j.scheduled_at);
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return {
@@ -27,8 +31,12 @@ function toStop(j: Job, order: number): RouteStop {
     customer: j.customer_name || `Customer #${j.customer}`,
     location: j.address || j.customer_address || "—",
     durationMin: j.duration_minutes ?? 30,
-    distanceKm: 0, // populated by ML scheduler once wired
+    distanceKm,
   };
+}
+
+function hasLatLng(j: Job): j is Job & { latitude: number; longitude: number } {
+  return typeof j.latitude === "number" && typeof j.longitude === "number";
 }
 
 export default function ScheduleMobile() {
@@ -36,19 +44,64 @@ export default function ScheduleMobile() {
   const tabBarSpace = useTabBarSpace();
 
   const { data, isLoading, error } = useJobs({
-    date: "today",
     ordering: "scheduled_at",
   });
 
-  const stops: RouteStop[] = useMemo(
-    () => (data?.results ?? []).map(toStop),
-    [data],
-  );
+  const jobs = data?.results ?? [];
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    return jobs.filter(
+      (j) =>
+        j.status !== "completed" &&
+        j.status !== "cancelled" &&
+        new Date(j.scheduled_at).getTime() >= now - 6 * 60 * 60 * 1000,
+    );
+  }, [jobs]);
+  const geoJobs = useMemo(() => upcoming.filter(hasLatLng), [upcoming]);
+  const geoKey = geoJobs.map((j) => j.id).join(",");
+
+  const optimise = useOptimiseSchedule();
+  const [route, setRoute] = useState<ScheduleResponse | null>(null);
+
+  useEffect(() => {
+    if (mode !== "optimized" || geoJobs.length < 2) {
+      setRoute(null);
+      return;
+    }
+    // Depot = centroid of today's jobs until Business gains a depot field.
+    const lat = geoJobs.reduce((s, j) => s + j.latitude, 0) / geoJobs.length;
+    const lng = geoJobs.reduce((s, j) => s + j.longitude, 0) / geoJobs.length;
+    optimise
+      .mutateAsync({
+        depot: { latitude: lat, longitude: lng },
+        job_ids: geoJobs.map((j) => j.id),
+        average_speed_kmh: 40,
+      })
+      .then(setRoute)
+      .catch(() => setRoute(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, geoKey]);
+
+  const stops: RouteStop[] = useMemo(() => {
+    if (route && route.stops.length > 0) {
+      const byId = new Map(upcoming.map((j) => [j.id, j]));
+      return route.stops
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((s) => {
+          const j = byId.get(s.job_id);
+          if (!j) return null;
+          return toStop(j, s.order, s.distance_km);
+        })
+        .filter(Boolean) as RouteStop[];
+    }
+    return upcoming.map((j, i) => toStop(j, i + 1));
+  }, [route, upcoming]);
 
   const totalDurationMin = stops.reduce((s, x) => s + x.durationMin, 0);
-  // Placeholder hero numbers until ML scheduler returns optimised totals.
-  const savedMin = stops.length > 1 ? 45 : 0;
-  const totalKm = stops.length * 4.2;
+  const totalKm = route?.total_distance_km ?? stops.length * 4.2;
+  const travelMin = route?.total_travel_minutes ?? 0;
+  const savedMin = route ? Math.max(0, stops.length * 8 - travelMin) : 0;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
@@ -56,7 +109,7 @@ export default function ScheduleMobile() {
         Smart Schedule Optimizer
       </Text>
       <Text className="text-xs text-slate-500 mt-1 mb-4">
-        Today&apos;s route from the backend; travel-time savings via ML coming soon.
+        Upcoming route ordered by the ML nearest-neighbour scheduler.
       </Text>
 
       <View className="bg-blue-600 rounded-2xl p-5">
@@ -79,6 +132,7 @@ export default function ScheduleMobile() {
             </Text>
             <Text className="text-blue-200 text-[11px] mt-0.5">
               ~{totalKm.toFixed(1)} km
+              {route ? ` • ${formatHours(travelMin)} travel` : ""}
             </Text>
           </View>
         </View>
@@ -89,10 +143,10 @@ export default function ScheduleMobile() {
       </View>
 
       <Text className="mt-5 mb-3 text-base font-semibold text-slate-900">
-        Today&apos;s Route
+        Upcoming Route
       </Text>
       <View className="bg-white rounded-2xl border border-slate-200 p-4">
-        {isLoading ? (
+        {isLoading || optimise.isPending ? (
           <View className="py-6 items-center">
             <ActivityIndicator />
           </View>
@@ -100,7 +154,7 @@ export default function ScheduleMobile() {
           <Text className="text-xs text-red-600">Could not load route.</Text>
         ) : stops.length === 0 ? (
           <Text className="text-xs text-slate-500">
-            No jobs scheduled today.
+            No upcoming jobs. Create a booking to populate the route.
           </Text>
         ) : (
           stops.map((stop, i) => (
@@ -113,13 +167,15 @@ export default function ScheduleMobile() {
         )}
       </View>
 
-      <View className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 flex-row">
-        <Text className="text-amber-700 text-sm mr-2">ⓘ</Text>
-        <Text className="text-amber-800 text-xs leading-4 flex-1">
-          Travel distance/time savings will be computed by the ML scheduler in the
-          next iteration.
-        </Text>
-      </View>
+      {mode === "optimized" && geoJobs.length < 2 ? (
+        <View className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 flex-row">
+          <Text className="text-amber-700 text-sm mr-2">ⓘ</Text>
+          <Text className="text-amber-800 text-xs leading-4 flex-1">
+            Route optimisation needs at least two upcoming jobs with a saved
+            location. Add lat/lng to jobs to see the ML nearest-neighbour plan.
+          </Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

@@ -3,10 +3,23 @@ import { Image, Text, View } from "react-native";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SettingsGroup from "../components/SettingsGroup";
 import SettingsRow from "../components/SettingsRow";
+import { useAuth } from "@clerk/clerk-expo";
 
 const AVATAR = require("../assets/images/avatar.png");
 
+
 export default function ProfileScreen() {
+  // Extract signOut from the useAuth hook
+  const { signOut } = useAuth(); 
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
+
   return (
     <ScreenScaffold
       title="Profile"
@@ -31,7 +44,7 @@ export default function ProfileScreen() {
       </SettingsGroup>
 
       <SettingsGroup>
-        <SettingsRow label="Sign out" destructive onPress={() => {}} />
+        <SettingsRow label="Sign out" destructive onPress={handleSignOut} />
       </SettingsGroup>
     </ScreenScaffold>
   );

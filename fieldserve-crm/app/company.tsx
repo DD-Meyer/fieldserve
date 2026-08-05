@@ -1,5 +1,5 @@
-import { Text, View } from "react-native";
-
+import { Button, Text, TextInput, View } from "react-native";
+import { useState } from "react";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SegmentedToggle from "../components/SegmentedToggle";
 import SettingsGroup from "../components/SettingsGroup";
@@ -13,6 +13,27 @@ const INDUSTRY_OPTIONS = [
 
 export default function CompanyScreen() {
   const { mode, setMode } = useIndustry();
+  const [showAdd, setShowAdd] = useState(false);
+
+  function CompanyScreenAddBusinessNameModal(
+    { visible, onClose }: { visible: boolean;
+      onClose: () => void }) {
+        const [prevName, setPrevName] = useState();
+        const [name, setName] = useState("");
+        if (!visible) return null;
+        return (
+          <View className="p-4">
+            <Text className="text-sm text-slate-700 mb-2">Business Name</Text>
+            <TextInput
+              className="border border-slate-300 rounded-lg p-2"
+              placeholder="Enter business name"
+              value={name}
+              onChangeText={setName}
+            />
+            <Button title="Close" onPress={onClose} />
+          </View>
+        );
+  }
 
   return (
     <ScreenScaffold title="Company Info" subtitle="Business profile and branding">
@@ -36,7 +57,8 @@ export default function CompanyScreen() {
       </Text>
 
       <SettingsGroup title="Business">
-        <SettingsRow label="Name" value="FieldServe Detailing" onPress={() => {}} />
+        <SettingsRow label="Name" value="FieldServe Detailing" onPress={() => setShowAdd(true)} />
+        <CompanyScreenAddBusinessNameModal visible={showAdd} onClose={() => setShowAdd(false)} />
         <SettingsRow label="Trading name" value="FieldServe" onPress={() => {}} />
         <SettingsRow label="Tax ID" value="—" onPress={() => {}} />
       </SettingsGroup>

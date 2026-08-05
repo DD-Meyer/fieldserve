@@ -20,11 +20,13 @@ import home1 from "@/assets/icons/home1.png";
 import customers from "@/assets/icons/customers.png";
 import schedule from "@/assets/icons/schedule.png";
 import map from "@/assets/icons/map.png";
+import bookings from "@/assets/icons/bookings.png";
 
 
 export const icons = {
     home,
     home1,
+    bookings,
     schedule,
     customers,
     map,
