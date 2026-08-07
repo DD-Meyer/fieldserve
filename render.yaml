@@ -28,8 +28,10 @@ services:
     rootDir: fieldserve_backend
     dockerfilePath: ./Dockerfile
     plan: starter
-    healthCheckPath: /
+    healthCheckPath: /admin/
     envVars:
+      - key: PORT
+        value: "8000"
       # Database connection parameters
       - key: DATABASE_URL
         fromDatabase:
