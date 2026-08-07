@@ -5,7 +5,7 @@ databases:
     databaseName: fieldserve
     user: fieldserve_user
     region: frankfurt
-    plan: basic-1gb # Updated from 'starter' to current Render DB instance plan
+    plan: basic-256mb # Updated from 'starter' to current Render DB instance plan
 
 services:
   # 1. Private ML Service
