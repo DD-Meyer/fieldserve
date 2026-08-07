@@ -1,0 +1,69 @@
+databases:
+  - name: fieldserve-db
+    plan: starter
+    databaseName: fieldserve
+    user: fieldserve_user
+    region: frankfurt
+
+services:
+  - type: pserv
+    name: fieldserve-ml
+    runtime: docker
+    region: frankfurt
+    rootDir: ml_service
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    envVars:
+      - key: ML_INTERNAL_TOKEN
+        generateValue: true
+
+  - type: web
+    name: fieldserve-backend
+    runtime: docker
+    region: frankfurt
+    rootDir: fieldserve_backend
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: fieldserve-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: fieldserve-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: fieldserve-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: fieldserve-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: fieldserve-db
+          property: port
+      - key: ML_SERVICE_URL
+        fromService:
+          name: fieldserve-ml
+          type: pserv
+          property: hostport
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: fieldserve-backend.onrender.com
+      - key: DJANGO_CORS_ORIGINS
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: CLERK_ISSUER
+        sync: false
+      - key: CLERK_WEBHOOK_SECRET
+        sync: false
