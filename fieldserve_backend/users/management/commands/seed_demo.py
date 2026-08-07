@@ -1,13 +1,19 @@
 """
 Seed a demo business + customers + jobs so the Expo app has data to display
-after a fresh sign-in. Idempotent: re-running the same --clerk-id is safe.
+after a fresh sign-in. Idempotent: re-running the same --clerk-id/--industry
+combination is safe.
 
 Usage:
-    python manage.py seed_demo --clerk-id <clerk_user_id> [--email me@x.com]
+    python manage.py seed_demo --clerk-id <clerk_user_id> [--email me@x.com] [--industry mobile|fixed]
+
+Run twice with different --industry values (same --clerk-id) to give one
+demo login two businesses — mobile and fixed — so reviewers can flip the
+industry-mode switch and see genuinely different data on each side.
 """
 
 from __future__ import annotations
 
+import random
 from datetime import timedelta
 from decimal import Decimal
 
@@ -129,7 +135,7 @@ SEED_CUSTOMERS = [
 
 
 def _job_specs(today_start):
-    # 6 jobs today + 2 tomorrow, varied statuses
+    # 6 jobs today + 2 tomorrow + 1 cancelled, varied statuses
     return [
         (0, today_start.replace(hour=9,  minute=0),  60,  Decimal("80.00"),  "Full Detail · Sedan",     Job.Status.SCHEDULED),
         (1, today_start.replace(hour=10, minute=30), 45,  Decimal("45.00"),  "Exterior Wash",           Job.Status.SCHEDULED),
@@ -139,7 +145,29 @@ def _job_specs(today_start):
         (5, today_start.replace(hour=8,  minute=0)  - timedelta(days=1), 30, Decimal("25.00"), "Express Wash", Job.Status.COMPLETED),
         (0, today_start.replace(hour=10, minute=0)  + timedelta(days=1), 60, Decimal("80.00"), "Full Detail · Sedan", Job.Status.SCHEDULED),
         (2, today_start.replace(hour=13, minute=0)  + timedelta(days=1), 75, Decimal("120.00"), "Interior Detail · SUV", Job.Status.PENDING),
+        (1, today_start.replace(hour=11, minute=0)  - timedelta(days=3), 45, Decimal("45.00"), "Exterior Wash", Job.Status.CANCELLED),
     ]
+
+
+# Recency buckets → deterministic churn-risk spread across the seeded base.
+# (days_ago_low, days_ago_high, weight) — weight controls how many customers land here
+RECENCY_BUCKETS = [
+    (1, 7, 0.30),      # recently active — low churn risk
+    (15, 45, 0.40),    # mid-tenure — moderate risk
+    (90, 210, 0.30),   # gone quiet — high risk
+]
+
+
+def _spread_last_seen(rng: random.Random, n: int) -> list[int]:
+    """Return n day-offsets drawn from RECENCY_BUCKETS, so churn scores vary."""
+    days = []
+    for low, high, weight in RECENCY_BUCKETS:
+        count = round(n * weight)
+        days.extend(rng.randint(low, high) for _ in range(count))
+    while len(days) < n:
+        days.append(rng.randint(15, 45))
+    rng.shuffle(days)
+    return days[:n]
 
 
 class Command(BaseCommand):
@@ -151,16 +179,34 @@ class Command(BaseCommand):
         parser.add_argument(
             "--business-name",
             default="FieldServe Detailing",
-            help="Business display name",
+            help="Business display name (industry suffix appended automatically)",
+        )
+        parser.add_argument(
+            "--industry",
+            choices=[Business.Industry.MOBILE, Business.Industry.FIXED],
+            default=Business.Industry.MOBILE,
+            help="Which industry mode to seed this business as",
+        )
+        parser.add_argument(
+            "--seed",
+            type=int,
+            default=42,
+            help="RNG seed, so re-runs are deterministic",
         )
 
     @transaction.atomic
     def handle(self, *args, **opts):
         clerk_id = opts["clerk_id"].strip()
         email = opts["email"].strip()
-        biz_name = opts["business_name"].strip()
+        industry = opts["industry"]
+        rng = random.Random(opts["seed"])
+
         if not clerk_id:
             raise CommandError("--clerk-id is required")
+
+        base_name = opts["business_name"].strip()
+        label = "Mobile" if industry == Business.Industry.MOBILE else "Fixed Location"
+        biz_name = f"{base_name} ({label})"
 
         user, _ = User.objects.get_or_create(
             clerk_user_id=clerk_id,
@@ -176,12 +222,12 @@ class Command(BaseCommand):
             user.save(update_fields=["email"])
 
         slug = slugify(biz_name)
-        biz, biz_created = Business.objects.get_or_create(
+        biz, _ = Business.objects.get_or_create(
             owner=user,
             name=biz_name,
             defaults={
                 "slug": slug,
-                "industry_mode": Business.Industry.MOBILE,
+                "industry_mode": industry,
                 "email": "hello@fieldserve.local",
                 "phone": "+44 20 1234 5678",
             },
@@ -195,8 +241,10 @@ class Command(BaseCommand):
             },
         )
 
+        offsets = _spread_last_seen(rng, len(SEED_CUSTOMERS))
+
         customers: list[Customer] = []
-        for name, c_email, phone, address, lng, lat in SEED_CUSTOMERS:
+        for (name, c_email, phone, address, lng, lat), days_ago in zip(SEED_CUSTOMERS, offsets):
             cust, _ = Customer.objects.get_or_create(
                 business=biz,
                 full_name=name,
@@ -205,7 +253,7 @@ class Command(BaseCommand):
                     "phone": phone,
                     "address": address,
                     "location": Point(lng, lat, srid=4326),
-                    "last_seen_at": timezone.now() - timedelta(days=10),
+                    "last_seen_at": timezone.now() - timedelta(days=days_ago),
                 },
             )
             customers.append(cust)
@@ -214,32 +262,36 @@ class Command(BaseCommand):
             hour=0, minute=0, second=0, microsecond=0
         )
 
-        # We iterate over customers and use the index to pick a job from the list.
         for idx, cust in enumerate(customers):
             specs = _job_specs(today_start)
             spec_idx = idx % len(specs)
             _, when, dur, price, svc, status = specs[spec_idx]
 
-            job_time = when - timedelta(days=(idx % 90))  # spread jobs over the last 90 days
+            job_time = when - timedelta(days=(idx % 90))
+
+            job_defaults = {
+                "duration_minutes": dur,
+                "price": price,
+                "status": status,
+                "address": cust.address,
+                "location": cust.location,
+                "assigned_to": user,
+            }
+            if status == Job.Status.COMPLETED:
+                job_defaults["completed_at"] = job_time + timedelta(minutes=dur)
 
             Job.objects.get_or_create(
                 business=biz,
                 customer=cust,
                 scheduled_at=job_time,
                 service_type=svc,
-                defaults={
-                    "duration_minutes": dur,
-                    "price": price,
-                    "status": status,
-                    "address": cust.address,
-                    "location": cust.location,
-                    "assigned_to": user,
-                },
+                defaults=job_defaults,
             )
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Seed done. user={user.email} business='{biz.name}' "
-                f"customers={len(customers)} jobs={Job.objects.filter(business=biz).count()}"
+                f"industry={industry} customers={len(customers)} "
+                f"jobs={Job.objects.filter(business=biz).count()}"
             )
         )
