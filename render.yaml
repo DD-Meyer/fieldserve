@@ -1,11 +1,14 @@
+version: "1"
+
 databases:
   - name: fieldserve-db
-    plan: starter
     databaseName: fieldserve
     user: fieldserve_user
     region: frankfurt
+    plan: basic-1gb # Updated from 'starter' to current Render DB instance plan
 
 services:
+  # 1. Private ML Service
   - type: pserv
     name: fieldserve-ml
     runtime: docker
@@ -17,6 +20,7 @@ services:
       - key: ML_INTERNAL_TOKEN
         generateValue: true
 
+  # 2. Public Django Backend
   - type: web
     name: fieldserve-backend
     runtime: docker
@@ -26,6 +30,11 @@ services:
     plan: starter
     healthCheckPath: /
     envVars:
+      # Database connection parameters
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fieldserve-db
+          property: connectionString
       - key: POSTGRES_DB
         fromDatabase:
           name: fieldserve-db
@@ -46,17 +55,28 @@ services:
         fromDatabase:
           name: fieldserve-db
           property: port
+
+      # Internal ML service connection
       - key: ML_SERVICE_URL
         fromService:
           name: fieldserve-ml
           type: pserv
           property: hostport
+      - key: ML_INTERNAL_TOKEN
+        fromService:
+          name: fieldserve-ml
+          type: pserv
+          envVarKey: ML_INTERNAL_TOKEN
+
+      # Django configuration
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DJANGO_DEBUG
         value: "0"
       - key: DJANGO_ALLOWED_HOSTS
         value: fieldserve-backend.onrender.com
+
+      # External integrations (set manually in Render UI)
       - key: DJANGO_CORS_ORIGINS
         sync: false
       - key: CLERK_SECRET_KEY
