@@ -41,6 +41,15 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
+# Tell Django to trust Render's reverse proxy for HTTPS detection
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Add CSRF trusted origins parsed from environment variables
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://fieldserve-backend.onrender.com'
+).split(',')
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
