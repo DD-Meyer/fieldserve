@@ -6,13 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmFuY3ktZ2hvc3QtMzMuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_API_URL": "http://192.168.0.10:8000",
+        "EXPO_PUBLIC_URL": "http://192.168.0.10:8000"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmFuY3ktZ2hvc3QtMzMuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_API_URL": "https://fieldserve-backend.onrender.com",
+        "EXPO_PUBLIC_URL": "https://fieldserve-backend.onrender.com"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmFuY3ktZ2hvc3QtMzMuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_API_URL": "https://fieldserve-backend.onrender.com",
+        "EXPO_PUBLIC_URL": "https://fieldserve-backend.onrender.com"
+      }
     }
   },
   "submit": {
