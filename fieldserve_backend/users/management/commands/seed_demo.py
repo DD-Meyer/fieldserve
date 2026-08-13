@@ -5,6 +5,10 @@ combination is safe.
 
 Usage:
     python manage.py seed_demo --clerk-id <clerk_user_id> [--email me@x.com] [--industry mobile|fixed]
+    python manage.py seed_demo --clerk-id <clerk_user_id> --reset
+
+Running with --reset will delete any existing customers/jobs for that business first.
+Running with --business-name allows you to override the default "FieldServe Detailing" name.
 
 Run twice with different --industry values (same --clerk-id) to give one
 demo login two businesses — mobile and fixed — so reviewers can flip the
@@ -193,6 +197,11 @@ class Command(BaseCommand):
             default=42,
             help="RNG seed, so re-runs are deterministic",
         )
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Delete existing customers/jobs for this business before seeding",
+        )
 
     @transaction.atomic
     def handle(self, *args, **opts):
@@ -241,6 +250,10 @@ class Command(BaseCommand):
             },
         )
 
+        if opts["reset"]:
+            Job.objects.filter(business=biz).delete()
+            Customer.objects.filter(business=biz).delete()
+
         offsets = _spread_last_seen(rng, len(SEED_CUSTOMERS))
 
         customers: list[Customer] = []
@@ -261,32 +274,48 @@ class Command(BaseCommand):
         today_start = timezone.localtime().replace(
             hour=0, minute=0, second=0, microsecond=0
         )
+        now = timezone.now()
 
+        # Give each customer 2-4 jobs spread across ±180 days for a realistic
+        # demo history. Deterministic per (seed, customer index).
         for idx, cust in enumerate(customers):
             specs = _job_specs(today_start)
-            spec_idx = idx % len(specs)
-            _, when, dur, price, svc, status = specs[spec_idx]
+            job_count = 2 + (idx % 3)  # 2, 3, or 4 jobs per customer
+            for k in range(job_count):
+                spec_idx = (idx + k) % len(specs)
+                _, when, dur, price, svc, status = specs[spec_idx]
 
-            job_time = when - timedelta(days=(idx % 90))
+                # Spread ±180 days, biased slightly toward the future so the
+                # Smart Schedule map always has upcoming stops to plan.
+                day_offset = ((idx * 11 + k * 37) % 360) - 150
+                job_time = when + timedelta(days=day_offset)
 
-            job_defaults = {
-                "duration_minutes": dur,
-                "price": price,
-                "status": status,
-                "address": cust.address,
-                "location": cust.location,
-                "assigned_to": user,
-            }
-            if status == Job.Status.COMPLETED:
-                job_defaults["completed_at"] = job_time + timedelta(minutes=dur)
+                # Past jobs become historical (COMPLETED); future jobs stay
+                # as SCHEDULED / PENDING.
+                if job_time < now - timedelta(hours=1) and status in (
+                    Job.Status.SCHEDULED,
+                    Job.Status.PENDING,
+                ):
+                    status = Job.Status.COMPLETED
 
-            Job.objects.get_or_create(
-                business=biz,
-                customer=cust,
-                scheduled_at=job_time,
-                service_type=svc,
-                defaults=job_defaults,
-            )
+                job_defaults = {
+                    "duration_minutes": dur,
+                    "price": price,
+                    "status": status,
+                    "address": cust.address,
+                    "location": cust.location,
+                    "assigned_to": user,
+                }
+                if status == Job.Status.COMPLETED:
+                    job_defaults["completed_at"] = job_time + timedelta(minutes=dur)
+
+                Job.objects.get_or_create(
+                    business=biz,
+                    customer=cust,
+                    scheduled_at=job_time,
+                    service_type=svc,
+                    defaults=job_defaults,
+                )
 
         self.stdout.write(
             self.style.SUCCESS(

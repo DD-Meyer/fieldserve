@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
+import LeafletMap from "../LeafletMap";
+import type { LeafletMarker } from "../leafletHtml";
 import RouteStopRow, { type RouteStop } from "../RouteStopRow";
 import SegmentedToggle from "../SegmentedToggle";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
@@ -103,6 +105,60 @@ export default function ScheduleMobile() {
   const travelMin = route?.total_travel_minutes ?? 0;
   const savedMin = route ? Math.max(0, stops.length * 8 - travelMin) : 0;
 
+  const depot = useMemo(() => {
+    if (geoJobs.length === 0) return null;
+    return {
+      latitude: geoJobs.reduce((s, j) => s + j.latitude, 0) / geoJobs.length,
+      longitude: geoJobs.reduce((s, j) => s + j.longitude, 0) / geoJobs.length,
+    };
+  }, [geoJobs]);
+
+  const mapMarkers: LeafletMarker[] = useMemo(() => {
+    const jobsById = new Map(geoJobs.map((j) => [j.id, j]));
+    const ordered =
+      route && route.stops.length > 0
+        ? route.stops
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((s) => {
+              const j = jobsById.get(s.job_id);
+              return j
+                ? {
+                    latitude: j.latitude,
+                    longitude: j.longitude,
+                    order: s.order,
+                    label:
+                      j.customer_name || j.address || `Job #${j.id}`,
+                  }
+                : null;
+            })
+            .filter(Boolean)
+        : geoJobs.map((j, i) => ({
+            latitude: j.latitude,
+            longitude: j.longitude,
+            order: i + 1,
+            label: j.customer_name || j.address || `Job #${j.id}`,
+          }));
+    const list = (ordered as LeafletMarker[]).slice();
+    if (depot) {
+      list.unshift({
+        latitude: depot.latitude,
+        longitude: depot.longitude,
+        order: 0,
+        label: "Depot",
+      });
+    }
+    return list;
+  }, [route, geoJobs, depot]);
+
+  const mapPath = useMemo(() => {
+    if (mapMarkers.length < 2) return [];
+    return mapMarkers.map((m) => ({
+      latitude: m.latitude,
+      longitude: m.longitude,
+    }));
+  }, [mapMarkers]);
+
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
       <Text className="text-xl font-bold text-slate-900">
@@ -145,6 +201,13 @@ export default function ScheduleMobile() {
       <Text className="mt-5 mb-3 text-base font-semibold text-slate-900">
         Upcoming Route
       </Text>
+
+      {mapMarkers.length > 0 ? (
+        <View className="mb-3">
+          <LeafletMap markers={mapMarkers} path={mapPath} height={240} />
+        </View>
+      ) : null}
+
       <View className="bg-white rounded-2xl border border-slate-200 p-4">
         {isLoading || optimise.isPending ? (
           <View className="py-6 items-center">

@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 
+import LeafletMap from "./LeafletMap";
 import type { HeatmapBounds, HeatmapCell } from "../lib/hooks/usePredictions";
 
 const STOPS = [
@@ -16,13 +17,6 @@ type Props = {
   error?: unknown;
   pointCount?: number;
 };
-
-function colorFor(intensity: number): string {
-  if (intensity >= 0.75) return "rgba(220,38,38,0.6)";
-  if (intensity >= 0.5) return "rgba(251,146,60,0.55)";
-  if (intensity >= 0.25) return "rgba(253,230,138,0.6)";
-  return "rgba(220,252,231,0.7)";
-}
 
 function isFullBounds(b: unknown): b is HeatmapBounds {
   return (
@@ -43,15 +37,27 @@ export default function HeatmapPlaceholder({
 }: Props) {
   const hasRealData = (cells?.length ?? 0) > 0 && isFullBounds(bounds);
 
+  const center = hasRealData && isFullBounds(bounds)
+    ? {
+        latitude: (bounds.lat_min + bounds.lat_max) / 2,
+        longitude: (bounds.lng_min + bounds.lng_max) / 2,
+      }
+    : undefined;
+
   return (
     <View className="rounded-2xl overflow-hidden border border-slate-200 bg-white">
       <View className="h-56 relative bg-slate-100">
-        {hasRealData && bounds ? (
-          <RealHeat cells={cells!} bounds={bounds as HeatmapBounds} />
+        {hasRealData ? (
+          <LeafletMap
+            heatCells={cells}
+            center={center}
+            zoom={11}
+            height={224}
+          />
         ) : (
           <FauxBlobs />
         )}
-        <View className="absolute bottom-2 left-3 bg-white/80 rounded px-2 py-1">
+        <View className="absolute bottom-2 left-3 bg-white/80 rounded px-2 py-1 z-10">
           <Text className="text-[10px] text-slate-600">
             {loading
               ? "Loading KDE…"
@@ -80,44 +86,7 @@ export default function HeatmapPlaceholder({
   );
 }
 
-function RealHeat({
-  cells,
-  bounds,
-}: {
-  cells: HeatmapCell[];
-  bounds: HeatmapBounds;
-}) {
-  const latRange = Math.max(bounds.lat_max - bounds.lat_min, 1e-9);
-  const lngRange = Math.max(bounds.lng_max - bounds.lng_min, 1e-9);
-  // React Native starts to lag if we render thousands of absolutely-positioned Views.
-  const capped = cells.slice(0, 400);
-  return (
-    <>
-      {capped.map((c, i) => {
-        const xPct = ((c.longitude - bounds.lng_min) / lngRange) * 100;
-        const yPct = 100 - ((c.latitude - bounds.lat_min) / latRange) * 100;
-        const size = 14 + c.intensity * 14;
-        return (
-          <View
-            key={i}
-            style={{
-              position: "absolute",
-              left: `${xPct}%`,
-              top: `${yPct}%`,
-              width: size,
-              height: size,
-              marginLeft: -size / 2,
-              marginTop: -size / 2,
-              borderRadius: size / 2,
-              backgroundColor: colorFor(c.intensity),
-            }}
-          />
-        );
-      })}
-    </>
-  );
-}
-
+// Fallback rendered when no KDE data is available yet.
 function FauxBlobs() {
   return (
     <>
