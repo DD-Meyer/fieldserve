@@ -99,8 +99,25 @@ export function useApi() {
       put: <T = unknown>(path: string, body?: Json) =>
         request<T>("PUT", path, body),
       delete: <T = unknown>(path: string) => request<T>("DELETE", path),
+      postFormData: async <T = unknown>(
+        path: string,
+        form: FormData,
+      ): Promise<T> => {
+        const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+        const headers: Record<string, string> = { Accept: "application/json" };
+        if (isSignedIn) {
+          const token = await getToken();
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+        }
+        // NB: do NOT set Content-Type — the runtime must include the multipart
+        // boundary automatically.
+        const res = await fetch(url, { method: "POST", headers, body: form });
+        const parsed = await parseBody(res);
+        if (!res.ok) throw new ApiError(res.status, parsed);
+        return parsed as T;
+      },
     }),
-    [request],
+    [request, getToken, isSignedIn],
   );
 }
 

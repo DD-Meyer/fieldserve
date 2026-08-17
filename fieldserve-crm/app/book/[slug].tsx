@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,8 @@ import { useLocalSearchParams } from "expo-router";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
+
+import DateTimePickerField from "../../components/DateTimePickerField";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -38,6 +40,38 @@ type PublicService = {
   duration_minutes: number;
   price: string;
 };
+
+type SlotRecommendation = {
+  start: string;
+  end: string;
+  score: number;
+  label: string;
+  total_travel_minutes: number;
+};
+
+type SuggestSlotsResponse = {
+  date: string;
+  recommendations: SlotRecommendation[];
+  other_available: string[];
+};
+
+type CustomerLookup = {
+  found: boolean;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+};
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function isoToLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -138,7 +172,10 @@ export default function PublicBookingPage() {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [serviceId, setServiceId] = useState<number | null>(null);
-  const [scheduledAt, setScheduledAt] = useState(""); // ISO string, YYYY-MM-DDTHH:mm
+  const [scheduledAt, setScheduledAt] = useState(""); // ISO local: YYYY-MM-DDTHH:mm
+  const [suggestions, setSuggestions] = useState<SlotRecommendation[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [knownCustomer, setKnownCustomer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirm, setConfirm] = useState<{
     booking_id: number;
@@ -147,6 +184,84 @@ export default function PublicBookingPage() {
   } | null>(null);
 
   const brand = bizState.data?.brand_color || "#2563EB";
+
+  const targetDate = useMemo(() => {
+    if (scheduledAt) return scheduledAt.slice(0, 10);
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }, [scheduledAt]);
+
+  const minPickDate = useMemo(() => new Date(), []);
+
+  useEffect(() => {
+    if (!serviceId || !slug) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSlots(true);
+    apiPost<SuggestSlotsResponse>(
+      `/api/public/businesses/${slug}/suggest-slots/`,
+      {
+        date: targetDate,
+        service_id: serviceId,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+      },
+    )
+      .then((res) => {
+        if (!cancelled) setSuggestions(res.recommendations);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, serviceId, targetDate, email, phone]);
+
+  useEffect(() => {
+    if (!slug) return;
+    const emailTrim = email.trim();
+    const phoneTrim = phone.trim();
+    if (!emailTrim && !phoneTrim) {
+      setKnownCustomer(false);
+      return;
+    }
+    // Wait until email at least looks well-formed to avoid noisy lookups.
+    if (emailTrim && !emailTrim.includes("@")) return;
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      apiPost<CustomerLookup>(`/api/public/businesses/${slug}/lookup-customer/`, {
+        email: emailTrim || undefined,
+        phone: phoneTrim || undefined,
+      })
+        .then((res) => {
+          if (cancelled || !res.found) {
+            if (!cancelled) setKnownCustomer(false);
+            return;
+          }
+          setKnownCustomer(true);
+          if (!fullName.trim() && res.full_name) setFullName(res.full_name);
+          if (!phone.trim() && res.phone) setPhone(res.phone);
+          if (!address.trim() && res.address) setAddress(res.address);
+        })
+        .catch(() => {
+          if (!cancelled) setKnownCustomer(false);
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, email, phone]);
 
   const submit = async () => {
     if (!serviceId) {
@@ -217,7 +332,7 @@ export default function PublicBookingPage() {
             Bookings paused
           </Text>
           <Text className="text-slate-500 text-sm text-center mt-2">
-            {bizState.data.name} isn't accepting online bookings right now.
+            {bizState.data.name}{" isn't accepting online bookings right now."}
           </Text>
         </View>
       </SafeAreaView>
@@ -236,7 +351,7 @@ export default function PublicBookingPage() {
               Thanks, {fullName || "there"}!
             </Text>
             <Text className="text-white/90 text-sm mt-1">
-              We've received your booking request.
+              {"We've received your booking request."}
             </Text>
           </View>
           <View className="bg-white rounded-2xl border border-slate-200 p-4">
@@ -338,6 +453,13 @@ export default function PublicBookingPage() {
           2. Your details
         </Text>
         <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
+          {knownCustomer ? (
+            <View className="mb-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              <Text className="text-[11px] font-semibold text-green-800">
+                {"Welcome back — we've prefilled your details."}
+              </Text>
+            </View>
+          ) : null}
           <Field
             label="Full name"
             value={fullName}
@@ -370,12 +492,64 @@ export default function PublicBookingPage() {
           3. When?
         </Text>
         <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
-          <Field
-            label="Preferred date & time"
-            value={scheduledAt}
-            onChange={setScheduledAt}
-            placeholder="2026-08-01T10:00"
-          />
+          {suggestions.length > 0 ? (
+            <View className="mb-3">
+              <Text className="text-[11px] font-semibold text-slate-700 mb-2">
+                Recommended times
+              </Text>
+              <View className="flex-row flex-wrap">
+                {suggestions.map((r) => {
+                  const localStart = isoToLocalInput(r.start);
+                  const active = scheduledAt === localStart;
+                  return (
+                    <Pressable
+                      key={r.start}
+                      onPress={() => setScheduledAt(localStart)}
+                      className={`rounded-xl px-3 py-2 mr-2 mb-2 border ${
+                        active ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-white"
+                      }`}
+                      style={active ? { borderColor: brand } : undefined}
+                    >
+                      <Text className="text-xs font-semibold text-slate-900">
+                        {new Date(r.start).toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {" \u00b7 "}
+                        {r.label}
+                      </Text>
+                      <Text className="text-[10px] text-slate-500 mt-0.5">
+                        {new Date(r.start).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : loadingSlots && serviceId ? (
+            <View className="flex-row items-center mb-3">
+              <ActivityIndicator size="small" />
+              <Text className="text-[11px] text-slate-500 ml-2">
+                Finding open slots…
+              </Text>
+            </View>
+          ) : null}
+
+          <Text className="text-xs font-semibold text-slate-600 mb-1">
+            Preferred date & time
+          </Text>
+          <View className="mb-3">
+            <DateTimePickerField
+              value={scheduledAt}
+              onChange={setScheduledAt}
+              placeholder="Pick a date and time"
+              minimumDate={minPickDate}
+            />
+          </View>
           <Field
             label="Notes (optional)"
             value={notes}

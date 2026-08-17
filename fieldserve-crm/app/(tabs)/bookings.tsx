@@ -135,10 +135,10 @@ export default function BookingsPage() {
                 key={s}
                 className="flex-1 bg-white rounded-xl border border-slate-200 p-2 items-center"
               >
-                <Text className="text-base font-bold text-slate-900">
+                <Text className="text-xl font-bold text-slate-900">
                   {counts[s]}
                 </Text>
-                <Text className="text-[10px] text-slate-500 capitalize">
+                <Text className="text-[8px] text-slate-500 capitalize">
                   {s.replace("_", " ")}
                 </Text>
               </View>

@@ -18,6 +18,9 @@ load_dotenv(BASE_DIR / ".env")
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 # Enables efficient caching and compression for static files
 STORAGES = {
     "default": {
@@ -66,6 +69,7 @@ INSTALLED_APPS = [
     "businesses",
     "jobs",
     "analytics",
+    "inspections",
 ]
 
 MIDDLEWARE = [
@@ -153,6 +157,9 @@ CLERK_WEBHOOK_SECRET = os.environ.get("CLERK_WEBHOOK_SECRET", "")
 # --- ML service (FastAPI) ---
 ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://ml:8001")
 ML_INTERNAL_TOKEN = os.environ.get("ML_INTERNAL_TOKEN", "")
+
+# --- Road routing (OSRM-compatible API) ---
+ROAD_ROUTER_URL = os.environ.get("ROAD_ROUTER_URL", "https://router.project-osrm.org")
 
 # --- CORS ---
 _cors_env = os.environ.get("DJANGO_CORS_ORIGINS", "").strip()

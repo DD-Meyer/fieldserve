@@ -1,16 +1,16 @@
 from fastapi import FastAPI
 
-from routers import admin, churn, heatmap, scheduling
+from routers import admin, churn, heatmap, vehicle_damage
 
 app = FastAPI(
     title="FieldServe ML Service",
-    description="Churn, scheduling and heatmap predictions for the FieldServe CRM.",
-    version="0.1.0",
+    description="Churn, heatmap and vehicle-damage vision endpoints for FieldServe.",
+    version="0.3.0",
 )
 
 app.include_router(churn.router, prefix="/predict")
-app.include_router(scheduling.router, prefix="/predict")
 app.include_router(heatmap.router, prefix="/predict")
+app.include_router(vehicle_damage.router)
 app.include_router(admin.router)
 
 

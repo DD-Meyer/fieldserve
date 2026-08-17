@@ -1,21 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 
-import LeafletMap from "../LeafletMap";
+import ExpandableLeafletMap from "../ExpandableLeafletMap";
 import type { LeafletMarker } from "../leafletHtml";
 import RouteStopRow, { type RouteStop } from "../RouteStopRow";
-import SegmentedToggle from "../SegmentedToggle";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
-import { useJobs, type Job } from "../../lib/hooks/useJobs";
 import {
-  useOptimiseSchedule,
-  type ScheduleResponse,
-} from "../../lib/hooks/usePredictions";
+  useJobs,
+  useRoadRoute,
+  type Job,
+  type RoutePoint,
+} from "../../lib/hooks/useJobs";
+import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 
-const OPTIONS = [
-  { key: "optimized", label: "Optimized" },
-  { key: "manual", label: "Manual" },
-];
+const AVG_SPEED_KMH = 40;
 
 function formatHours(min: number) {
   const h = Math.floor(Math.abs(min) / 60);
@@ -24,7 +22,56 @@ function formatHours(min: number) {
   return h > 0 ? `${sign}${h}h ${m}m` : `${sign}${m}m`;
 }
 
-function toStop(j: Job, order: number, distanceKm = 0): RouteStop {
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function shiftDate(iso: string, deltaDays: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + deltaDays);
+  return toIsoDate(dt);
+}
+
+function humanDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const today = toIsoDate(new Date());
+  if (iso === today) return "Today";
+  return dt.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function haversineKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
+  const R = 6371;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) *
+      Math.cos(toRad(bLat)) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function toStop(
+  j: Job,
+  order: number,
+  distanceKm: number,
+  travelMin: number,
+): RouteStop {
   const d = new Date(j.scheduled_at);
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return {
@@ -34,6 +81,7 @@ function toStop(j: Job, order: number, distanceKm = 0): RouteStop {
     location: j.address || j.customer_address || "—",
     durationMin: j.duration_minutes ?? 30,
     distanceKm,
+    travelMin,
   };
 }
 
@@ -42,104 +90,86 @@ function hasLatLng(j: Job): j is Job & { latitude: number; longitude: number } {
 }
 
 export default function ScheduleMobile() {
-  const [mode, setMode] = useState("optimized");
   const tabBarSpace = useTabBarSpace();
 
+  const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
+  const today = toIsoDate(new Date());
+
   const { data, isLoading, error } = useJobs({
+    date: selectedDate,
     ordering: "scheduled_at",
   });
+  const business = useCurrentBusiness();
 
-  const jobs = data?.results ?? [];
-  const upcoming = useMemo(() => {
-    const now = Date.now();
-    return jobs.filter(
-      (j) =>
-        j.status !== "completed" &&
-        j.status !== "cancelled" &&
-        new Date(j.scheduled_at).getTime() >= now - 6 * 60 * 60 * 1000,
-    );
-  }, [jobs]);
-  const geoJobs = useMemo(() => upcoming.filter(hasLatLng), [upcoming]);
-  const geoKey = geoJobs.map((j) => j.id).join(",");
-
-  const optimise = useOptimiseSchedule();
-  const [route, setRoute] = useState<ScheduleResponse | null>(null);
-
-  useEffect(() => {
-    if (mode !== "optimized" || geoJobs.length < 2) {
-      setRoute(null);
-      return;
-    }
-    // Depot = centroid of today's jobs until Business gains a depot field.
-    const lat = geoJobs.reduce((s, j) => s + j.latitude, 0) / geoJobs.length;
-    const lng = geoJobs.reduce((s, j) => s + j.longitude, 0) / geoJobs.length;
-    optimise
-      .mutateAsync({
-        depot: { latitude: lat, longitude: lng },
-        job_ids: geoJobs.map((j) => j.id),
-        average_speed_kmh: 40,
-      })
-      .then(setRoute)
-      .catch(() => setRoute(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, geoKey]);
-
-  const stops: RouteStop[] = useMemo(() => {
-    if (route && route.stops.length > 0) {
-      const byId = new Map(upcoming.map((j) => [j.id, j]));
-      return route.stops
-        .slice()
-        .sort((a, b) => a.order - b.order)
-        .map((s) => {
-          const j = byId.get(s.job_id);
-          if (!j) return null;
-          return toStop(j, s.order, s.distance_km);
-        })
-        .filter(Boolean) as RouteStop[];
-    }
-    return upcoming.map((j, i) => toStop(j, i + 1));
-  }, [route, upcoming]);
-
-  const totalDurationMin = stops.reduce((s, x) => s + x.durationMin, 0);
-  const totalKm = route?.total_distance_km ?? stops.length * 4.2;
-  const travelMin = route?.total_travel_minutes ?? 0;
-  const savedMin = route ? Math.max(0, stops.length * 8 - travelMin) : 0;
+  const jobs = useMemo(() => data?.results ?? [], [data?.results]);
+  const activeJobs = useMemo(
+    () => jobs.filter((j) => j.status !== "cancelled"),
+    [jobs],
+  );
+  const geoJobs = useMemo(() => activeJobs.filter(hasLatLng), [activeJobs]);
 
   const depot = useMemo(() => {
-    if (geoJobs.length === 0) return null;
-    return {
-      latitude: geoJobs.reduce((s, j) => s + j.latitude, 0) / geoJobs.length,
-      longitude: geoJobs.reduce((s, j) => s + j.longitude, 0) / geoJobs.length,
-    };
-  }, [geoJobs]);
+    const b = business.data;
+    if (b && b.depot_latitude != null && b.depot_longitude != null) {
+      return { latitude: b.depot_latitude, longitude: b.depot_longitude };
+    }
+    return null;
+  }, [business.data]);
+
+  const routePoints: RoutePoint[] = useMemo(() => {
+    const points = geoJobs.map((job) => ({
+      latitude: job.latitude,
+      longitude: job.longitude,
+    }));
+    return depot ? [depot, ...points] : points;
+  }, [depot, geoJobs]);
+  const roadRoute = useRoadRoute(routePoints);
+
+  const roadLegsByJob = useMemo(() => {
+    const legs = new Map<number, { distance_km: number; duration_minutes: number }>();
+    geoJobs.forEach((job, index) => {
+      const legIndex = depot ? index : index - 1;
+      const leg = roadRoute.data?.legs[legIndex];
+      if (leg) legs.set(job.id, leg);
+    });
+    return legs;
+  }, [depot, geoJobs, roadRoute.data?.legs]);
+
+  const stops: RouteStop[] = useMemo(() => {
+    let prevLat: number | null = depot?.latitude ?? null;
+    let prevLng: number | null = depot?.longitude ?? null;
+    return activeJobs.map((j, i) => {
+      let km = 0;
+      let travelMin = 0;
+      const roadLeg = roadLegsByJob.get(j.id);
+      const lat = typeof j.latitude === "number" ? j.latitude : null;
+      const lng = typeof j.longitude === "number" ? j.longitude : null;
+      if (roadLeg) {
+        km = roadLeg.distance_km;
+        travelMin = roadLeg.duration_minutes;
+      } else if (prevLat != null && prevLng != null && lat != null && lng != null) {
+        km = haversineKm(prevLat, prevLng, lat, lng);
+        travelMin = Math.ceil((km / AVG_SPEED_KMH) * 60);
+      }
+      if (lat != null && lng != null) {
+        prevLat = lat;
+        prevLng = lng;
+      }
+      return toStop(j, i + 1, km, travelMin);
+    });
+  }, [activeJobs, depot, roadLegsByJob]);
+
+  const totalDurationMin = stops.reduce((s, x) => s + x.durationMin, 0);
+  const totalKm = roadRoute.data?.distance_km ?? stops.reduce((s, x) => s + x.distanceKm, 0);
+  const totalTravelMin = roadRoute.data?.duration_minutes ?? stops.reduce((s, x) => s + (x.travelMin ?? 0), 0);
 
   const mapMarkers: LeafletMarker[] = useMemo(() => {
-    const jobsById = new Map(geoJobs.map((j) => [j.id, j]));
-    const ordered =
-      route && route.stops.length > 0
-        ? route.stops
-            .slice()
-            .sort((a, b) => a.order - b.order)
-            .map((s) => {
-              const j = jobsById.get(s.job_id);
-              return j
-                ? {
-                    latitude: j.latitude,
-                    longitude: j.longitude,
-                    order: s.order,
-                    label:
-                      j.customer_name || j.address || `Job #${j.id}`,
-                  }
-                : null;
-            })
-            .filter(Boolean)
-        : geoJobs.map((j, i) => ({
-            latitude: j.latitude,
-            longitude: j.longitude,
-            order: i + 1,
-            label: j.customer_name || j.address || `Job #${j.id}`,
-          }));
-    const list = (ordered as LeafletMarker[]).slice();
+    const list: LeafletMarker[] = geoJobs.map((j) => ({
+      latitude: j.latitude,
+      longitude: j.longitude,
+      order: activeJobs.findIndex((job) => job.id === j.id) + 1,
+      label: j.customer_name || j.address || `Job #${j.id}`,
+    }));
     if (depot) {
       list.unshift({
         latitude: depot.latitude,
@@ -149,67 +179,92 @@ export default function ScheduleMobile() {
       });
     }
     return list;
-  }, [route, geoJobs, depot]);
+  }, [activeJobs, geoJobs, depot]);
 
-  const mapPath = useMemo(() => {
-    if (mapMarkers.length < 2) return [];
-    return mapMarkers.map((m) => ({
-      latitude: m.latitude,
-      longitude: m.longitude,
-    }));
-  }, [mapMarkers]);
+  const mapPath = roadRoute.data?.path ?? [];
+  const googleMapsUrl = useMemo(() => buildGoogleMapsUrl(routePoints), [routePoints]);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-      <Text className="text-xl font-bold text-slate-900">
-        Smart Schedule Optimizer
-      </Text>
+      <Text className="text-xl font-bold text-slate-900">Today&apos;s Route</Text>
       <Text className="text-xs text-slate-500 mt-1 mb-4">
-        Upcoming route ordered by the ML nearest-neighbour scheduler.
+        Ordered by scheduled time. Travel follows the fastest available road route.
       </Text>
 
-      <View className="bg-blue-600 rounded-2xl p-5">
-        <Text className="text-blue-100 text-xs">Estimated time saved</Text>
-        <Text className="text-white text-3xl font-bold mt-1">
-          {formatHours(savedMin)}
-        </Text>
-        <View className="flex-row mt-4 pt-4 border-t border-blue-500">
-          <View className="flex-1">
-            <Text className="text-blue-100 text-[11px]">On-site time</Text>
-            <Text className="text-white text-sm font-semibold mt-0.5">
-              {formatHours(totalDurationMin)}
-            </Text>
-          </View>
-          <View className="w-px bg-blue-500" />
-          <View className="flex-1 pl-4">
-            <Text className="text-blue-100 text-[11px]">Total stops</Text>
-            <Text className="text-white text-sm font-semibold mt-0.5">
-              {stops.length}
-            </Text>
-            <Text className="text-blue-200 text-[11px] mt-0.5">
-              ~{totalKm.toFixed(1)} km
-              {route ? ` • ${formatHours(travelMin)} travel` : ""}
-            </Text>
-          </View>
+      <View className="flex-row items-center justify-between bg-white border border-slate-200 rounded-2xl px-3 py-2 mb-4">
+        <Pressable
+          onPress={() => setSelectedDate((d) => shiftDate(d, -1))}
+          className="px-3 py-1"
+          accessibilityLabel="Previous day"
+        >
+          <Text className="text-slate-600 text-lg">‹</Text>
+        </Pressable>
+        <View className="flex-1 items-center">
+          <Text className="text-sm font-semibold text-slate-900">{humanDate(selectedDate)}</Text>
+          {selectedDate !== today ? (
+            <Pressable onPress={() => setSelectedDate(today)}>
+              <Text className="text-[11px] text-blue-600 mt-0.5">Jump to today</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={() => setSelectedDate((d) => shiftDate(d, 1))}
+          className="px-3 py-1"
+          accessibilityLabel="Next day"
+        >
+          <Text className="text-slate-600 text-lg">›</Text>
+        </Pressable>
+      </View>
+
+      <View className="bg-white border border-slate-200 rounded-2xl p-4 flex-row">
+        <View className="flex-1">
+          <Text className="text-[11px] text-slate-500">Stops</Text>
+          <Text className="text-slate-900 text-lg font-bold mt-0.5">
+            {stops.length}
+          </Text>
+        </View>
+        <View className="w-px bg-slate-200" />
+        <View className="flex-1 pl-4">
+          <Text className="text-[11px] text-slate-500">On-site</Text>
+          <Text className="text-slate-900 text-lg font-bold mt-0.5">
+            {formatHours(totalDurationMin)}
+          </Text>
+        </View>
+        <View className="w-px bg-slate-200" />
+        <View className="flex-1 pl-4">
+          <Text className="text-[11px] text-slate-500">Travel</Text>
+          <Text className="text-slate-900 text-lg font-bold mt-0.5">
+            {formatHours(totalTravelMin)}
+          </Text>
+          <Text className="text-[11px] text-slate-400 mt-0.5">
+            ~{totalKm.toFixed(1)} km
+          </Text>
         </View>
       </View>
 
-      <View className="mt-5">
-        <SegmentedToggle options={OPTIONS} active={mode} onChange={setMode} />
-      </View>
-
-      <Text className="mt-5 mb-3 text-base font-semibold text-slate-900">
-        Upcoming Route
-      </Text>
-
       {mapMarkers.length > 0 ? (
-        <View className="mb-3">
-          <LeafletMap markers={mapMarkers} path={mapPath} height={240} />
+        <View className="mt-4">
+          <ExpandableLeafletMap
+            title={`${humanDate(selectedDate)} road route`}
+            markers={mapMarkers}
+            path={mapPath}
+            height={240}
+            googleMapsUrl={googleMapsUrl}
+          />
+          {roadRoute.isLoading ? (
+            <Text className="text-[11px] text-slate-500 mt-2">Finding fastest road route…</Text>
+          ) : roadRoute.error ? (
+            <Text className="text-[11px] text-amber-700 mt-2">Road route unavailable. Travel figures are estimated.</Text>
+          ) : null}
         </View>
       ) : null}
 
+      <Text className="mt-5 mb-3 text-base font-semibold text-slate-900">
+        Stops
+      </Text>
+
       <View className="bg-white rounded-2xl border border-slate-200 p-4">
-        {isLoading || optimise.isPending ? (
+        {isLoading ? (
           <View className="py-6 items-center">
             <ActivityIndicator />
           </View>
@@ -217,7 +272,7 @@ export default function ScheduleMobile() {
           <Text className="text-xs text-red-600">Could not load route.</Text>
         ) : stops.length === 0 ? (
           <Text className="text-xs text-slate-500">
-            No upcoming jobs. Create a booking to populate the route.
+            No jobs on {humanDate(selectedDate)}. Create a booking to populate the route.
           </Text>
         ) : (
           stops.map((stop, i) => (
@@ -230,15 +285,30 @@ export default function ScheduleMobile() {
         )}
       </View>
 
-      {mode === "optimized" && geoJobs.length < 2 ? (
+      {stops.length > 0 && geoJobs.length < stops.length ? (
         <View className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 flex-row">
           <Text className="text-amber-700 text-sm mr-2">ⓘ</Text>
           <Text className="text-amber-800 text-xs leading-4 flex-1">
-            Route optimisation needs at least two upcoming jobs with a saved
-            location. Add lat/lng to jobs to see the ML nearest-neighbour plan.
+            Some jobs don&apos;t have a saved lat/lng, so travel estimates skip
+            those legs. Geocode customer addresses to see the full route.
           </Text>
         </View>
       ) : null}
     </ScrollView>
+  );
+}
+
+function buildGoogleMapsUrl(points: RoutePoint[]): string | null {
+  if (points.length < 2) return null;
+  const format = (point: RoutePoint) => `${point.latitude},${point.longitude}`;
+  const origin = format(points[0]);
+  const destination = format(points[points.length - 1]);
+  const waypoints = points.slice(1, -1).map(format).join("|");
+  return (
+    "https://www.google.com/maps/dir/?api=1" +
+    `&origin=${encodeURIComponent(origin)}` +
+    `&destination=${encodeURIComponent(destination)}` +
+    (waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : "") +
+    "&travelmode=driving"
   );
 }

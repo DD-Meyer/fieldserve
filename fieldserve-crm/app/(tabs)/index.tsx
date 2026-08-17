@@ -4,12 +4,14 @@ import "../../global.css";
 import AppHeader from "../../components/AppHeader";
 import FeatureCard from "../../components/FeatureCard";
 import StatCard from "../../components/StatCard";
+import HomeBackground from "../../components/HomeBackground";
 import UpcomingJobRow, { type UpcomingJob } from "../../components/UpcomingJobRow";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useJobs, type Job } from "../../lib/hooks/useJobs";
 import { styled } from "nativewind";
 import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
 import { isLoading } from "expo-font";
+import { Background } from "@react-navigation/elements";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
@@ -67,7 +69,10 @@ export default function HomeScreen() {
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="FieldServe CRM" />
 
+      
+
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
+        <HomeBackground />
         <View className="flex-row gap-3 justify-between">
           <StatCard
             label="Jobs Today"

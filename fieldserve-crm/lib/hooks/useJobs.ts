@@ -26,6 +26,12 @@ export type Job = {
   duration_minutes: number | null;
   price: string | number | null;
   status: JobStatus;
+  walkaround_complete: boolean;
+  walkaround_captured_angles: string[];
+  walkaround_missing_angles: string[];
+  after_walkaround_complete: boolean;
+  after_walkaround_captured_angles: string[];
+  after_walkaround_missing_angles: string[];
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -94,5 +100,85 @@ export function useJobTransition() {
     mutationFn: ({ id, status }: { id: number; status: JobStatus }) =>
       api.post<Job>(`/api/jobs/${id}/transition/`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+}
+
+export type CheckSlotInput = {
+  scheduled_at: string;
+  duration_minutes: number;
+  customer?: number | null;
+  business?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  exclude_job_id?: number | null;
+};
+
+export type CheckSlotResponse = {
+  ok: boolean;
+  reason: "outside_hours" | "buffer_conflict" | null;
+  suggested_slots: string[];
+};
+
+export function useCheckSlot() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (input: CheckSlotInput) =>
+      api.post<CheckSlotResponse>("/api/jobs/check-slot/", input),
+  });
+}
+
+export type SlotRecommendation = {
+  start: string;
+  end: string;
+  score: number;
+  label: "Best fit" | "Good fit" | string;
+  previous_job: { id: number; travel_minutes: number } | null;
+  next_job: { id: number; travel_minutes: number } | null;
+  total_travel_minutes: number;
+};
+
+export type SuggestSlotsInput = {
+  date: string; // YYYY-MM-DD
+  customer: number;
+  service?: number;
+  duration_minutes?: number;
+  exclude_job_id?: number | null;
+};
+
+export type SuggestSlotsResponse = {
+  date: string;
+  recommendations: SlotRecommendation[];
+  other_available: string[];
+};
+
+export function useSuggestSlots() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (input: SuggestSlotsInput) =>
+      api.post<SuggestSlotsResponse>("/api/jobs/suggest-slots/", input),
+  });
+}
+
+export type RoutePoint = {
+  latitude: number;
+  longitude: number;
+};
+
+export type RoadRoute = {
+  path: RoutePoint[];
+  distance_km: number;
+  duration_minutes: number;
+  legs: { distance_km: number; duration_minutes: number }[];
+};
+
+export function useRoadRoute(points: RoutePoint[]) {
+  const api = useApi();
+  const { isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: ["road-route", points],
+    queryFn: () => api.post<RoadRoute>("/api/jobs/road-route/", { points }),
+    enabled: !!isSignedIn && points.length >= 2,
+    staleTime: 5 * 60_000,
+    retry: 1,
   });
 }

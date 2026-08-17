@@ -1,8 +1,11 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from businesses.views import BusinessViewSet, ServiceViewSet
+from inspections.views import InspectionViewSet
 from jobs.views import JobViewSet
 from users.views import CustomerViewSet, MeView
 from users.webhooks import ClerkWebhookView
@@ -12,6 +15,7 @@ router.register(r"jobs", JobViewSet, basename="job")
 router.register(r"businesses", BusinessViewSet, basename="business")
 router.register(r"services", ServiceViewSet, basename="service")
 router.register(r"customers", CustomerViewSet, basename="customer")
+router.register(r"inspections", InspectionViewSet, basename="inspection")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -21,3 +25,6 @@ urlpatterns = [
     path("api/public/", include("businesses.public_urls")),
     path("api/analytics/", include("analytics.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

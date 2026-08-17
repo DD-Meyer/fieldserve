@@ -74,7 +74,7 @@ export default function CustomerChurnCard({ customer }: { customer: ChurnCustome
       ) : (
         <View className="mt-3 pt-3 border-t border-slate-100">
           <Text className="text-[11px] text-slate-500">
-            We'll score this customer the moment they have their first booking.
+            {"We'll score this customer the moment they have their first booking."}
           </Text>
         </View>
       )}

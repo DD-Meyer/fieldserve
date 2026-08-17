@@ -47,7 +47,7 @@ export default function ScheduleFixed() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-      <Text className="text-xl font-bold text-slate-900">Today's Schedule</Text>
+      <Text className="text-xl font-bold text-slate-900">{"Today's Schedule"}</Text>
       <Text className="text-xs text-slate-500 mt-1 mb-4">
         Appointment slots, staff allocation, and no-show risk
       </Text>
