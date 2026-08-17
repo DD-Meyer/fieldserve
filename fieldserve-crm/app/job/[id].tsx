@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -214,6 +213,28 @@ export default function JobDetail() {
             value={job.duration_minutes ? `${job.duration_minutes} min` : "—"}
           />
           <InfoRow label="Notes" value={job.notes} />
+          <InfoRow
+            label="Pre-service walkaround"
+            value={`${job.walkaround_captured_angles.length}/8 captured`}
+          />
+          {job.status === "in_progress" || job.status === "completed" ? (
+            <InfoRow
+              label="After-service walkaround"
+              value={`${job.after_walkaround_captured_angles.length}/8 captured`}
+            />
+          ) : null}
+          <Pressable
+            onPress={() => router.push(`/job/inspect/${job.id}`)}
+            className={`mt-3 rounded-full py-2 items-center ${
+              job.walkaround_complete ? "bg-green-700" : "bg-slate-900"
+            }`}
+          >
+            <Text className="text-white text-xs font-semibold">
+              {job.walkaround_complete
+                ? "Walkaround complete · Review images"
+                : "Complete guided walkaround"}
+            </Text>
+          </Pressable>
         </View>
 
         {actions.length > 0 ? (
@@ -223,10 +244,20 @@ export default function JobDetail() {
             </Text>
             {actions.map((a) => {
               const destructive = a.to === "cancelled";
+              const needsWalkaround =
+                a.to === "in_progress" && !job.walkaround_complete;
+              const needsAfterWalkaround =
+                a.to === "completed" && !job.after_walkaround_complete;
               return (
                 <Pressable
                   key={a.to}
-                  onPress={() => doTransition(a.to, a.label)}
+                  onPress={() =>
+                    needsWalkaround
+                      ? router.push(`/job/inspect/${job.id}`)
+                      : needsAfterWalkaround
+                        ? router.push(`/job/inspect/${job.id}?phase=after`)
+                      : doTransition(a.to, a.label)
+                  }
                   disabled={transition.isPending}
                   className={`rounded-full py-3 items-center mb-2 ${
                     destructive
@@ -242,7 +273,11 @@ export default function JobDetail() {
                       destructive ? "text-red-600" : "text-white"
                     }`}
                   >
-                    {a.label}
+                    {needsWalkaround
+                      ? `Take walkaround to start (${job.walkaround_captured_angles.length}/8)`
+                      : needsAfterWalkaround
+                        ? `Take after images to complete (${job.after_walkaround_captured_angles.length}/8)`
+                      : a.label}
                   </Text>
                 </Pressable>
               );
@@ -251,7 +286,7 @@ export default function JobDetail() {
         ) : (
           <View className="bg-white rounded-2xl border border-slate-200 p-4 items-center">
             <Text className="text-xs text-slate-500">
-              No further transitions from "{job.status.replace("_", " ")}".
+              No further transitions from {job.status.replace("_", " ")}.
             </Text>
           </View>
         )}

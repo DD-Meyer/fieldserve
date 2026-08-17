@@ -1,10 +1,14 @@
-import { Button, Text, TextInput, View } from "react-native";
+import { Button, Modal, Pressable, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SegmentedToggle from "../components/SegmentedToggle";
 import SettingsGroup from "../components/SettingsGroup";
 import SettingsRow from "../components/SettingsRow";
 import { useIndustry } from "../contexts/IndustryContext";
+import {
+  useCurrentBusiness,
+  useUpdateBusiness,
+} from "../lib/hooks/useBusiness";
 
 const INDUSTRY_OPTIONS = [
   { key: "mobile", label: "Mobile Service" },
@@ -14,6 +18,40 @@ const INDUSTRY_OPTIONS = [
 export default function CompanyScreen() {
   const { mode, setMode } = useIndustry();
   const [showAdd, setShowAdd] = useState(false);
+  const business = useCurrentBusiness();
+  const updateBusiness = useUpdateBusiness();
+  const [schedEdit, setSchedEdit] = useState<
+    null | "opening" | "closing" | "buffer"
+  >(null);
+  const [draft, setDraft] = useState("");
+
+  const b = business.data;
+
+  const openEdit = (kind: "opening" | "closing" | "buffer") => {
+    if (!b) return;
+    setSchedEdit(kind);
+    if (kind === "opening") setDraft(b.working_hours_start.slice(0, 5));
+    else if (kind === "closing") setDraft(b.working_hours_end.slice(0, 5));
+    else setDraft(String(b.default_travel_buffer_minutes));
+  };
+
+  const saveEdit = async () => {
+    if (!b || !schedEdit) return;
+    const patch: Record<string, unknown> = {};
+    if (schedEdit === "opening") {
+      if (!/^\d{2}:\d{2}$/.test(draft)) return;
+      patch.working_hours_start = `${draft}:00`;
+    } else if (schedEdit === "closing") {
+      if (!/^\d{2}:\d{2}$/.test(draft)) return;
+      patch.working_hours_end = `${draft}:00`;
+    } else {
+      const n = Number(draft);
+      if (!Number.isFinite(n) || n < 0) return;
+      patch.default_travel_buffer_minutes = Math.round(n);
+    }
+    await updateBusiness.mutateAsync({ id: b.id, patch });
+    setSchedEdit(null);
+  };
 
   function CompanyScreenAddBusinessNameModal(
     { visible, onClose }: { visible: boolean;
@@ -82,6 +120,65 @@ export default function CompanyScreen() {
         <SettingsRow label="Logo" value="Default" onPress={() => {}} />
         <SettingsRow label="Brand colour" value="#2563EB" onPress={() => {}} />
       </SettingsGroup>
+
+      <SettingsGroup title="Scheduling">
+        <SettingsRow
+          label="Opening time"
+          value={b?.working_hours_start?.slice(0, 5) ?? "—"}
+          onPress={() => openEdit("opening")}
+        />
+        <SettingsRow
+          label="Closing time"
+          value={b?.working_hours_end?.slice(0, 5) ?? "—"}
+          onPress={() => openEdit("closing")}
+        />
+        <SettingsRow
+          label="Travel buffer"
+          value={b ? `${b.default_travel_buffer_minutes} min` : "—"}
+          description="Minimum gap enforced between same-day jobs."
+          onPress={() => openEdit("buffer")}
+        />
+      </SettingsGroup>
+
+      <Modal
+        visible={schedEdit !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSchedEdit(null)}
+      >
+        <View className="flex-1 justify-center bg-black/40 px-6">
+          <View className="bg-white rounded-2xl p-5">
+            <Text className="text-base font-semibold text-slate-900 mb-2">
+              {schedEdit === "opening"
+                ? "Opening time"
+                : schedEdit === "closing"
+                  ? "Closing time"
+                  : "Travel buffer (minutes)"}
+            </Text>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={schedEdit === "buffer" ? "15" : "08:00"}
+              keyboardType={schedEdit === "buffer" ? "number-pad" : "default"}
+              autoCapitalize="none"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 mb-3"
+            />
+            <View className="flex-row justify-end">
+              <Pressable onPress={() => setSchedEdit(null)} className="px-4 py-2">
+                <Text className="text-slate-600">Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveEdit}
+                className="px-4 py-2 bg-blue-600 rounded-lg ml-2"
+              >
+                <Text className="text-white font-semibold">
+                  {updateBusiness.isPending ? "Saving…" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenScaffold>
   );
 }

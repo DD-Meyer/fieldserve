@@ -14,6 +14,16 @@ from users.models import Customer
 pytestmark = pytest.mark.django_db
 
 
+def _future_workhour(days: int = 1) -> str:
+    """A deterministic ISO datetime N days from now at 10:00 local — safely
+    inside the default 08:00-18:00 business window regardless of when the
+    test happens to run."""
+    when = (timezone.now() + timedelta(days=days)).replace(
+        hour=10, minute=0, second=0, microsecond=0
+    )
+    return when.isoformat()
+
+
 @pytest.fixture
 def api() -> APIClient:
     return APIClient()
@@ -36,7 +46,7 @@ def test_public_service_list(api, business, service):
 def test_public_booking_creates_customer_and_job(
     api, business, service, disable_ml_signals
 ):
-    when = (timezone.now() + timedelta(days=2)).isoformat()
+    when = _future_workhour(days=2)
     resp = api.post(
         f"/api/public/businesses/{business.slug}/bookings/",
         {
@@ -63,7 +73,7 @@ def test_public_booking_finds_existing_customer_by_email(
         full_name="Ada Byron",
         email="ada.byron@example.com",
     )
-    when = (timezone.now() + timedelta(days=1)).isoformat()
+    when = _future_workhour(days=1)
     resp = api.post(
         f"/api/public/businesses/{business.slug}/bookings/",
         {
@@ -79,7 +89,7 @@ def test_public_booking_finds_existing_customer_by_email(
 
 
 def test_public_booking_requires_contact(api, business, service, disable_ml_signals):
-    when = (timezone.now() + timedelta(days=1)).isoformat()
+    when = _future_workhour(days=1)
     resp = api.post(
         f"/api/public/businesses/{business.slug}/bookings/",
         {
@@ -95,7 +105,7 @@ def test_public_booking_requires_contact(api, business, service, disable_ml_sign
 def test_public_booking_disabled(api, business, service, disable_ml_signals):
     business.public_booking_enabled = False
     business.save()
-    when = (timezone.now() + timedelta(days=1)).isoformat()
+    when = _future_workhour(days=1)
     resp = api.post(
         f"/api/public/businesses/{business.slug}/bookings/",
         {

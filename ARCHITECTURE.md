@@ -11,7 +11,7 @@ Shows the major tiers (client, API, ML, data, third-party) and how requests flow
 
 ```mermaid
 flowchart LR
-    subgraph Client["Client tier"]v
+    subgraph Client["Client tier"]
         RN["React Native + Expo app<br/>(fieldserve-crm)<br/>iOS / Android / Web"]
     end
 
@@ -20,8 +20,8 @@ flowchart LR
     end
 
     subgraph API["Application tier"]
-        DJ["Django REST API<br/>(fieldserve_backend, :8000)<br/>users · businesses · jobs · analytics"]
-        FA["FastAPI ML service<br/>(ml_service, :8001)<br/>churn · scheduling · heatmap"]
+        DJ["Django REST API<br/>(fieldserve_backend, :8000)<br/>users · businesses · jobs · analytics · inspections"]
+        FA["FastAPI ML service<br/>(ml_service, :8001)<br/>churn · heatmap · vision"]
     end
 
     subgraph Data["Data tier"]
@@ -31,7 +31,7 @@ flowchart LR
 
     subgraph Ext["Third-party APIs"]
         MAP["Map tiles & geocoding<br/>(Mapbox / Google)"]
-        AUTH["Auth provider<br/>(JWT issuer / optional OAuth)"]
+        AUTH["Clerk<br/>(JWT issuer)"]
     end
 
     RN -- HTTPS / JSON --> NGX
@@ -64,11 +64,7 @@ sequenceDiagram
     API->>API: Authenticate, authorize tenant
     API->>DB: SELECT jobs WHERE tenant_id=? AND date=?
     DB-->>API: rows
-    API->>ML: POST /scheduling/optimise {jobs, technician}
-    ML->>DB: SELECT travel-time features
-    DB-->>ML: features
-    ML-->>API: ordered route + ETAs
-    API-->>App: 200 JSON {jobs, route}
+    API-->>App: 200 JSON {jobs}
     App-->>U: Renders list + map
 ```
 
@@ -90,16 +86,20 @@ flowchart TB
         BZ["businesses/<br/>Tenant, Membership"]
         JB["jobs/<br/>Job, Customer, Appointment"]
         AN["analytics/<br/>ChurnScore, HeatmapCell"]
+        IN["inspections/<br/>Inspection, analysis results"]
     end
 
     Core --> US
     Core --> BZ
     Core --> JB
     Core --> AN
+    Core --> IN
 
     BZ -- "owns" --> US
     BZ -- "owns" --> JB
     JB -- "feeds" --> AN
+    JB -- "owns" --> IN
+    IN -- "feeds" --> AN
     US -- "assigned to" --> JB
 ```
 
@@ -112,22 +112,22 @@ The three ML features each follow the same train-offline / serve-online pattern.
 ```mermaid
 flowchart LR
     subgraph Train["Offline (training)"]
-        RAW[("Historical jobs<br/>+ customers")] --> ETL["Feature pipeline<br/>(RFM, geo, time)"]
-        ETL --> TRN["Train models<br/>LR / RF / XGBoost / KDE / OR-Tools params"]
-        TRN --> ART[["Versioned artefacts<br/>ml_service/models/*.pkl"]]
+        RAW[("Historical transactions,<br/>locations + vehicle images")] --> ETL["Feature pipeline<br/>(RFM, geo, image labels)"]
+        ETL --> TRN["Train models<br/>LR / RF / XGBoost / KDE / YOLOv8"]
+        TRN --> ART[["Versioned artefacts<br/>*.pkl + vehicle_damage.pt"]]
     end
 
     subgraph Serve["Online (inference)"]
         REQ["Django request"] --> FAPI["FastAPI router"]
         ART --> FAPI
         FAPI -->|/churn/predict| C["Churn score"]
-        FAPI -->|/scheduling/optimise| S["Route plan"]
         FAPI -->|/heatmap/density| H["Demand grid"]
+        FAPI -->|/vision/detect-damage| V["Damage detections"]
     end
 
     C --> RESP["JSON response"]
-    S --> RESP
     H --> RESP
+    V --> RESP
     RESP --> APP["React Native UI"]
 ```
 

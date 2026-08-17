@@ -7,6 +7,7 @@ export type RouteStop = {
   location: string;
   durationMin: number;
   distanceKm: number;
+  travelMin?: number;
 };
 
 type Props = {
@@ -33,7 +34,13 @@ export default function RouteStopRow({ stop, isLast }: Props) {
         </View>
         <Text className="text-xs text-slate-500 mt-0.5">{stop.location}</Text>
         <Text className="text-[11px] text-slate-400 mt-1">
-          {stop.durationMin} min · {stop.distanceKm.toFixed(1)} km drive
+          {stop.durationMin} min on-site
+          {stop.order > 1 && stop.distanceKm > 0
+            ? ` · ${stop.distanceKm.toFixed(1)} km`
+            : ""}
+          {stop.order > 1 && stop.travelMin
+            ? ` · ~${stop.travelMin} min travel`
+            : ""}
         </Text>
       </View>
     </View>

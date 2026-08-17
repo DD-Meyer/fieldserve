@@ -86,3 +86,13 @@ def disable_ml_signals(monkeypatch):
     from analytics import signals
 
     monkeypatch.setattr(signals, "safe_score_customer", lambda customer: None)
+
+
+@pytest.fixture
+def api_client_auth(db, user, business):
+    """DRF client force-authenticated as `user` (owner of `business`)."""
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client

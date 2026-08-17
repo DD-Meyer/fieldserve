@@ -1,16 +1,4 @@
 export const colors = {
-    // background: "#fff9e3",
-    // foreground: "#081126",
-    // card: "#fff8e7",
-    // muted: "#f6eecf",
-    // mutedForeground: "rgba(0, 0, 0, 0.6)",
-    // primary: "#081126",
-    // accent: "#ea7a53",
-    // border: "rgba(0, 0, 0, 0.1)",
-    // success: "#16a34a",
-    // destructive: "#dc2626",
-    // subscription: "#8fd1bd",
-
     background: "#F9FAFB",
     foreground: "#111827",
     card: "#FFFFFF",
@@ -22,7 +10,6 @@ export const colors = {
     border: "rgba(17, 24, 39, 0.08)",
     success: "#10B981",
     destructive: "#EF4444",
-    subscription: "#99F6E4",
     nav: "#f9fafbe6",
 } as const;
 

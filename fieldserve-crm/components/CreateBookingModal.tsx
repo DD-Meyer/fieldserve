@@ -9,13 +9,21 @@ import {
   View,
 } from "react-native";
 
-import { useCreateJob } from "../lib/hooks/useJobs";
+import {
+  useCreateJob,
+  useCheckSlot,
+  useSuggestSlots,
+  type CheckSlotResponse,
+  type SlotRecommendation,
+} from "../lib/hooks/useJobs";
 import {
   useCreateCustomer,
   useCustomers,
   type Customer,
 } from "../lib/hooks/useCustomers";
 import { useServices } from "../lib/hooks/useServices";
+import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import DateTimePickerField from "./DateTimePickerField";
 
 type Props = {
   visible: boolean;
@@ -27,6 +35,34 @@ function isoOrThrow(local: string): string {
   const d = new Date(local);
   if (isNaN(d.getTime())) throw new Error("Invalid date/time");
   return d.toISOString();
+}
+
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatSlotChip(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function toDateOnly(local: string): string {
+  const d = new Date(local);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function normalise(s: string): string {
@@ -52,6 +88,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const { data: svcPage } = useServices();
   const create = useCreateJob();
   const createCustomer = useCreateCustomer();
+  const checkSlot = useCheckSlot();
+  const suggestSlots = useSuggestSlots();
+  const business = useCurrentBusiness();
 
   const customers = custPage?.results ?? [];
   const services = (svcPage?.results ?? []).filter((s) => s.is_active);
@@ -62,6 +101,14 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const [notes, setNotes] = useState("");
   const [priceOverride, setPriceOverride] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [slotState, setSlotState] = useState<CheckSlotResponse | null>(null);
+  const [suggestions, setSuggestions] = useState<SlotRecommendation[]>([]);
+  const suggestDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }, []);
 
   const [custSearch, setCustSearch] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -83,6 +130,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setNewCustOpen(false);
       setNewCust(EMPTY_CUSTOMER);
       setCustErr(null);
+      setSlotState(null);
+      setSuggestions([]);
     }
     wasVisible.current = visible;
   }, [visible]);
@@ -116,6 +165,64 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     if (!q) return undefined;
     return customers.find((c) => normalise(c.full_name) === q);
   }, [customers, newCust.full_name]);
+
+  const targetDate = scheduledAt ? toDateOnly(scheduledAt) : suggestDate;
+
+  useEffect(() => {
+    if (!customerId || !selectedService || !targetDate) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    suggestSlots
+      .mutateAsync({
+        date: targetDate,
+        customer: customerId,
+        duration_minutes: selectedService.duration_minutes,
+      })
+      .then((res) => {
+        if (!cancelled) setSuggestions(res.recommendations);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, serviceId, targetDate]);
+
+  useEffect(() => {
+    if (!customerId || !selectedService || !scheduledAt) {
+      setSlotState(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      try {
+        const iso = isoOrThrow(scheduledAt);
+        checkSlot
+          .mutateAsync({
+            customer: customerId,
+            scheduled_at: iso,
+            duration_minutes: selectedService.duration_minutes,
+          })
+          .then((res) => {
+            if (!cancelled) setSlotState(res);
+          })
+          .catch(() => {
+            if (!cancelled) setSlotState(null);
+          });
+      } catch {
+        if (!cancelled) setSlotState(null);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, serviceId, scheduledAt]);
 
   const submitNewCustomer = async () => {
     setCustErr(null);
@@ -151,6 +258,13 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     if (!customerId) return setErr("Pick a customer.");
     if (!selectedService) return setErr("Pick a service.");
     if (!scheduledAt) return setErr("Enter a date/time (YYYY-MM-DDTHH:mm).");
+    if (slotState && !slotState.ok) {
+      return setErr(
+        slotState.reason === "outside_hours"
+          ? `Outside company hours (${business.data?.working_hours_start?.slice(0, 5)}–${business.data?.working_hours_end?.slice(0, 5)}).`
+          : "Time conflicts with another job — pick a suggested slot.",
+      );
+    }
     try {
       const iso = isoOrThrow(scheduledAt);
       await create.mutateAsync({
@@ -166,7 +280,19 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       onCreated?.();
       onClose();
     } catch (e: any) {
-      setErr(e?.message || "Could not create booking.");
+      const body = e?.body as
+        | { scheduled_at?: string; suggested_slots?: string[] }
+        | undefined;
+      if (body?.scheduled_at && body?.suggested_slots) {
+        setSlotState({
+          ok: false,
+          reason: body.scheduled_at as CheckSlotResponse["reason"],
+          suggested_slots: body.suggested_slots,
+        });
+        setErr("Slot unavailable — try a suggestion below.");
+      } else {
+        setErr(e?.message || "Could not create booking.");
+      }
     }
   };
 
@@ -426,12 +552,86 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             <Text className="text-xs font-semibold text-slate-600 mb-1">
               Date & time
             </Text>
-            <TextInput
-              value={scheduledAt}
-              onChangeText={setScheduledAt}
-              placeholder="2026-08-15T14:30"
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 mb-3"
-            />
+
+            {suggestions.length > 0 ? (
+              <View className="mb-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                <Text className="text-[11px] font-semibold text-blue-900 mb-2">
+                  Recommended for {targetDate}
+                </Text>
+                <View className="flex-row flex-wrap">
+                  {suggestions.map((r) => (
+                    <Pressable
+                      key={r.start}
+                      onPress={() => {
+                        setScheduledAt(toLocalInput(r.start));
+                        setSlotState(null);
+                      }}
+                      className="bg-white border border-blue-300 rounded-xl px-3 py-2 mr-2 mb-2"
+                    >
+                      <Text className="text-xs font-semibold text-blue-800">
+                        {formatTime(r.start)} · {r.label}
+                      </Text>
+                      <Text className="text-[10px] text-blue-600 mt-0.5">
+                        score {r.score} · {r.total_travel_minutes} min travel
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : customerId && selectedService && suggestSlots.isPending ? (
+              <View className="mb-2 flex-row items-center">
+                <ActivityIndicator size="small" />
+                <Text className="text-[11px] text-slate-500 ml-2">
+                  Finding open slots…
+                </Text>
+              </View>
+            ) : null}
+
+            <View className="mb-2">
+              <DateTimePickerField
+                value={scheduledAt}
+                onChange={setScheduledAt}
+                placeholder="Pick a date and time"
+                minimumDate={new Date()}
+              />
+            </View>
+
+            {slotState && !slotState.ok ? (
+              <View className="mb-3 bg-red-50 border border-red-200 rounded-xl p-3">
+                <Text className="text-xs font-semibold text-red-800">
+                  {slotState.reason === "outside_hours"
+                    ? `Outside company hours (${business.data?.working_hours_start?.slice(0, 5) ?? "08:00"}\u2013${business.data?.working_hours_end?.slice(0, 5) ?? "18:00"}).`
+                    : "Time conflicts with another job on that day."}
+                </Text>
+                {slotState.suggested_slots.length > 0 ? (
+                  <>
+                    <Text className="text-[11px] text-slate-600 mt-2">
+                      Next available:
+                    </Text>
+                    <View className="flex-row flex-wrap mt-1">
+                      {slotState.suggested_slots.map((s) => (
+                        <Pressable
+                          key={s}
+                          onPress={() => {
+                            setScheduledAt(toLocalInput(s));
+                            setSlotState(null);
+                          }}
+                          className="bg-white border border-red-300 rounded-full px-3 py-1 mr-2 mb-2"
+                        >
+                          <Text className="text-xs text-red-700 font-medium">
+                            {formatSlotChip(s)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+              </View>
+            ) : slotState?.ok ? (
+              <View className="mb-3">
+                <Text className="text-[11px] text-green-700">Slot available.</Text>
+              </View>
+            ) : null}
 
             <Text className="text-xs font-semibold text-slate-600 mb-1">
               Notes

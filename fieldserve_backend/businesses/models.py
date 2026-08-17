@@ -1,4 +1,7 @@
+from datetime import time
+
 from django.conf import settings
+from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 
@@ -39,6 +42,12 @@ class Business(models.Model):
     logo_url = models.URLField(blank=True)
 
     public_booking_enabled = models.BooleanField(default=True)
+
+    # Scheduling settings
+    working_hours_start = models.TimeField(default=time(8, 0))
+    working_hours_end = models.TimeField(default=time(18, 0))
+    default_travel_buffer_minutes = models.PositiveIntegerField(default=15)
+    depot_location = gis_models.PointField(srid=4326, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

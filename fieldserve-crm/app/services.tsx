@@ -46,7 +46,7 @@ export default function ServicesScreen() {
       ) : services.length === 0 ? (
         <View className="bg-white rounded-2xl p-6 border border-slate-200">
           <Text className="text-slate-500 text-sm">
-            No services yet. Tap "+ Add" to create your first one.
+            {'No services yet. Tap "+ Add" to create your first one.'}
           </Text>
         </View>
       ) : (

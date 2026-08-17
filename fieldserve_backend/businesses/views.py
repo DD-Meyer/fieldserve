@@ -12,6 +12,8 @@ from .models import Business, Membership, Service
 
 class BusinessSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
+    depot_latitude = serializers.FloatField(write_only=True, required=False, allow_null=True)
+    depot_longitude = serializers.FloatField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Business
@@ -32,6 +34,11 @@ class BusinessSerializer(serializers.ModelSerializer):
             "address_country",
             "brand_color",
             "logo_url",
+            "working_hours_start",
+            "working_hours_end",
+            "default_travel_buffer_minutes",
+            "depot_latitude",
+            "depot_longitude",
             "role",
             "created_at",
             "updated_at",
@@ -42,6 +49,31 @@ class BusinessSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         m = Membership.objects.filter(business=obj, user=user).first()
         return m.role if m else None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.depot_location is not None:
+            data["depot_latitude"] = instance.depot_location.y
+            data["depot_longitude"] = instance.depot_location.x
+        else:
+            data["depot_latitude"] = None
+            data["depot_longitude"] = None
+        return data
+
+    def _apply_depot(self, validated_data):
+        from django.contrib.gis.geos import Point
+
+        lat = validated_data.pop("depot_latitude", None)
+        lng = validated_data.pop("depot_longitude", None)
+        if lat is not None and lng is not None:
+            validated_data["depot_location"] = Point(float(lng), float(lat), srid=4326)
+        return validated_data
+
+    def create(self, validated_data):
+        return super().create(self._apply_depot(validated_data))
+
+    def update(self, instance, validated_data):
+        return super().update(instance, self._apply_depot(validated_data))
 
 
 class MembershipSerializer(serializers.ModelSerializer):

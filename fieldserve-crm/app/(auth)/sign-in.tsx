@@ -30,6 +30,10 @@ export default function SignInScreen() {
       setError("Sign-in succeeded but no session was created.");
       return;
     }
+    if (!setActive) {
+      setError("Sign-in is not ready to activate the session.");
+      return;
+    }
     await setActive({ session: createdSessionId });
     router.replace("/(tabs)");
   };
@@ -74,10 +78,7 @@ export default function SignInScreen() {
 
       if (attempt.status === "complete") {
         await finishSession(attempt.createdSessionId);
-      } else if (
-        attempt.status === "needs_client_trust" ||
-        attempt.status === "needs_second_factor"
-      ) {
+      } else if (attempt.status === "needs_second_factor") {
         await startMfa();
       } else {
         console.log("[FieldServe] sign-in incomplete", attempt.status, attempt);

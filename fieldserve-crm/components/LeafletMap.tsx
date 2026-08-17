@@ -16,7 +16,7 @@ export default function LeafletMap(props: LeafletMapProps) {
         style={{ backgroundColor: "transparent" }}
         javaScriptEnabled
         domStorageEnabled
-        scrollEnabled={false}
+        scrollEnabled={props.interactive ?? false}
         androidLayerType="hardware"
       />
     </View>

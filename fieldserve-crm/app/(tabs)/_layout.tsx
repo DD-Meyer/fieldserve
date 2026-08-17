@@ -9,7 +9,8 @@ const tabBar = components.tabBar;
 
 const TabLayout = () => {
   const insets = useSafeAreaInsets();
-  const bottomOffset = Math.max(insets.bottom, 20);
+  // Lift the bar above the device's home indicator / gesture area
+  const bottomOffset = insets.bottom > 0 ? insets.bottom + 12 : 20;
 
   const StandardTabIcon = ({ focused, icon }: { focused: boolean; icon: any }) => {
     const iconColor = focused ? colors.background : colors.primary;
@@ -71,8 +72,11 @@ const TabLayout = () => {
           shadowRadius: 8,
         },
         tabBarItemStyle: {
+          height: tabBar.height,
           justifyContent: "center",
           alignItems: "center",
+          paddingTop: "2.5%",
+          paddingBottom: 0,
         },
       }}
     >

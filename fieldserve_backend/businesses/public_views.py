@@ -13,16 +13,16 @@ Throttled by IP to keep abuse manageable.
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from django.shortcuts import get_object_or_404
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
+from jobs import scheduler
 from jobs.models import Job
+from jobs.scheduling_utils import check_slot
 from users.models import Customer
 
 from .models import Business, Service
@@ -112,6 +112,21 @@ def public_booking_create(request, slug: str):
         Service, pk=data["service_id"], business=biz, is_active=True
     )
 
+    slot = check_slot(
+        business=biz,
+        scheduled_at=data["scheduled_at"],
+        duration_minutes=service.duration_minutes,
+    )
+    if not slot.ok:
+        return Response(
+            {
+                "detail": "slot_unavailable",
+                "reason": slot.reason,
+                "suggested_slots": slot.suggested_slots or [],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     # Find-or-create the customer within this business.
     email = (data.get("email") or "").strip().lower()
     phone = (data.get("phone") or "").strip()
@@ -165,4 +180,137 @@ def public_booking_create(request, slug: str):
             "status": job.status,
         },
         status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([_BookingThrottle])
+def public_check_slot(request, slug: str):
+    biz = _get_active_business(slug)
+    scheduled_raw = request.data.get("scheduled_at")
+    service_id = request.data.get("service_id")
+    scheduled_at = parse_datetime(scheduled_raw) if scheduled_raw else None
+    if scheduled_at is None or not service_id:
+        return Response(
+            {"detail": "scheduled_at and service_id are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    service = get_object_or_404(Service, pk=service_id, business=biz, is_active=True)
+    slot = check_slot(
+        business=biz,
+        scheduled_at=scheduled_at,
+        duration_minutes=service.duration_minutes,
+    )
+    # Public response deliberately excludes conflicting-job PII.
+    return Response(
+        {
+            "ok": slot.ok,
+            "reason": slot.reason,
+            "suggested_slots": slot.suggested_slots or [],
+        }
+    )
+
+
+def _lookup_customer(
+    business: Business, email: str, phone: str
+) -> Customer | None:
+    email = (email or "").strip().lower()
+    phone = (phone or "").strip()
+    customer = None
+    if email:
+        customer = Customer.objects.filter(
+            business=business, email__iexact=email
+        ).first()
+    if customer is None and phone:
+        customer = Customer.objects.filter(business=business, phone=phone).first()
+    return customer
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([_BookingThrottle])
+def public_lookup_customer(request, slug: str):
+    """Look up a customer by email/phone so the public form can prefill.
+
+    Deliberately narrow: only returns the fields the booking form uses. The
+    throttle (20/hour per IP) caps enumeration risk. Returns `{found: false}`
+    if nothing matches so the caller never distinguishes "no match" from
+    "invalid input".
+    """
+    biz = _get_active_business(slug)
+    data = request.data or {}
+    existing = _lookup_customer(biz, data.get("email", ""), data.get("phone", ""))
+    if existing is None:
+        return Response({"found": False})
+    return Response(
+        {
+            "found": True,
+            "full_name": existing.full_name,
+            "email": existing.email,
+            "phone": existing.phone,
+            "address": existing.address,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([_BookingThrottle])
+def public_suggest_slots(request, slug: str):
+    """Return ranked open slots for a given day.
+
+    If the submitted email/phone matches a customer already on file, their
+    location is used silently for travel scoring so recommendations reflect
+    actual drive time. No PII (existence flag, name, address, neighbour job
+    IDs) is echoed back to the client.
+    """
+    biz = _get_active_business(slug)
+    data = request.data or {}
+
+    day = parse_date(data.get("date") or "")
+    if day is None:
+        return Response(
+            {"detail": "date (YYYY-MM-DD) is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    service_id = data.get("service_id")
+    if not service_id:
+        return Response(
+            {"detail": "service_id is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    service = get_object_or_404(
+        Service, pk=service_id, business=biz, is_active=True
+    )
+
+    existing = _lookup_customer(biz, data.get("email", ""), data.get("phone", ""))
+    lat = lng = None
+    if existing is not None and existing.location is not None:
+        lat = existing.location.y
+        lng = existing.location.x
+
+    result = scheduler.suggest_slots(
+        business=biz,
+        day=day,
+        duration_minutes=service.duration_minutes,
+        lat=lat,
+        lng=lng,
+    )
+    return Response(
+        {
+            "date": result.day.isoformat(),
+            "recommendations": [
+                {
+                    "start": r.start.isoformat(),
+                    "end": r.end.isoformat(),
+                    "score": r.score,
+                    "label": r.label,
+                    "total_travel_minutes": r.travel_before + r.travel_after,
+                }
+                for r in result.recommendations
+            ],
+            "other_available": [s.isoformat() for s in result.other_available[:20]],
+        }
     )

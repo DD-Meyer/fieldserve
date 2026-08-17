@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { useApi } from "../api";
 
@@ -34,32 +34,5 @@ export function useHeatmap(input: HeatmapInput = {}) {
     queryFn: () =>
       api.post<HeatmapResponse>("/api/analytics/predictions/heatmap/", input),
     staleTime: 5 * 60 * 1000,
-  });
-}
-
-export type ScheduleStop = {
-  job_id: number;
-  order: number;
-  distance_km: number;
-  travel_minutes: number;
-};
-
-export type ScheduleResponse = {
-  total_distance_km: number;
-  total_travel_minutes: number;
-  stops: ScheduleStop[];
-};
-
-export type ScheduleInput = {
-  depot: { latitude: number; longitude: number };
-  job_ids?: number[];
-  average_speed_kmh?: number;
-};
-
-export function useOptimiseSchedule() {
-  const api = useApi();
-  return useMutation<ScheduleResponse, Error, ScheduleInput>({
-    mutationFn: (input) =>
-      api.post<ScheduleResponse>("/api/analytics/predictions/schedule/", input),
   });
 }

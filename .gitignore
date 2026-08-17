@@ -1,7 +1,12 @@
+# ML & Large Data
+ml_service/
+runs/
+
 # Secrets
 .env
 .env.local
 *.local.env
+.easignore
 
 # Python
 __pycache__/
