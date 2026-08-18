@@ -40,6 +40,7 @@ web-build/
 .idea/
 .DS_Store
 Thumbs.db
+/scripts/
 
 # Docker volumes (named volumes live in the docker root, but ignore any local bind mounts)
 postgres_data/
