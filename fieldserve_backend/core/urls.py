@@ -1,7 +1,7 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 from rest_framework.routers import DefaultRouter
 
 from businesses.views import BusinessViewSet, ServiceViewSet
@@ -27,4 +27,11 @@ urlpatterns = [
     path("api/analytics/", include("analytics.urls")),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.STORAGES["default"]["BACKEND"] == "django.core.files.storage.FileSystemStorage":
+    urlpatterns += [
+        re_path(
+            r"^media/(?P<path>.*)$",
+            serve,
+            {"document_root": settings.MEDIA_ROOT},
+        )
+    ]
