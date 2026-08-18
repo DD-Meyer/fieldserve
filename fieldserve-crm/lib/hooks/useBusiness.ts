@@ -12,6 +12,11 @@ export type Business = {
   email: string;
   phone: string;
   website: string;
+  tax_id: string;
+  address_line1: string;
+  address_city: string;
+  address_postcode: string;
+  address_country: string;
   brand_color: string;
   logo_url: string;
   working_hours_start: string; // "HH:MM:SS"
@@ -31,6 +36,11 @@ export type BusinessUpdate = Partial<
     | "email"
     | "phone"
     | "website"
+    | "tax_id"
+    | "address_line1"
+    | "address_city"
+    | "address_postcode"
+    | "address_country"
     | "brand_color"
     | "working_hours_start"
     | "working_hours_end"

@@ -1,4 +1,4 @@
-import { useSignUp } from "@clerk/clerk-expo";
+import { useAuth, useSignUp } from "@clerk/clerk-expo";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -15,8 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const { signUp, setActive, isLoaded } = useSignUp();
-
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,18 +26,38 @@ export default function SignUpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  if (!isAuthLoaded || isSignedIn) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F9FAFB" }}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 12, color: "#64748b", fontSize: 14 }}>
+          Redirecting…
+        </Text>
+      </View>
+    );
+  }
+
   const startSignUp = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
     setError(null);
     setLoading(true);
     try {
-      await signUp.create({
-        emailAddress: email.trim(),
+      const createdSignUp = await signUp.create({
+        emailAddress: email.trim().toLowerCase(),
         password,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
       });
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+
+      if (createdSignUp.status === "complete") {
+        await setActive({ session: createdSignUp.createdSessionId });
+        router.replace("/(auth)/onboarding");
+        return;
+      }
+
+      await createdSignUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      });
       setStage("verify");
     } catch (e: any) {
       setError(e?.errors?.[0]?.longMessage || e?.message || "Sign-up failed");
@@ -47,14 +67,16 @@ export default function SignUpScreen() {
   };
 
   const confirmCode = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
     setError(null);
     setLoading(true);
     try {
-      const attempt = await signUp.attemptEmailAddressVerification({ code });
+      const attempt = await signUp.attemptEmailAddressVerification({
+        code: code.trim(),
+      });
       if (attempt.status === "complete") {
         await setActive({ session: attempt.createdSessionId });
-        router.replace("/(tabs)");
+        router.replace("/(auth)/onboarding");
       } else {
         setError("Verification incomplete.");
       }

@@ -1,4 +1,4 @@
-import { Button, Modal, Pressable, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SegmentedToggle from "../components/SegmentedToggle";
@@ -17,15 +17,44 @@ const INDUSTRY_OPTIONS = [
 
 export default function CompanyScreen() {
   const { mode, setMode } = useIndustry();
-  const [showAdd, setShowAdd] = useState(false);
   const business = useCurrentBusiness();
   const updateBusiness = useUpdateBusiness();
+  const [businessEdit, setBusinessEdit] = useState<
+    null | "name" | "trading_name" | "tax_id" | "email" | "phone" | "website" | "address"
+  >(null);
+  const [businessDraft, setBusinessDraft] = useState("");
   const [schedEdit, setSchedEdit] = useState<
     null | "opening" | "closing" | "buffer"
   >(null);
   const [draft, setDraft] = useState("");
 
   const b = business.data;
+
+  const openBusinessEdit = (
+    field: NonNullable<typeof businessEdit>,
+  ) => {
+    if (!b) return;
+    setBusinessEdit(field);
+    if (field === "address") {
+      setBusinessDraft(
+        [b.address_line1, b.address_city, b.address_postcode]
+          .filter(Boolean)
+          .join(", "),
+      );
+      return;
+    }
+    setBusinessDraft(String(b[field] ?? ""));
+  };
+
+  const saveBusinessEdit = async () => {
+    if (!b || !businessEdit || !businessDraft.trim()) return;
+    const patch =
+      businessEdit === "address"
+        ? { address_line1: businessDraft.trim() }
+        : { [businessEdit]: businessDraft.trim() };
+    await updateBusiness.mutateAsync({ id: b.id, patch });
+    setBusinessEdit(null);
+  };
 
   const openEdit = (kind: "opening" | "closing" | "buffer") => {
     if (!b) return;
@@ -53,26 +82,6 @@ export default function CompanyScreen() {
     setSchedEdit(null);
   };
 
-  function CompanyScreenAddBusinessNameModal(
-    { visible, onClose }: { visible: boolean;
-      onClose: () => void }) {
-        const [prevName, setPrevName] = useState();
-        const [name, setName] = useState("");
-        if (!visible) return null;
-        return (
-          <View className="p-4">
-            <Text className="text-sm text-slate-700 mb-2">Business Name</Text>
-            <TextInput
-              className="border border-slate-300 rounded-lg p-2"
-              placeholder="Enter business name"
-              value={name}
-              onChangeText={setName}
-            />
-            <Button title="Close" onPress={onClose} />
-          </View>
-        );
-  }
-
   return (
     <ScreenScaffold title="Company Info" subtitle="Business profile and branding">
       <Text className="text-[11px] uppercase tracking-wider text-slate-500 px-1 mb-2">
@@ -82,7 +91,16 @@ export default function CompanyScreen() {
         <SegmentedToggle
           options={INDUSTRY_OPTIONS}
           active={mode}
-          onChange={(k) => setMode(k as "mobile" | "fixed")}
+          onChange={async (k) => {
+            const nextMode = k as "mobile" | "fixed";
+            setMode(nextMode);
+            if (b) {
+              await updateBusiness.mutateAsync({
+                id: b.id,
+                patch: { industry_mode: nextMode },
+              });
+            }
+          }}
         />
         <Text className="text-xs text-slate-500 mt-3 leading-4">
           {mode === "mobile"
@@ -95,25 +113,28 @@ export default function CompanyScreen() {
       </Text>
 
       <SettingsGroup title="Business">
-        <SettingsRow label="Name" value="FieldServe Detailing" onPress={() => setShowAdd(true)} />
-        <CompanyScreenAddBusinessNameModal visible={showAdd} onClose={() => setShowAdd(false)} />
-        <SettingsRow label="Trading name" value="FieldServe" onPress={() => {}} />
-        <SettingsRow label="Tax ID" value="—" onPress={() => {}} />
+        <SettingsRow label="Name" value={b?.name ?? "—"} onPress={() => openBusinessEdit("name")} />
+        <SettingsRow label="Trading name" value={b?.trading_name || "—"} onPress={() => openBusinessEdit("trading_name")} />
+        <SettingsRow label="Tax ID" value={b?.tax_id || "—"} onPress={() => openBusinessEdit("tax_id")} />
       </SettingsGroup>
 
       <SettingsGroup title="Contact">
-        <SettingsRow label="Email" value="hello@fieldserve.local" onPress={() => {}} />
-        <SettingsRow label="Phone" value="+44 20 1234 5678" onPress={() => {}} />
-        <SettingsRow label="Website" value="fieldserve.local" onPress={() => {}} />
+        <SettingsRow label="Email" value={b?.email || "—"} onPress={() => openBusinessEdit("email")} />
+        <SettingsRow label="Phone" value={b?.phone || "—"} onPress={() => openBusinessEdit("phone")} />
+        <SettingsRow label="Website" value={b?.website || "—"} onPress={() => openBusinessEdit("website")} />
       </SettingsGroup>
 
       <SettingsGroup title="Address">
         <SettingsRow
           label={mode === "mobile" ? "Service area" : "Premises address"}
-          value={mode === "mobile" ? "Greater London" : "12 High Street, EC1A 1BB"}
-          onPress={() => {}}
+          value={
+            [b?.address_line1, b?.address_city, b?.address_postcode]
+              .filter(Boolean)
+              .join(", ") || "—"
+          }
+          onPress={() => openBusinessEdit("address")}
         />
-        <SettingsRow label="Registered address" onPress={() => {}} />
+        <SettingsRow label="Registered address" value={b?.address_country || "—"} onPress={() => openBusinessEdit("address")} />
       </SettingsGroup>
 
       <SettingsGroup title="Branding">
@@ -139,6 +160,38 @@ export default function CompanyScreen() {
           onPress={() => openEdit("buffer")}
         />
       </SettingsGroup>
+
+      <Modal
+        visible={businessEdit !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBusinessEdit(null)}
+      >
+        <View className="flex-1 justify-center bg-black/40 px-6">
+          <View className="bg-white rounded-2xl p-5">
+            <Text className="text-base font-semibold text-slate-900 mb-2">
+              Edit {businessEdit === "address" ? "address" : businessEdit?.replace("_", " ")}
+            </Text>
+            <TextInput
+              value={businessDraft}
+              onChangeText={setBusinessDraft}
+              placeholder="Enter a value"
+              autoCapitalize="none"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 mb-3"
+            />
+            <View className="flex-row justify-end">
+              <Pressable onPress={() => setBusinessEdit(null)} className="px-4 py-2">
+                <Text className="text-slate-600">Cancel</Text>
+              </Pressable>
+              <Pressable onPress={saveBusinessEdit} className="px-4 py-2 bg-blue-600 rounded-lg ml-2">
+                <Text className="text-white font-semibold">
+                  {updateBusiness.isPending ? "Saving…" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={schedEdit !== null}

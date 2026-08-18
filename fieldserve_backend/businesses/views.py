@@ -128,7 +128,7 @@ class BusinessViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def current(self, request):
-        biz = self.get_queryset().first()
+        biz = self.get_queryset().order_by("-created_at", "-id").first()
         if biz is None:
             return Response({"detail": "No business found."}, status=404)
         return Response(self.get_serializer(biz).data)

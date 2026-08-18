@@ -15,7 +15,7 @@ services:
     region: frankfurt
     rootDir: ml_service
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: standard
     envVars:
       - key: ML_INTERNAL_TOKEN
         generateValue: true

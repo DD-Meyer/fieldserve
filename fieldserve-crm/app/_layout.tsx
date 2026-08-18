@@ -1,10 +1,11 @@
 import { ClerkLoaded, ClerkLoading, ClerkProvider, useAuth } from "@clerk/clerk-expo";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { IndustryProvider } from "../contexts/IndustryContext";
+import { useMe } from "../lib/hooks/useMe";
 import { tokenCache } from "../lib/clerk";
 import "@/global.css";
 import { useFonts } from "expo-font";
@@ -27,27 +28,37 @@ if (!CLERK_PUBLISHABLE_KEY) {
 }
 
 function AuthGate() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, orgId } = useAuth();
+  const { data: me, isLoading: isMeLoading } = useMe();
   const segments = useSegments();
   const router = useRouter();
+  const hasBusiness =
+    Boolean(orgId) &&
+    (me?.memberships.some((membership) => membership.status === "active") ?? false);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || (isSignedIn && isMeLoading)) return;
     const inAuthGroup = segments[0] === "(auth)";
+    const inOnboarding = inAuthGroup && segments[1] === "onboarding";
     const inPublicGroup = segments[0] === "book";
     console.log("[FieldServe] AuthGate effect", {
       isSignedIn,
       firstSegment: segments[0],
       inAuthGroup,
+      inOnboarding,
       inPublicGroup,
     });
     if (inPublicGroup) return;
     if (!isSignedIn && !inAuthGroup) {
       router.replace("/(auth)/sign-in");
-    } else if (isSignedIn && inAuthGroup) {
+    } else if (isSignedIn && !hasBusiness && !inOnboarding && !inPublicGroup) {
+      router.replace("/(auth)/onboarding");
+    } else if (isSignedIn && hasBusiness && inOnboarding) {
+      router.replace("/(tabs)");
+    } else if (isSignedIn && inAuthGroup && !inOnboarding) {
       router.replace("/(tabs)");
     }
-  }, [isLoaded, isSignedIn, segments, router]);
+  }, [hasBusiness, isLoaded, isMeLoading, isSignedIn, orgId, segments, router]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

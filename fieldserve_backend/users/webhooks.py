@@ -8,12 +8,9 @@ import logging
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.decorators import method_decorator
-from django.utils.text import slugify
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from svix.webhooks import Webhook, WebhookVerificationError
-
-from businesses.models import Business, Membership
 
 from .models import User
 
@@ -27,15 +24,6 @@ def _primary_email(data: dict) -> str:
         if a.get("id") == primary_id:
             return a.get("email_address", "")
     return addrs[0].get("email_address", "") if addrs else ""
-
-
-def _unique_slug(base: str) -> str:
-    candidate = slugify(base) or "business"
-    n = 0
-    while Business.objects.filter(slug=candidate).exists():
-        n += 1
-        candidate = f"{slugify(base)}-{n}"
-    return candidate
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -98,23 +86,6 @@ class ClerkWebhookView(View):
                 "avatar_url": data.get("image_url") or "",
             },
         )
-        if not user.businesses_owned.exists():
-            display = (first or email.split("@")[0] or "My").strip()
-            biz_name = f"{display}'s business"
-            biz = Business.objects.create(
-                owner=user,
-                name=biz_name,
-                slug=_unique_slug(biz_name),
-            )
-            Membership.objects.get_or_create(
-                business=biz,
-                user=user,
-                defaults={
-                    "role": Membership.Role.OWNER,
-                    "status": Membership.Status.ACTIVE,
-                },
-            )
-
     def _user_updated(self, data: dict) -> None:
         clerk_id = data.get("id")
         if not clerk_id:

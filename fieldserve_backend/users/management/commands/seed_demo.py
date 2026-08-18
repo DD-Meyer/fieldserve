@@ -4,6 +4,7 @@ after a fresh sign-in. Idempotent: re-running the same --clerk-id/--industry
 combination is safe.
 
 Usage:
+    python manage.py seed_demo --clerk-id <clerk_user_id> --clerk-organization-id <org_id>
     python manage.py seed_demo --clerk-id <clerk_user_id> [--email me@x.com] [--industry mobile|fixed]
     python manage.py seed_demo --clerk-id <clerk_user_id> --reset
 
@@ -174,11 +175,28 @@ def _spread_last_seen(rng: random.Random, n: int) -> list[int]:
     return days[:n]
 
 
+def _unique_business_slug(base: str) -> str:
+    slug = slugify(base) or "business"
+    original = slug
+    suffix = 0
+    while Business.objects.filter(slug=slug).exists():
+        suffix += 1
+        slug = f"{original}-{suffix}"
+    return slug
+
+
 class Command(BaseCommand):
     help = "Seed a demo business, customers and jobs for a Clerk user."
 
     def add_arguments(self, parser):
         parser.add_argument("--clerk-id", required=True, help="Clerk user id (sub)")
+        parser.add_argument(
+            "--clerk-organization-id",
+            "--organization-id",
+            dest="clerk_organization_id",
+            default="",
+            help="Existing Clerk organization ID to seed on its linked Business",
+        )
         parser.add_argument("--email", default="", help="Optional email to set on the user")
         parser.add_argument(
             "--business-name",
@@ -206,6 +224,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **opts):
         clerk_id = opts["clerk_id"].strip()
+        clerk_organization_id = opts["clerk_organization_id"].strip()
         email = opts["email"].strip()
         industry = opts["industry"]
         rng = random.Random(opts["seed"])
@@ -230,17 +249,48 @@ class Command(BaseCommand):
             user.email = email
             user.save(update_fields=["email"])
 
-        slug = slugify(biz_name)
-        biz, _ = Business.objects.get_or_create(
-            owner=user,
-            name=biz_name,
-            defaults={
-                "slug": slug,
-                "industry_mode": industry,
-                "email": "hello@fieldserve.local",
-                "phone": "+44 20 1234 5678",
-            },
-        )
+        slug = _unique_business_slug(biz_name)
+        if clerk_organization_id:
+            biz = Business.objects.filter(
+                clerk_organization_id=clerk_organization_id
+            ).first()
+            if biz is None:
+                biz = Business.objects.create(
+                    owner=user,
+                    name=biz_name,
+                    slug=slug,
+                    industry_mode=industry,
+                    clerk_organization_id=clerk_organization_id,
+                    email="hello@fieldserve.local",
+                    phone="+44 20 1234 5678",
+                )
+            elif biz.owner != user:
+                raise CommandError(
+                    "The Clerk organization is linked to a different local user."
+                )
+        else:
+            clerk_businesses = list(
+                Business.objects.filter(
+                    owner=user, clerk_organization_id__isnull=False
+                )
+            )
+            if len(clerk_businesses) == 1:
+                biz = clerk_businesses[0]
+            elif len(clerk_businesses) > 1:
+                raise CommandError(
+                    "Multiple Clerk businesses found; pass --clerk-organization-id."
+                )
+            else:
+                biz = Business.objects.filter(owner=user, name=biz_name).first()
+                if biz is None:
+                    biz = Business.objects.create(
+                        owner=user,
+                        name=biz_name,
+                        slug=slug,
+                        industry_mode=industry,
+                        email="hello@fieldserve.local",
+                        phone="+44 20 1234 5678",
+                    )
         Membership.objects.get_or_create(
             business=biz,
             user=user,

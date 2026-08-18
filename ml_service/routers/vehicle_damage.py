@@ -15,6 +15,7 @@ import hashlib
 import io
 import logging
 import os
+from threading import Lock
 from pathlib import Path
 from typing import Any
 
@@ -57,7 +58,16 @@ class _Model:
     def __init__(self) -> None:
         self.impl = None
         self.version = "fallback-stub"
-        self._try_load()
+        self._loaded = False
+        self._load_lock = Lock()
+
+    def _ensure_loaded(self) -> None:
+        if self._loaded:
+            return
+        with self._load_lock:
+            if not self._loaded:
+                self._try_load()
+                self._loaded = True
 
     def _try_load(self) -> None:
         if not WEIGHTS_PATH.exists():
@@ -79,6 +89,7 @@ class _Model:
             log.exception("Failed to load vehicle damage model — serving fallback stub.")
 
     def predict(self, image: Image.Image) -> list[dict[str, Any]]:
+        self._ensure_loaded()
         if self.impl is None:
             return self._stub(image)
         try:
@@ -141,21 +152,34 @@ _MODEL = _Model()
 class _FrameModel:
     def __init__(self) -> None:
         self.impl = None
-        if not FRAME_WEIGHTS_PATH.exists():
-            log.warning("Vehicle framing weights not found at %s", FRAME_WEIGHTS_PATH)
-            return
-        try:
-            from ultralytics import YOLO  # type: ignore
+        self._loaded = False
+        self._load_lock = Lock()
 
-            self.impl = YOLO(str(FRAME_WEIGHTS_PATH))
-        except Exception:  # noqa: BLE001
-            log.exception("Failed to load vehicle framing model")
+    def _ensure_loaded(self) -> None:
+        if self._loaded:
+            return
+        with self._load_lock:
+            if self._loaded:
+                return
+            if not FRAME_WEIGHTS_PATH.exists():
+                log.warning("Vehicle framing weights not found at %s", FRAME_WEIGHTS_PATH)
+            else:
+                try:
+                    from ultralytics import YOLO  # type: ignore
+
+                    self.impl = YOLO(str(FRAME_WEIGHTS_PATH))
+                except Exception:  # noqa: BLE001
+                    log.exception("Failed to load vehicle framing model")
+            self._loaded = True
 
     def check(self, image: Image.Image) -> dict[str, Any]:
+        self._ensure_loaded()
         if self.impl is None:
             return {"ready": False, "reason": "detector_unavailable", "guidance": "Use manual capture"}
-        results = self.impl.predict(image, verbose=False, conf=0.3)
-        result = results[0]
+        results = list(self.impl.predict(image, verbose=False, conf=0.3))
+        if not results:
+            return {"ready": False, "reason": "no_vehicle", "guidance": "Point the camera at the vehicle"}
+        result: Any = results[0]
         candidates = []
         for box, confidence, class_id in zip(result.boxes.xyxy, result.boxes.conf, result.boxes.cls):
             label = result.names[int(class_id)]
