@@ -1,6 +1,11 @@
 # ML & Large Data
-ml_service/
-runs/
+ml_service/models/churn/data
+ml_service/models/computer_vision/cardd_yolo
+ml_service/models/computer_vision/CarDD-data
+ml_service/models/computer_vision/Kaggle_runs
+ml_service/models/heatmap/data
+ml_service/models/scheduling/data/
+*runs/
 
 # Secrets
 .env
