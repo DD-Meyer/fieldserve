@@ -27,9 +27,9 @@ export type Me = {
 
 export function useMe() {
   const api = useApi();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   return useQuery({
-    queryKey: ["me"],
+    queryKey: ["me", userId],
     queryFn: () => api.get<Me>("/api/auth/me/"),
     staleTime: 60_000,
     enabled: !!isSignedIn,

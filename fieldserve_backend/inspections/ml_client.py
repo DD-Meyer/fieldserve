@@ -14,7 +14,7 @@ from django.conf import settings
 
 log = logging.getLogger(__name__)
 
-_TIMEOUT_SECONDS = 30
+_TIMEOUT_SECONDS = 90
 
 
 class DamageServiceError(Exception):
