@@ -52,9 +52,9 @@ export type BusinessUpdate = Partial<
 
 export function useCurrentBusiness() {
   const api = useApi();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   return useQuery({
-    queryKey: ["business", "current"],
+    queryKey: ["business", "current", userId],
     queryFn: () => api.get<Business>("/api/businesses/current/"),
     staleTime: 60_000,
     enabled: !!isSignedIn,

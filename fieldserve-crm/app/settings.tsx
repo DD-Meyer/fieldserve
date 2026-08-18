@@ -2,10 +2,21 @@ import { Switch } from "react-native";
 import { useState } from "react";
 
 import ScreenScaffold from "../components/ScreenScaffold";
+import SegmentedToggle from "../components/SegmentedToggle";
 import SettingsGroup from "../components/SettingsGroup";
 import SettingsRow from "../components/SettingsRow";
+import { useIndustry } from "../contexts/IndustryContext";
+import { useCurrentBusiness, useUpdateBusiness } from "../lib/hooks/useBusiness";
+
+const INDUSTRY_OPTIONS = [
+  { key: "mobile", label: "Mobile Service" },
+  { key: "fixed", label: "Fixed Location" },
+];
 
 export default function SettingsScreen() {
+  const { mode, setMode } = useIndustry();
+  const business = useCurrentBusiness();
+  const updateBusiness = useUpdateBusiness();
   const [pushNotif, setPushNotif] = useState(true);
   const [emailNotif, setEmailNotif] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -13,6 +24,29 @@ export default function SettingsScreen() {
 
   return (
     <ScreenScaffold title="Settings" subtitle="App preferences and defaults">
+      <SettingsGroup title="Business mode">
+        <View className="p-4">
+          <SegmentedToggle
+            options={INDUSTRY_OPTIONS}
+            active={mode}
+            onChange={async (value) => {
+              const nextMode = value as "mobile" | "fixed";
+              setMode(nextMode);
+              if (business.data) {
+                await updateBusiness.mutateAsync({
+                  id: business.data.id,
+                  patch: { industry_mode: nextMode },
+                });
+              }
+            }}
+          />
+          <Text className="text-xs text-slate-500 mt-3 leading-4">
+            Mobile Service shows route planning and travel maps. Fixed Location
+            shows appointment and resource scheduling.
+          </Text>
+        </View>
+      </SettingsGroup>
+
       <SettingsGroup title="Notifications">
         <SettingsRow
           label="Push notifications"

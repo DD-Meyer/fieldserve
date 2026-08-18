@@ -155,7 +155,9 @@ CLERK_ISSUER = os.environ.get("CLERK_ISSUER", "")
 CLERK_WEBHOOK_SECRET = os.environ.get("CLERK_WEBHOOK_SECRET", "")
 
 # --- ML service (FastAPI) ---
-ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://ml:8001")
+ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://ml:8001").strip()
+if ML_SERVICE_URL and "://" not in ML_SERVICE_URL:
+    ML_SERVICE_URL = f"http://{ML_SERVICE_URL}"
 ML_INTERNAL_TOKEN = os.environ.get("ML_INTERNAL_TOKEN", "")
 
 # --- Road routing (OSRM-compatible API) ---

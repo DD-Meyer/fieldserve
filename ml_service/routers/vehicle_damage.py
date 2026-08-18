@@ -294,4 +294,7 @@ def status() -> dict[str, Any]:
         "model_version": _MODEL.version,
         "weights_path": str(WEIGHTS_PATH),
         "weights_present": WEIGHTS_PATH.exists(),
+        "frame_loaded": _FRAME_MODEL.impl is not None,
+        "frame_weights_path": str(FRAME_WEIGHTS_PATH),
+        "frame_weights_present": FRAME_WEIGHTS_PATH.exists(),
     }
