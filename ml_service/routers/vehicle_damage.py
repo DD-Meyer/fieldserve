@@ -93,7 +93,12 @@ class _Model:
         if self.impl is None:
             return self._stub(image)
         try:
-            results = self.impl.predict(image, verbose=False)
+            results = self.impl.predict(
+                image,
+                verbose=False,
+                imgsz=640,
+                max_det=20,
+            )
         except Exception:  # noqa: BLE001
             log.exception("YOLO inference failed — returning empty damage list.")
             return []
@@ -115,6 +120,7 @@ class _Model:
                         "bbox": [round(float(v), 1) for v in box],
                     }
                 )
+        del results
         return damages
 
     def _stub(self, image: Image.Image) -> list[dict[str, Any]]:
@@ -176,7 +182,15 @@ class _FrameModel:
         self._ensure_loaded()
         if self.impl is None:
             return {"ready": False, "reason": "detector_unavailable", "guidance": "Use manual capture"}
-        results = list(self.impl.predict(image, verbose=False, conf=0.3))
+        results = list(
+            self.impl.predict(
+                image,
+                verbose=False,
+                conf=0.3,
+                imgsz=640,
+                max_det=10,
+            )
+        )
         if not results:
             return {"ready": False, "reason": "no_vehicle", "guidance": "Point the camera at the vehicle"}
         result: Any = results[0]

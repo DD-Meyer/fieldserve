@@ -21,15 +21,31 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+_media_bucket = os.environ.get("AWS_STORAGE_BUCKET_NAME", "").strip()
+
 # Enables efficient caching and compression for static files
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": (
+            "storages.backends.s3.S3Storage"
+            if _media_bucket
+            else "django.core.files.storage.FileSystemStorage"
+        ),
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+if _media_bucket:
+    AWS_STORAGE_BUCKET_NAME = _media_bucket
+    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "auto")
+    AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "") or None
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = True
 
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY",
