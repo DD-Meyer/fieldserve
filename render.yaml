@@ -29,6 +29,10 @@ services:
     dockerfilePath: ./Dockerfile
     plan: starter
     healthCheckPath: /admin/
+    disk:
+      name: fieldserve-media
+      mountPath: /app/media
+      sizeGB: 1
     envVars:
       - key: PORT
         value: "8000"
@@ -88,4 +92,15 @@ services:
       - key: CLERK_ISSUER
         sync: false
       - key: CLERK_WEBHOOK_SECRET
+        sync: false
+      # S3-compatible persistent media storage for inspection photos.
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
         sync: false
