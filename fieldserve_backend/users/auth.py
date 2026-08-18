@@ -37,6 +37,39 @@ def _get_jwk_client() -> PyJWKClient:
     return _JWK_CLIENT
 
 
+def _get_clerk_profile(clerk_id: str) -> dict[str, str]:
+    secret_key = getattr(settings, "CLERK_SECRET_KEY", "")
+    if not secret_key:
+        return {}
+    try:
+        response = requests.get(
+            f"https://api.clerk.com/v1/users/{clerk_id}",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except (requests.RequestException, ValueError):
+        return {}
+
+    email_addresses = data.get("email_addresses") or []
+    primary_email_id = data.get("primary_email_address_id")
+    email = next(
+        (
+            item.get("email_address", "")
+            for item in email_addresses
+            if item.get("id") == primary_email_id
+        ),
+        email_addresses[0].get("email_address", "") if email_addresses else "",
+    )
+    return {
+        "email": email,
+        "first_name": data.get("first_name") or "",
+        "last_name": data.get("last_name") or "",
+        "avatar_url": data.get("image_url") or "",
+    }
+
+
 class ClerkJWTAuthentication(authentication.BaseAuthentication):
     keyword = "Bearer"
 
@@ -90,14 +123,18 @@ class ClerkJWTAuthentication(authentication.BaseAuthentication):
             "first_name": payload.get("given_name") or payload.get("first_name") or "",
             "last_name": payload.get("family_name") or payload.get("last_name") or "",
         }
+        if not defaults["email"] or not defaults["first_name"] or not defaults["last_name"]:
+            clerk_profile = _get_clerk_profile(clerk_id)
+            defaults.update({key: value for key, value in clerk_profile.items() if value})
         user, created = User.objects.get_or_create(
             clerk_user_id=clerk_id, defaults=defaults
         )
         if not created:
-            # keep email/name in sync cheaply
             updates: dict[str, Any] = {}
-            if email and user.email != email:
-                updates["email"] = email
+            for field in ("email", "first_name", "last_name", "avatar_url"):
+                value = defaults.get(field)
+                if value and getattr(user, field) != value:
+                    updates[field] = value
             if updates:
                 User.objects.filter(pk=user.pk).update(**updates)
                 for k, v in updates.items():

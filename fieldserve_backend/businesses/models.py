@@ -22,6 +22,9 @@ class Business(models.Model):
     )
 
     name = models.CharField(max_length=120)
+    clerk_organization_id = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, db_index=True
+    )
     trading_name = models.CharField(max_length=120, blank=True)
     slug = models.SlugField(max_length=140, unique=True)
     industry_mode = models.CharField(

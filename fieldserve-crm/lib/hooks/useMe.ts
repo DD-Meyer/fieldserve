@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useApi } from "../api";
 
@@ -33,5 +33,18 @@ export function useMe() {
     queryFn: () => api.get<Me>("/api/auth/me/"),
     staleTime: 60_000,
     enabled: !!isSignedIn,
+  });
+}
+
+export function useUpdateMe() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (patch: Partial<Pick<Me, "first_name" | "last_name" | "phone">>) =>
+      api.patch<Me>("/api/auth/me/", patch),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }

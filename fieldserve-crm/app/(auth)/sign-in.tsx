@@ -1,6 +1,7 @@
-import { useSignIn } from "@clerk/clerk-expo";
+import { useAuth, useSignIn } from "@clerk/clerk-expo";
+import { useMe } from "../../lib/hooks/useMe";
 import { Link, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,13 +18,34 @@ type Stage = "credentials" | "verify";
 
 export default function SignInScreen() {
   const router = useRouter();
+  const { isLoaded: isAuthLoaded, isSignedIn, signOut } = useAuth();
   const { signIn, setActive, isLoaded } = useSignIn();
+  const { data: me, isLoading: isMeLoading } = useMe();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<Stage>("credentials");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthLoaded || !isSignedIn || isMeLoading) return;
+    const hasBusiness = me?.memberships.some(
+      (membership) => membership.status === "active",
+    );
+    router.replace(hasBusiness ? "/(tabs)" : "/(auth)/onboarding");
+  }, [isAuthLoaded, isMeLoading, isSignedIn, me, router]);
+
+  if (!isAuthLoaded || isSignedIn) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F9FAFB" }}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 12, color: "#64748b", fontSize: 14 }}>
+          Redirecting…
+        </Text>
+      </View>
+    );
+  }
 
   const finishSession = async (createdSessionId: string | null) => {
     if (!createdSessionId) {
@@ -35,7 +57,7 @@ export default function SignInScreen() {
       return;
     }
     await setActive({ session: createdSessionId });
-    router.replace("/(tabs)");
+    router.replace("/(auth)/onboarding");
   };
 
   const startMfa = async () => {
@@ -57,7 +79,11 @@ export default function SignInScreen() {
   };
 
   const submitCredentials = async () => {
-    if (!isLoaded) return;
+    if (!isAuthLoaded || isSignedIn) {
+      router.replace("/(auth)/onboarding");
+      return;
+    }
+    if (!isLoaded || !signIn) return;
     setError(null);
     setLoading(true);
     try {
@@ -86,6 +112,18 @@ export default function SignInScreen() {
       }
     } catch (e: any) {
       console.log("[FieldServe] sign-in error", e);
+      const clerkErrors = e?.errors ?? [];
+      const alreadySignedIn = clerkErrors.some(
+        (clerkError: any) =>
+          clerkError?.code === "already_signed_in" ||
+          clerkError?.message?.toLowerCase().includes("already signed in") ||
+          clerkError?.longMessage?.toLowerCase().includes("already signed in"),
+      );
+      if (alreadySignedIn) {
+        await signOut();
+        setError("The previous account was signed out. Sign in again to switch accounts.");
+        return;
+      }
       setError(e?.errors?.[0]?.longMessage || e?.message || "Sign-in failed");
     } finally {
       setLoading(false);
@@ -154,7 +192,9 @@ export default function SignInScreen() {
 
               <Pressable
                 onPress={submitCredentials}
-                disabled={loading || !email || !password}
+                disabled={
+                  loading || !email || !password || !isAuthLoaded || !!isSignedIn
+                }
                 style={({ pressed }) => [
                   styles.button,
                   (loading || !email || !password) && styles.buttonDisabled,
