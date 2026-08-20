@@ -10,6 +10,12 @@ from jobs.views import JobViewSet
 from users.views import CustomerViewSet, MeView, OnboardUserView
 from users.webhooks import ClerkWebhookView
 
+# Helper to enforce CORS on static media files
+def cors_serve(request, path, document_root=None, show_indexes=False):
+    response = serve(request, path, document_root=document_root, show_indexes=show_indexes)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
 router = DefaultRouter()
 router.register(r"jobs", JobViewSet, basename="job")
 router.register(r"businesses", BusinessViewSet, basename="business")
@@ -31,7 +37,7 @@ if settings.STORAGES["default"]["BACKEND"] == "django.core.files.storage.FileSys
     urlpatterns += [
         re_path(
             r"^media/(?P<path>.*)$",
-            serve,
+            cors_serve,
             {"document_root": settings.MEDIA_ROOT},
         )
     ]

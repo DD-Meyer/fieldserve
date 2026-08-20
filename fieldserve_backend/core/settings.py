@@ -60,8 +60,10 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
-# Tell Django to trust Render's reverse proxy for HTTPS detection
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Tells Django to build HTTPS links when behind Render's load balancer
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 # Add CSRF trusted origins parsed from environment variables
 CSRF_TRUSTED_ORIGINS = os.environ.get(
