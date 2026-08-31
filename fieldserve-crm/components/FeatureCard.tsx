@@ -1,6 +1,6 @@
 import { Pressable, Text, View, type ViewStyle } from "react-native";
 
-type Tone = "red" | "blue" | "green";
+type Tone = "red" | "blue" | "green" | "purple";
 
 const toneClasses: Record<
   Tone,
@@ -23,6 +23,12 @@ const toneClasses: Record<
     iconBg: "bg-green-100",
     title: "text-green-900",
     cta: "text-green-700",
+  },
+  purple: {
+    card: "bg-purple-50 border-purple-100",
+    iconBg: "bg-purple-100",
+    title: "text-purple-900",
+    cta: "text-purple-700",
   },
 };
 

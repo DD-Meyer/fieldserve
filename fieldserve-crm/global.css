@@ -5,19 +5,25 @@
 @import "nativewind/theme";
 
 @theme {
+    /* UI Layout Tokens */
     --color-background: #F9FAFB;
     --color-foreground: #111827;
     --color-card: #FFFFFF;
-    --color-muted: #ECFDF5;
+    --color-muted: #F1F5F9; 
     --color-muted-foreground: rgba(17, 24, 39, 0.65);
-    --color-primary: #111827;
-    --color-accent: #14B8A6;
-    --color-secondary-accent: #2DD4BF;
+    
+    /* Field CRM Priority Colors */
+    --color-primary: #021F94;
+    --color-accent: #0D9488;
+    --color-secondary-accent: #14B8A6;
+    
+    /* Utilities & Alerts */
     --color-border: rgba(17, 24, 39, 0.08);
     --color-success: #10B981;
     --color-destructive: #EF4444;
-    --color-nav: #f9fafbe6;
+    --color-nav: rgba(249, 250, 251, 0.9);
 
+    /* Layout Spacing Grid System */
     --spacing-0: 0px;
     --spacing-1: 4px;
     --spacing-2: 8px;
@@ -38,10 +44,11 @@
     --spacing-24: 96px;
     --spacing-30: 120px;
 
-    --font-sans: sans-regular;
-    --font-sans-light: sans-light;
-    --font-sans-medium: sans-medium;
-    --font-sans-semibold: sans-semibold;
-    --font-sans-bold: sans-bold;
-    --font-sans-extrabold: sans-extrabold;
+    /* Fixed: Precise Font Family Target Matching for Expo Config */
+    --font-sans: 'PlusJakartaSans-Regular';
+    --font-sans-light: 'PlusJakartaSans-Light';
+    --font-sans-medium: 'PlusJakartaSans-Medium';
+    --font-sans-semibold: 'PlusJakartaSans-SemiBold';
+    --font-sans-bold: 'PlusJakartaSans-Bold';
+    --font-sans-extrabold: 'PlusJakartaSans-ExtraBold';
 }
