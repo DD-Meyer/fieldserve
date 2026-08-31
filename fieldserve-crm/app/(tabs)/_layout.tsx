@@ -22,18 +22,25 @@ const StandardTabIcon = ({ focused, icon }: { focused: boolean; icon: any }) => 
           resizeMode="contain"
         />
       ) : (
-        <MaskedView
-          androidRenderingMode="software"
-          style={styles.icon}
-          maskElement={<Image source={icon} style={styles.icon} resizeMode="contain" />}
-        >
-          <LinearGradient
-            colors={ACTIVE_GRADIENT as [string, string, string]}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.icon}
+        <View style={styles.icon}>
+          <Image
+            source={icon}
+            style={[styles.icon, { tintColor: ACTIVE_GRADIENT[1] }]}
+            resizeMode="contain"
           />
-        </MaskedView>
+          <MaskedView
+            androidRenderingMode="software"
+            style={styles.iconOverlay}
+            maskElement={<Image source={icon} style={styles.icon} resizeMode="contain" />}
+          >
+            <LinearGradient
+              colors={ACTIVE_GRADIENT as [string, string, string]}
+              start={{ x: 0, y: 1 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.icon}
+            />
+          </MaskedView>
+        </View>
       )}
     </View>
   );
@@ -182,6 +189,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   icon: {
+    width: 24,
+    height: 24,
+  },
+  iconOverlay: {
+    position: "absolute",
     width: 24,
     height: 24,
   },
