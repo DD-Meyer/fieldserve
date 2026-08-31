@@ -25,6 +25,20 @@ class InspectionViewSet(viewsets.ModelViewSet):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
     filterset_fields = ["job", "phase", "angle", "analysis_status"]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        # Re-fetch the saved instance so photo and analysis data are fresh
+        inspection = serializer.instance
+        inspection.refresh_from_db()
+        
+        return Response(
+            InspectionSerializer(inspection, context={"request": request}).data,
+            status=201,
+        )
+
     def get_throttles(self):
         if self.action in {"create", "reanalyse", "check_frame"}:
             return [InspectionThrottle()]

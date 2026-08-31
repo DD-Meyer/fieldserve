@@ -32,45 +32,60 @@ function AuthGate() {
   const { data: me, isLoading: isMeLoading } = useMe();
   const segments = useSegments();
   const router = useRouter();
-  const hasBusiness =
-    Boolean(orgId) &&
-    (me?.memberships.some((membership) => membership.status === "active") ?? false);
+
+  const hasActiveMembership =
+    me?.memberships?.some((membership) => membership.status === "active") ?? false;
+  const needsOnboarding = !orgId || !hasActiveMembership;
 
   useEffect(() => {
-    if (!isLoaded || (isSignedIn && isMeLoading)) return;
-    const inAuthGroup = segments[0] === "(auth)";
-    const inOnboarding = inAuthGroup && segments[1] === "onboarding";
-    const inPublicGroup = segments[0] === "book";
-    console.log("[FieldServe] AuthGate effect", {
-      isSignedIn,
-      firstSegment: segments[0],
-      inAuthGroup,
-      inOnboarding,
-      inPublicGroup,
-    });
+    if (!isLoaded) return;
+
+    const firstSegment = segments[0];
+    const secondSegment = segments[1];
+
+    const inAuthGroup = firstSegment === "(auth)";
+    const inOnboarding = inAuthGroup && secondSegment === "onboarding";
+    const inPublicGroup = firstSegment === "book";
+
     if (inPublicGroup) return;
-    if (!isSignedIn && !inAuthGroup) {
-      router.replace("/(auth)/sign-in");
-    } else if (isSignedIn && !hasBusiness && !inOnboarding && !inPublicGroup) {
-      router.replace("/(auth)/onboarding");
-    } else if (isSignedIn && hasBusiness && inOnboarding) {
-      router.replace("/(tabs)");
-    } else if (isSignedIn && inAuthGroup && !inOnboarding) {
-      router.replace("/(tabs)");
+
+    // 1. Not signed in -> Keep in auth group
+    if (!isSignedIn) {
+      if (!inAuthGroup) {
+        router.replace("/(auth)");
+      }
+      return;
     }
-  }, [hasBusiness, isLoaded, isMeLoading, isSignedIn, orgId, segments, router]);
+
+    if (orgId && isMeLoading) return;
+
+    // 2. Signed in -> Route based on Clerk org plus backend membership
+    if (needsOnboarding) {
+      if (!inOnboarding) {
+        router.replace("/(auth)/onboarding");
+      }
+    } else {
+      // Has a business -> Send to main tabs if still on any auth page
+      if (inAuthGroup) {
+        router.replace("/(tabs)");
+      }
+    }
+  }, [isLoaded, isMeLoading, isSignedIn, needsOnboarding, orgId, segments, router]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
+    // Headings & Titles (Futuristic Display)
+    "nexover-regular": require("../assets/fonts/NexoverDemo-Regular.otf"),
+
+    // Body Text & UI Elements (Highly Readable)
     "sans-light": require("../assets/fonts/PlusJakartaSans-Light.ttf"),
     "sans-regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
     "sans-medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
     "sans-semibold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
     "sans-bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
-    "sans-extrabold": require("../assets/fonts/PlusJakartaSans-ExtraBold.ttf"),
   });
 
   useEffect(() => {

@@ -20,6 +20,7 @@ import {
   useChurnScores,
   type ChurnScore,
 } from "../../lib/hooks/useChurn";
+import ScreenScaffold from "@/components/ScreenScaffold";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -103,15 +104,9 @@ export default function CustomerProfile() {
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title={customer.full_name} />
+      <AppHeader title={customer.full_name} back={true} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
-        <Pressable
-          onPress={() => router.back()}
-          className="self-start mb-3 px-2 py-1"
-        >
-          <Text className="text-xs text-blue-600">← Back</Text>
-        </Pressable>
-
+        
         {/* Score card */}
         <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-4">
           <View className="flex-row items-center justify-between">

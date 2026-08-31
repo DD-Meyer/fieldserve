@@ -1,7 +1,9 @@
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import "../../global.css";
-import AppHeader from "../../components/AppHeader";
+import AppHeader, {
+  FLOATING_HEADER_CONTENT_OFFSET,
+} from "../../components/AppHeader";
 import FeatureCard from "../../components/FeatureCard";
 import StatCard from "../../components/StatCard";
 import HomeBackground from "../../components/HomeBackground";
@@ -70,9 +72,24 @@ export default function HomeScreen() {
       <AppHeader title="FieldServe CRM" />
 
       
+      {/* <HomeBackground /> */}
+      <ScrollView
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
+          paddingBottom: tabBarSpace,
+        }}
+      >
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-        <HomeBackground />
+        {/* Background banner */}
+        <View className="mb-6">
+          <HomeBackground />
+        </View>
+
+        <Text className="mb-3 text-base font-semibold text-slate-900">
+          Key Metrics
+        </Text>
+        
         <View className="flex-row gap-3 justify-between">
           <StatCard
             label="Jobs Today"
@@ -103,11 +120,11 @@ export default function HomeScreen() {
         </Text>
         <View className="gap-3">
           <FeatureCard
-            tone="red"
-            glyph="⚠"
-            title="Churn Risk"
-            description="3 customers at high risk of churning based on RFM analysis."
-            cta="Review customers"
+            tone="purple"
+            glyph="⚡"
+            title="AI Job Insights"
+            description="Get AI-generated insights on your jobs and customers."
+            cta="View insights"
             onPress={() => router.push("/(tabs)/customers")}
           />
           <FeatureCard

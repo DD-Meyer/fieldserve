@@ -1,7 +1,9 @@
 import { View } from "react-native";
 import "../../global.css";
 
-import AppHeader from "../../components/AppHeader";
+import AppHeader, {
+  FLOATING_HEADER_CONTENT_OFFSET,
+} from "../../components/AppHeader";
 import MapFixed from "../../components/screens/MapFixed";
 import MapMobile from "../../components/screens/MapMobile";
 import { useIndustry } from "../../contexts/IndustryContext";
@@ -15,7 +17,9 @@ export default function Map() {
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="Map" />
-      {mode === "fixed" ? <MapFixed /> : <MapMobile />}
+      <View style={{ flex: 1, paddingTop: FLOATING_HEADER_CONTENT_OFFSET }}>
+        {mode === "fixed" ? <MapFixed /> : <MapMobile />}
+      </View>
     </SafeAreaView>
   );
 }

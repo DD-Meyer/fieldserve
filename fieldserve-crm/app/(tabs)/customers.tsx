@@ -11,7 +11,9 @@ import {
 import { useRouter } from "expo-router";
 import "../../global.css";
 
-import AppHeader from "../../components/AppHeader";
+import AppHeader, {
+  FLOATING_HEADER_CONTENT_OFFSET,
+} from "../../components/AppHeader";
 import CustomerChurnCard, {
   type ChurnCustomer,
 } from "../../components/CustomerChurnCard";
@@ -29,13 +31,14 @@ import {
 } from "../../lib/hooks/useCustomers";
 import { styled } from "nativewind";
 import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
+import CustomerBackground from "../../components/CustomerBackground";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
 const PILLS = [
   { key: "all", label: "All" },
   { key: "high", label: "High Risk" },
-  { key: "medium", label: "Medium" },
+  { key: "medium", label: "Medium Risk" },
   { key: "low", label: "Low Risk" },
 ];
 
@@ -100,6 +103,7 @@ function toChurnRow(c: Customer, score?: ChurnScore): ChurnCustomer & {
 
 export default function Customers() {
   const [active, setActive] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const tabBarSpace = useTabBarSpace();
   const router = useRouter();
@@ -127,9 +131,18 @@ export default function Customers() {
   );
 
   const filtered = useMemo(() => {
-    if (active === "all") return rows;
-    return rows.filter((r) => r.scored && r.level === active);
-  }, [active, rows]);
+    const byRisk =
+      active === "all" ? rows : rows.filter((r) => r.scored && r.level === active);
+
+    if (!searchQuery.trim()) return byRisk;
+
+    const q = searchQuery.toLowerCase();
+    return byRisk.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.lastVisit.toLowerCase().includes(q),
+    );
+  }, [active, rows, searchQuery]);
 
   const counts = useMemo(() => {
     const c = { high: 0, medium: 0, low: 0, unscored: 0 };
@@ -156,7 +169,18 @@ export default function Customers() {
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="Customers" />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
+          paddingBottom: tabBarSpace,
+        }}
+      >
+        {/* Background banner */}
+        <View className="mb-6">
+          <CustomerBackground />
+        </View>
+
         <View className="flex-row items-center justify-between">
           <Text className="text-xl font-bold text-slate-900">
             Customer Churn Analysis
@@ -173,6 +197,17 @@ export default function Customers() {
             ? `${modelMeta.name} · ${modelMeta.featureSet} · trained ${modelMeta.trainedAt}`
             : "No churn scores yet — run `score_churn` on the backend."}
         </Text>
+
+        <View className="mb-4">
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search customers..."
+            autoCapitalize="none"
+            returnKeyType="search"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900"
+          />
+        </View>
 
         <View className="flex-row gap-2 mb-4">
           <View className="flex-1 bg-white rounded-xl border border-slate-200 p-3 items-center">

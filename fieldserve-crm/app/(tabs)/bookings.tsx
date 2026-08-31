@@ -5,6 +5,7 @@ import {
   ScrollView,
   Share,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -13,7 +14,9 @@ import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
 
-import AppHeader from "../../components/AppHeader";
+import AppHeader, {
+  FLOATING_HEADER_CONTENT_OFFSET,
+} from "../../components/AppHeader";
 import CreateBookingModal from "../../components/CreateBookingModal";
 import FilterPills from "../../components/FilterPills";
 import { useJobs, type Job, type JobStatus } from "../../lib/hooks/useJobs";
@@ -67,6 +70,7 @@ function money(price: Job["price"]): string {
 export default function BookingsPage() {
   const router = useRouter();
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [ordering, setOrdering] = useState<string>("-scheduled_at");
   const [showCreate, setShowCreate] = useState(false);
 
@@ -75,7 +79,19 @@ export default function BookingsPage() {
     ordering,
   });
 
-  const jobs = data?.results ?? [];
+  const jobs = useMemo(() => {
+    const list = data?.results ?? [];
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (j) =>
+        j.customer_name.toLowerCase().includes(q) ||
+        j.service_type.toLowerCase().includes(q) ||
+        j.address.toLowerCase().includes(q) ||
+        j.status.toLowerCase().includes(q),
+    );
+  }, [data?.results, searchQuery]);
 
   const counts = useMemo(() => {
     const base: Record<JobStatus, number> = {
@@ -98,7 +114,13 @@ export default function BookingsPage() {
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title="Bookings" />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: 16,
+          paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
+          paddingBottom: 80,
+        }}
+      >
         <View className="flex-row items-center justify-between mb-1">
           <Text className="text-xl font-bold text-slate-900">All Bookings</Text>
           <View className="flex-row items-center gap-2">
@@ -127,6 +149,17 @@ export default function BookingsPage() {
         <Text className="text-xs text-slate-500 mb-4">
           {data?.count ?? 0} total in this view
         </Text>
+
+        <View className="mb-4">
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search bookings..."
+            autoCapitalize="none"
+            returnKeyType="search"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900"
+          />
+        </View>
 
         <View className="flex-row flex-wrap gap-2 mb-4">
           {(["pending", "scheduled", "in_progress", "completed", "cancelled"] as JobStatus[]).map(
