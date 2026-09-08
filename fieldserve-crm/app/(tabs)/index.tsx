@@ -81,11 +81,6 @@ export default function HomeScreen() {
         }}
       >
 
-        {/* Background banner */}
-        <View className="mb-6">
-          <HomeBackground />
-        </View>
-
         <Text className="mb-3 text-base font-semibold text-slate-900">
           Key Metrics
         </Text>

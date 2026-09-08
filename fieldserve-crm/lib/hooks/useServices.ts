@@ -25,6 +25,7 @@ export type ServiceInput = {
   is_active?: boolean;
 };
 
+// useServices hook file:
 export function useServices() {
   const api = useApi();
   const { isSignedIn } = useAuth();
@@ -33,11 +34,13 @@ export function useServices() {
     queryFn: () =>
       api.get<PaginatedResponse<Service>>("/api/services/", {
         ordering: "name",
+        page_size: 100, // <--- Ensures all services load into the modal
       }),
     staleTime: 30_000,
     enabled: !!isSignedIn,
   });
 }
+
 
 export function useCreateService() {
   const api = useApi();
