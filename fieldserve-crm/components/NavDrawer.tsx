@@ -22,10 +22,8 @@ const MENU: MenuItem[] = [
   { label: "Services", route: "/services", description: "Manage offerings & pricing" },
   { label: "Team Management", route: "/team", description: "Staff, roles & assignments" },
   { label: "Company Info", route: "/company", description: "Business profile" },
-  { label: "Billing", route: "/billing", description: "Plan & invoices" },
   { label: "Indemnity Settings", route: "/indemnity", description: "Liability & waivers" },
   { label: "Settings", route: "/settings", description: "App preferences" },
-  { label: "Support", route: "/support", description: "Help & contact" },
 ];
 
 const DRAWER_WIDTH = Math.min(320, Dimensions.get("window").width * 0.85);

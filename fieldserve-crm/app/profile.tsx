@@ -16,6 +16,11 @@ export default function ProfileScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
   const membership = me.data?.memberships[0];
   const displayName = [me.data?.first_name, me.data?.last_name]
     .filter(Boolean)
@@ -49,6 +54,28 @@ export default function ProfileScreen() {
       await signOut();
     } catch (err) {
       console.error("Sign out error:", err);
+    }
+  };
+
+  const changePassword = async () => {
+    if (!user) return;
+    if (!currentPassword || !newPassword) {
+      setPasswordError("Enter your current and new password.");
+      return;
+    }
+    setPasswordError(null);
+    setSavingPassword(true);
+    try {
+      await user.updatePassword({ currentPassword, newPassword });
+      setCurrentPassword("");
+      setNewPassword("");
+      setPasswordOpen(false);
+    } catch (error: any) {
+      setPasswordError(
+        error?.errors?.[0]?.longMessage || error?.message || "Password could not be changed.",
+      );
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -89,6 +116,7 @@ export default function ProfileScreen() {
           value={user?.twoFactorEnabled ? "On" : "Off"}
           chevron={false}
         />
+        <SettingsRow label="Change password" onPress={() => setPasswordOpen(true)} />
       </SettingsGroup>
 
       <SettingsGroup>
@@ -132,6 +160,52 @@ export default function ProfileScreen() {
               <Pressable onPress={saveEdit} className="px-4 py-2 bg-blue-600 rounded-lg ml-2">
                 <Text className="text-white font-semibold">
                   {updateMe.isPending ? "Saving…" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={passwordOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPasswordOpen(false)}
+      >
+        <View className="flex-1 justify-center bg-black/40 px-6">
+          <View className="bg-white rounded-2xl p-5">
+            <Text className="text-base font-semibold text-slate-900 mb-3">
+              Change password
+            </Text>
+            <TextInput
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Current password"
+              secureTextEntry
+              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 mb-3"
+            />
+            <TextInput
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="New password"
+              secureTextEntry
+              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
+            />
+            {passwordError ? (
+              <Text className="text-xs text-red-600 mt-3">{passwordError}</Text>
+            ) : null}
+            <View className="flex-row justify-end mt-4">
+              <Pressable onPress={() => setPasswordOpen(false)} className="px-4 py-2">
+                <Text className="text-slate-600">Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={changePassword}
+                disabled={savingPassword}
+                className="px-4 py-2 bg-blue-600 rounded-lg ml-2"
+              >
+                <Text className="text-white font-semibold">
+                  {savingPassword ? "Saving..." : "Update password"}
                 </Text>
               </Pressable>
             </View>

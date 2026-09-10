@@ -19,12 +19,14 @@ import AppHeader, {
 } from "../../components/AppHeader";
 import CreateBookingModal from "../../components/CreateBookingModal";
 import FilterPills from "../../components/FilterPills";
+import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 import { useJobs, type Job, type JobStatus } from "../../lib/hooks/useJobs";
 import { useShareBooking } from "../../lib/hooks/useShareBooking";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
 type StatusFilter = "all" | JobStatus;
+type BookingScope = "company" | "mine";
 
 const PILLS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -73,10 +75,15 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [ordering, setOrdering] = useState<string>("-scheduled_at");
   const [showCreate, setShowCreate] = useState(false);
+  const [scope, setScope] = useState<BookingScope>("company");
+  const { data: business } = useCurrentBusiness();
+  const isAdmin = business?.role === "admin";
+  const effectiveScope = isAdmin ? scope : "mine";
 
   const { data, isLoading, error, refetch, isFetching } = useJobs({
     status: status === "all" ? undefined : status,
     ordering,
+    assigned_to: effectiveScope === "mine" ? "me" : undefined,
   });
 
   const jobs = useMemo(() => {
@@ -122,7 +129,9 @@ export default function BookingsPage() {
         }}
       >
         <View className="flex-row items-center justify-between mb-1">
-          <Text className="text-xl font-bold text-slate-900">All Bookings</Text>
+          <Text className="text-xl font-bold text-slate-900">
+            {effectiveScope === "mine" ? "My Bookings" : "All Bookings"}
+          </Text>
           <View className="flex-row items-center gap-2">
             <Pressable
               onPress={() => setShowCreate(true)}
@@ -149,6 +158,30 @@ export default function BookingsPage() {
         <Text className="text-xs text-slate-500 mb-4">
           {data?.count ?? 0} total in this view
         </Text>
+
+        {isAdmin ? (
+          <View className="flex-row rounded-lg border border-slate-200 bg-slate-100 p-1 mb-4">
+            {([
+              ["company", "Company-wide"],
+              ["mine", "Assigned to me"],
+            ] as const).map(([key, label]) => {
+              const selected = scope === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setScope(key)}
+                  className={`flex-1 items-center rounded-md py-2 ${
+                    selected ? "bg-white" : ""
+                  }`}
+                >
+                  <Text className={`text-xs font-semibold ${selected ? "text-slate-900" : "text-slate-500"}`}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
 
         <View className="mb-4">
           <TextInput

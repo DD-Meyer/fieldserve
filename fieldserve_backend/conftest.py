@@ -33,7 +33,7 @@ def business(db, user) -> Business:
     Membership.objects.create(
         business=biz,
         user=user,
-        role=Membership.Role.OWNER,
+        role=Membership.Role.ADMIN,
         status=Membership.Status.ACTIVE,
     )
     return biz

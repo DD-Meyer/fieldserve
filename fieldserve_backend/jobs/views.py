@@ -12,11 +12,18 @@ from rest_framework.response import Response
 
 from businesses.models import Business, Service
 from inspections.models import walkaround_progress
+from inspections.serializers import validate_inspection_image
 from users.models import Customer
-from users.permissions import IsBusinessMember, active_business_ids
+from users.permissions import (
+    IsBusinessMember,
+    active_admin_business_ids,
+    active_business_ids,
+    active_staff_business_ids,
+    is_active_admin,
+)
 
 from . import scheduler
-from .models import Job
+from .models import Job, JobIndemnity
 from .scheduling_utils import check_slot
 from .serializers import JobSerializer
 
@@ -46,13 +53,21 @@ class JobViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsBusinessMember]
     search_fields = ["service_type", "notes", "customer__full_name"]
     ordering_fields = ["scheduled_at", "created_at", "status", "price"]
-    filterset_fields = ["business", "status", "assigned_to", "customer"]
+    filterset_fields = ["business", "status", "customer"]
 
     def get_queryset(self):
+        admin_business_ids = active_admin_business_ids(self.request.user)
+        staff_business_ids = active_staff_business_ids(self.request.user)
         qs = (
             Job.objects.select_related("business", "customer", "assigned_to")
             .prefetch_related("inspections")
-            .filter(business_id__in=active_business_ids(self.request.user))
+            .filter(business_id__in=admin_business_ids)
+            | Job.objects.select_related("business", "customer", "assigned_to")
+            .prefetch_related("inspections")
+            .filter(
+                business_id__in=staff_business_ids,
+                assigned_to=self.request.user,
+            )
         )
         params = self.request.query_params
 
@@ -60,8 +75,14 @@ class JobViewSet(viewsets.ModelViewSet):
         if target_date is not None:
             qs = qs.filter(scheduled_at__date=target_date)
 
-        if params.get("assigned_to") == "me":
+        assigned_to = params.get("assigned_to")
+        if assigned_to == "me":
             qs = qs.filter(assigned_to=self.request.user)
+        elif assigned_to:
+            try:
+                qs = qs.filter(assigned_to_id=int(assigned_to))
+            except ValueError as exc:
+                raise ValidationError({"assigned_to": "Use a member ID or 'me'."}) from exc
 
         return qs
 
@@ -70,6 +91,19 @@ class JobViewSet(viewsets.ModelViewSet):
         cust = serializer.validated_data.get("customer")
         if cust is not None and cust.business_id not in biz_ids:
             raise PermissionDenied("Customer is not in your business.")
+        assigned_to = serializer.validated_data.get("assigned_to")
+        business = serializer.validated_data.get("business") or getattr(cust, "business", None)
+        if assigned_to is not None and business is not None and not is_active_admin(
+            self.request.user, business.id
+        ):
+            raise PermissionDenied("Only Admins can assign jobs.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if "assigned_to" in serializer.validated_data and not is_active_admin(
+            self.request.user, serializer.instance.business_id
+        ):
+            raise PermissionDenied("Only Admins can assign jobs.")
         serializer.save()
 
     @action(detail=True, methods=["post"])
@@ -92,6 +126,11 @@ class JobViewSet(viewsets.ModelViewSet):
                         "missing_angles": missing_angles,
                     }
                 )
+            indemnity = getattr(job, "indemnity", None)
+            if indemnity is None or not indemnity.is_signed:
+                raise ValidationError(
+                    {"status": "Client indemnity signature is required before starting the job."}
+                )
         if new_status == Job.Status.COMPLETED:
             _, missing_angles = walkaround_progress(job, "after")
             if missing_angles:
@@ -106,6 +145,31 @@ class JobViewSet(viewsets.ModelViewSet):
             job.completed_at = timezone.now()
         job.save(update_fields=["status", "completed_at", "updated_at"])
         return Response(JobSerializer(job).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="indemnity/sign")
+    def sign_indemnity(self, request, pk=None):
+        job = self.get_object()
+        _, missing_angles = walkaround_progress(job)
+        if missing_angles:
+            raise ValidationError(
+                {"detail": "Complete the vehicle walkaround before collecting the signature."}
+            )
+        try:
+            indemnity = job.indemnity
+        except JobIndemnity.DoesNotExist as exc:
+            raise ValidationError({"detail": "No indemnity is attached to this booking."}) from exc
+        signed_name = str(request.data.get("signed_name", "")).strip()
+        signature = request.FILES.get("signature")
+        if not signed_name:
+            raise ValidationError({"signed_name": "Client name is required."})
+        if signature is None:
+            raise ValidationError({"signature": "A signature image is required."})
+        validate_inspection_image(signature)
+        indemnity.signed_name = signed_name
+        indemnity.signature = signature
+        indemnity.signed_at = timezone.now()
+        indemnity.save(update_fields=["signed_name", "signature", "signed_at"])
+        return Response(JobSerializer(job).data)
 
     @action(detail=False, methods=["post"], url_path="road-route")
     def road_route(self, request):

@@ -13,6 +13,7 @@ Throttled by IP to keep abuse manageable.
 
 from __future__ import annotations
 
+from django.contrib.gis.geos import Point
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import permissions, serializers, status
@@ -21,6 +22,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
 from jobs import scheduler
+from jobs.indemnity import active_indemnity_for, attach_active_indemnity
 from jobs.models import Job
 from jobs.scheduling_utils import check_slot
 from users.models import Customer
@@ -61,6 +63,8 @@ class PublicBookingSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
     address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
     service_id = serializers.IntegerField()
     scheduled_at = serializers.DateTimeField()
     notes = serializers.CharField(required=False, allow_blank=True)
@@ -70,6 +74,16 @@ class PublicBookingSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Provide at least one of email or phone so we can contact you."
             )
+        latitude = attrs.get("latitude")
+        longitude = attrs.get("longitude")
+        if (latitude is None) != (longitude is None):
+            raise serializers.ValidationError(
+                "Provide both latitude and longitude when selecting an address."
+            )
+        if latitude is not None and not -90 <= latitude <= 90:
+            raise serializers.ValidationError({"latitude": "Latitude must be between -90 and 90."})
+        if longitude is not None and not -180 <= longitude <= 180:
+            raise serializers.ValidationError({"longitude": "Longitude must be between -180 and 180."})
         return attrs
 
 
@@ -111,11 +125,14 @@ def public_booking_create(request, slug: str):
     service = get_object_or_404(
         Service, pk=data["service_id"], business=biz, is_active=True
     )
+    active_indemnity_for(biz)
 
     slot = check_slot(
         business=biz,
         scheduled_at=data["scheduled_at"],
         duration_minutes=service.duration_minutes,
+        lat=data.get("latitude"),
+        lng=data.get("longitude"),
     )
     if not slot.ok:
         return Response(
@@ -130,6 +147,9 @@ def public_booking_create(request, slug: str):
     # Find-or-create the customer within this business.
     email = (data.get("email") or "").strip().lower()
     phone = (data.get("phone") or "").strip()
+    location = None
+    if data.get("latitude") is not None:
+        location = Point(data["longitude"], data["latitude"], srid=4326)
     customer = None
     if email:
         customer = Customer.objects.filter(business=biz, email__iexact=email).first()
@@ -142,6 +162,7 @@ def public_booking_create(request, slug: str):
             email=email,
             phone=phone,
             address=(data.get("address") or "").strip(),
+            location=location,
         )
     else:
         # Patch in any new contact details the customer provided.
@@ -154,6 +175,9 @@ def public_booking_create(request, slug: str):
             updates["phone"] = phone
         if email and not customer.email:
             updates["email"] = email
+        if location is not None and customer.location is None:
+            customer.location = location
+            updates["location"] = location
         if updates:
             for k, v in updates.items():
                 setattr(customer, k, v)
@@ -165,11 +189,13 @@ def public_booking_create(request, slug: str):
         service_type=service.name,
         notes=data.get("notes", ""),
         address=customer.address,
+        location=location or customer.location,
         scheduled_at=data["scheduled_at"],
         duration_minutes=service.duration_minutes,
         price=service.price,
         status=Job.Status.PENDING,
     )
+    attach_active_indemnity(job)
 
     return Response(
         {

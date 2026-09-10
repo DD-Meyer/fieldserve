@@ -4,7 +4,7 @@ from django.urls import include, path, re_path
 from django.views.static import serve
 from rest_framework.routers import DefaultRouter
 
-from businesses.views import BusinessViewSet, ServiceViewSet
+from businesses.views import BusinessViewSet, IndemnityDocumentViewSet, ServiceViewSet
 from inspections.views import InspectionViewSet
 from jobs.views import JobViewSet
 from users.views import CustomerViewSet, MeView, OnboardUserView
@@ -19,6 +19,7 @@ def cors_serve(request, path, document_root=None, show_indexes=False):
 router = DefaultRouter()
 router.register(r"jobs", JobViewSet, basename="job")
 router.register(r"businesses", BusinessViewSet, basename="business")
+router.register(r"indemnities", IndemnityDocumentViewSet, basename="indemnity")
 router.register(r"services", ServiceViewSet, basename="service")
 router.register(r"customers", CustomerViewSet, basename="customer")
 router.register(r"inspections", InspectionViewSet, basename="inspection")

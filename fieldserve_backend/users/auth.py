@@ -100,6 +100,7 @@ class ClerkJWTAuthentication(authentication.BaseAuthentication):
                 signing_key,
                 algorithms=["RS256"],
                 options=options,
+                leeway=getattr(settings, "CLERK_JWT_LEEWAY_SECONDS", 30),
                 **kwargs,
             )
         except jwt.ExpiredSignatureError as exc:

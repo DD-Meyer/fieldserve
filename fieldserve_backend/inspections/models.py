@@ -73,7 +73,7 @@ class Inspection(models.Model):
         max_length=10, choices=Phase.choices, default=Phase.BEFORE
     )
     angle = models.CharField(max_length=32, choices=ANGLE_CHOICES)
-    photo = models.ImageField(upload_to="inspections/%Y/%m/")
+    photo = models.FileField(upload_to="inspections/%Y/%m/")
     analysis = models.JSONField(default=dict, blank=True)
     analysis_status = models.CharField(
         max_length=16,

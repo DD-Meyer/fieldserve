@@ -1,5 +1,5 @@
 import { ClerkLoaded, ClerkLoading, ClerkProvider, useAuth } from "@clerk/clerk-expo";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -28,14 +28,14 @@ if (!CLERK_PUBLISHABLE_KEY) {
 }
 
 function AuthGate() {
-  const { isLoaded, isSignedIn, orgId } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const { data: me, isLoading: isMeLoading } = useMe();
   const segments = useSegments();
   const router = useRouter();
 
   const hasActiveMembership =
     me?.memberships?.some((membership) => membership.status === "active") ?? false;
-  const needsOnboarding = !orgId || !hasActiveMembership;
+  const needsOnboarding = !hasActiveMembership;
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -57,9 +57,9 @@ function AuthGate() {
       return;
     }
 
-    if (orgId && isMeLoading) return;
+    if (isMeLoading) return;
 
-    // 2. Signed in -> Route based on Clerk org plus backend membership
+    // 2. Signed in -> Route based on the backend business membership.
     if (needsOnboarding) {
       if (!inOnboarding) {
         router.replace("/(auth)/onboarding");
@@ -70,7 +70,7 @@ function AuthGate() {
         router.replace("/(tabs)");
       }
     }
-  }, [isLoaded, isMeLoading, isSignedIn, needsOnboarding, orgId, segments, router]);
+  }, [isLoaded, isMeLoading, isSignedIn, needsOnboarding, segments, router]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }

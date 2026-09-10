@@ -37,7 +37,7 @@ export default function AuthScreen() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
 
   // Clerk Hooks
-  const { isLoaded: isAuthLoaded, isSignedIn, orgId, signOut } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn, signOut } = useAuth();
   const { signIn, setActive: setSignInActive, isLoaded: isSignInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: isSignUpLoaded } = useSignUp();
   const { data: me, isLoading: isMeLoading } = useMe();
@@ -54,17 +54,13 @@ export default function AuthScreen() {
 
   useEffect(() => {
     if (!isAuthLoaded || !isSignedIn) return;
-    if (!orgId) {
-      router.replace("/(auth)/onboarding");
-      return;
-    }
     if (isMeLoading) return;
 
     const hasBusiness = me?.memberships.some(
       (membership) => membership.status === "active",
     );
     router.replace(hasBusiness ? "/(tabs)" : "/(auth)/onboarding");
-  }, [isAuthLoaded, isMeLoading, isSignedIn, me, orgId, router]);
+  }, [isAuthLoaded, isMeLoading, isSignedIn, me, router]);
 
   // Show loading spinner ONLY while Clerk SDK itself is initializing
   if (!isAuthLoaded || isSignedIn) {
@@ -85,7 +81,7 @@ export default function AuthScreen() {
       return;
     }
     await setSignInActive({ session: createdSessionId });
-    router.replace("/(auth)/onboarding");
+    router.replace("/(tabs)");
   };
 
   const startSignInMfa = async () => {
@@ -108,7 +104,7 @@ export default function AuthScreen() {
 
   const handleSignIn = async () => {
     if (!isAuthLoaded || isSignedIn) {
-      router.replace("/(auth)/onboarding");
+      router.replace("/(tabs)");
       return;
     }
     if (!isSignInLoaded || !signIn) return;
@@ -405,6 +401,15 @@ export default function AuthScreen() {
                     style={styles.input}
                   />
 
+                  {mode === "sign-in" ? (
+                    <Pressable
+                      onPress={() => router.push("/(auth)/forgot-password")}
+                      style={styles.forgotPassword}
+                    >
+                      <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                    </Pressable>
+                  ) : null}
+
                   {error ? <Text style={styles.error}>{error}</Text> : null}
 
                   <Pressable
@@ -445,6 +450,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
   },
   loadingText: { marginTop: 12, color: "#64748b", fontSize: 14 },
+  forgotPassword: { alignSelf: "flex-end", marginTop: -8, marginBottom: 16 },
+  forgotPasswordText: { color: colors.primary || "#2563eb", fontSize: 13, fontWeight: "600" },
   headerSection: {
     height: SCREEN_HEIGHT * 0.42,
     backgroundColor: colors.primary || "#2563eb",

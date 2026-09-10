@@ -27,6 +27,7 @@ import {
   type Service,
 } from "../lib/hooks/useServices";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import { useTeamMembers } from "../lib/hooks/useTeam";
 import DateTimePickerField from "./DateTimePickerField";
 
 type Props = {
@@ -132,6 +133,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const checkSlot = useCheckSlot();
   const suggestSlots = useSuggestSlots();
   const business = useCurrentBusiness();
+  const isAdmin = business.data?.role === "admin";
+  const team = useTeamMembers(isAdmin ? business.data?.id ?? null : null);
 
   const customers = custPage?.results ?? [];
   const services = (svcPage?.results ?? []).filter((s) => s.is_active);
@@ -165,6 +168,13 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const [serviceErr, setServiceErr] = useState<string | null>(null);
   const [serviceSearch, setServiceSearch] = useState("");
   const [servicePickerOpen, setServicePickerOpen] = useState(false);
+  const [assignedTo, setAssignedTo] = useState<number | null>(null);
+  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+
+  const activeMembers = (team.data ?? []).filter(
+    (member) => member.status === "active" && member.user !== null,
+  );
+  const selectedAssignee = activeMembers.find((member) => member.user === assignedTo);
 
   const visibleServices = useMemo(() => {
     if (!createdService || services.some((service) => service.id === createdService.id)) {
@@ -194,6 +204,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setCustErr(null);
       setServiceSearch("");
       setServicePickerOpen(false);
+      setAssignedTo(null);
+      setAssigneePickerOpen(false);
       setSlotState(null);
       setSuggestions([]);
       setOtherAvailable([]);
@@ -425,6 +437,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
           ? Number(priceOverride)
           : (Number(selectedService.price) as unknown as string),
         notes,
+        assigned_to: assignedTo,
       });
       onCreated?.();
       onClose();
@@ -938,6 +951,54 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             ) : slotState?.ok ? (
               <View className="mb-3">
                 <Text className="text-[11px] text-green-700">Slot available.</Text>
+              </View>
+            ) : null}
+
+            {isAdmin ? (
+              <View className="mb-3">
+                <Text className="text-xs font-semibold text-slate-600 mb-1">
+                  Assign to
+                </Text>
+                <Pressable
+                  onPress={() => setAssigneePickerOpen((open) => !open)}
+                  className="bg-white border border-slate-200 rounded-xl px-3 py-3 flex-row items-center justify-between"
+                >
+                  <Text className={`text-sm ${selectedAssignee ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
+                    {selectedAssignee
+                      ? `${selectedAssignee.user_first_name ?? ""} ${selectedAssignee.user_last_name ?? ""}`.trim() || selectedAssignee.user_email
+                      : "Unassigned"}
+                  </Text>
+                  <Text className="text-slate-400 text-xs">{assigneePickerOpen ? "▲" : "▼"}</Text>
+                </Pressable>
+                {assigneePickerOpen ? (
+                  <View className="border border-slate-200 rounded-xl mt-2 overflow-hidden">
+                    <Pressable
+                      onPress={() => {
+                        setAssignedTo(null);
+                        setAssigneePickerOpen(false);
+                      }}
+                      className={`px-3 py-3 ${assignedTo === null ? "bg-blue-50" : "bg-white"}`}
+                    >
+                      <Text className="text-sm text-slate-900">Unassigned</Text>
+                    </Pressable>
+                    {activeMembers.map((member) => {
+                      const name = `${member.user_first_name ?? ""} ${member.user_last_name ?? ""}`.trim() || member.user_email;
+                      return (
+                        <Pressable
+                          key={member.id}
+                          onPress={() => {
+                            setAssignedTo(member.user);
+                            setAssigneePickerOpen(false);
+                          }}
+                          className={`px-3 py-3 border-t border-slate-100 ${assignedTo === member.user ? "bg-blue-50" : "bg-white"}`}
+                        >
+                          <Text className="text-sm font-semibold text-slate-900">{name}</Text>
+                          <Text className="text-[11px] text-slate-500 capitalize mt-0.5">{member.role}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
             ) : null}
 

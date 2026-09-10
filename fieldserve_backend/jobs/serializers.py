@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 from inspections.models import walkaround_progress
+from businesses.models import Membership
+from .indemnity import active_indemnity_for, attach_active_indemnity
 
 from .models import Job
 from .scheduling_utils import check_slot
@@ -17,6 +19,8 @@ class JobSerializer(serializers.ModelSerializer):
     after_walkaround_complete = serializers.SerializerMethodField()
     after_walkaround_captured_angles = serializers.SerializerMethodField()
     after_walkaround_missing_angles = serializers.SerializerMethodField()
+    indemnity_version = serializers.SerializerMethodField()
+    indemnity_signed = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -42,6 +46,8 @@ class JobSerializer(serializers.ModelSerializer):
             "after_walkaround_complete",
             "after_walkaround_captured_angles",
             "after_walkaround_missing_angles",
+            "indemnity_version",
+            "indemnity_signed",
             "completed_at",
             "created_at",
             "updated_at",
@@ -59,6 +65,8 @@ class JobSerializer(serializers.ModelSerializer):
             "after_walkaround_complete",
             "after_walkaround_captured_angles",
             "after_walkaround_missing_angles",
+            "indemnity_version",
+            "indemnity_signed",
         ]
         extra_kwargs = {"business": {"required": False}}
 
@@ -79,6 +87,12 @@ class JobSerializer(serializers.ModelSerializer):
 
     def get_after_walkaround_missing_angles(self, instance):
         return walkaround_progress(instance, "after")[1]
+
+    def get_indemnity_version(self, instance):
+        return getattr(getattr(instance, "indemnity", None), "version", None)
+
+    def get_indemnity_signed(self, instance):
+        return bool(getattr(getattr(instance, "indemnity", None), "is_signed", False))
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -115,6 +129,16 @@ class JobSerializer(serializers.ModelSerializer):
         business = self._resolve_business(attrs)
         if business is None:
             return attrs
+
+        assigned_to = attrs.get("assigned_to")
+        if assigned_to is not None and not Membership.objects.filter(
+            business=business,
+            user=assigned_to,
+            status=Membership.Status.ACTIVE,
+        ).exists():
+            raise serializers.ValidationError(
+                {"assigned_to": "Assigned user must be an active member of this business."}
+            )
 
         duration = attrs.get("duration_minutes") or (
             self.instance.duration_minutes if self.instance else None
@@ -154,7 +178,10 @@ class JobSerializer(serializers.ModelSerializer):
             validated_data["address"] = cust.address
         if cust and "business" not in validated_data:
             validated_data["business"] = cust.business
-        return super().create(validated_data)
+        active_indemnity_for(validated_data["business"])
+        job = super().create(validated_data)
+        attach_active_indemnity(job)
+        return job
 
     def update(self, instance, validated_data):
         validated_data = self._apply_latlng(validated_data)

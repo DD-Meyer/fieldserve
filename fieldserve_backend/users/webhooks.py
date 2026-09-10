@@ -12,6 +12,8 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from svix.webhooks import Webhook, WebhookVerificationError
 
+from businesses.models import Business, Membership
+
 from .models import User
 
 log = logging.getLogger(__name__)
@@ -55,6 +57,9 @@ class ClerkWebhookView(View):
             "user.created": self._user_created,
             "user.updated": self._user_updated,
             "user.deleted": self._user_deleted,
+            "organizationMembership.created": self._membership_created_or_updated,
+            "organizationMembership.updated": self._membership_created_or_updated,
+            "organizationMembership.deleted": self._membership_deleted,
         }.get(event_type)
 
         if handler is None:
@@ -102,3 +107,52 @@ class ClerkWebhookView(View):
         if not clerk_id:
             return
         User.objects.filter(clerk_user_id=clerk_id).update(is_active=False)
+
+    def _membership_created_or_updated(self, data: dict) -> None:
+        organization = data.get("organization") or {}
+        user_data = data.get("public_user_data") or {}
+        organization_id = organization.get("id")
+        clerk_user_id = user_data.get("user_id")
+        if not organization_id or not clerk_user_id:
+            return
+        business = Business.objects.filter(clerk_organization_id=organization_id).first()
+        if business is None:
+            return
+        email = (user_data.get("identifier") or "").lower()
+        user, _ = User.objects.get_or_create(
+            clerk_user_id=clerk_user_id,
+            defaults={"username": clerk_user_id, "email": email},
+        )
+        role = Membership.Role.ADMIN if data.get("role") == "org:admin" else Membership.Role.STAFF
+        membership = Membership.objects.filter(business=business, user=user).first()
+        if membership is None and email:
+            membership = business.memberships.filter(
+                invited_email__iexact=email,
+                status=Membership.Status.INVITED,
+            ).first()
+        if membership is None:
+            Membership.objects.create(
+                business=business,
+                user=user,
+                role=role,
+                status=Membership.Status.ACTIVE,
+            )
+            return
+        membership.user = user
+        membership.role = role
+        membership.status = Membership.Status.ACTIVE
+        membership.save(update_fields=["user", "role", "status"])
+
+    def _membership_deleted(self, data: dict) -> None:
+        organization = data.get("organization") or {}
+        user_data = data.get("public_user_data") or {}
+        organization_id = organization.get("id")
+        clerk_user_id = user_data.get("user_id")
+        if not organization_id or not clerk_user_id:
+            return
+        Membership.objects.filter(
+            business__clerk_organization_id=organization_id,
+            user__clerk_user_id=clerk_user_id,
+        ).exclude(user_id=Business.objects.filter(clerk_organization_id=organization_id).values("owner_id")).update(
+            status=Membership.Status.INACTIVE
+        )
