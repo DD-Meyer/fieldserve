@@ -295,7 +295,7 @@ class Command(BaseCommand):
             business=biz,
             user=user,
             defaults={
-                "role": Membership.Role.OWNER,
+                "role": Membership.Role.ADMIN,
                 "status": Membership.Status.ACTIVE,
             },
         )

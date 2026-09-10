@@ -38,7 +38,7 @@ export default function GoogleAuthScreen() {
 
       if (createdSessionId) {
         await setActive?.({ session: createdSessionId });
-        router.replace("/(auth)/onboarding");
+        router.replace("/(tabs)");
         return;
       }
 
@@ -74,7 +74,7 @@ export default function GoogleAuthScreen() {
   }
 
   if (isSignedIn) {
-    router.replace("/(auth)/onboarding");
+    router.replace("/(tabs)");
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#2563eb" />

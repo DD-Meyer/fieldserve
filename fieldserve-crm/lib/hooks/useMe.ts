@@ -9,7 +9,7 @@ export type Membership = {
   business_name: string;
   business_slug: string;
   industry_mode: "mobile" | "fixed";
-  role: "owner" | "admin" | "worker";
+  role: "admin" | "staff";
   status: "active" | "invited" | "inactive";
 };
 

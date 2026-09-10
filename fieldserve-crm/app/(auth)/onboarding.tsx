@@ -100,8 +100,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  console.log("GOOGLE API KEY:", process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY);
-
   return (
     <SafeAreaView edges={["top"]} style={styles.safe}>
       <KeyboardAvoidingView
@@ -185,7 +183,7 @@ export default function OnboardingScreen() {
               <View style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
                 <Text style={styles.label}>Company Address</Text>
                 <GooglePlacesAutocomplete
-                  placeholder="e.g. 123 Main St, Johannesburg"
+                  placeholder="Start typing an address anywhere in the world"
                   fetchDetails={true}
                   disableScroll={true} //  Fixes the VirtualizedList inside ScrollView error
                   minLength={2}
@@ -201,7 +199,7 @@ export default function OnboardingScreen() {
                   query={{
                     key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
                     language: "en",
-                    components: "country:za",
+                    types: "address",
                   }}
                   styles={{
                     container: {

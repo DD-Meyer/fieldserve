@@ -1,16 +1,14 @@
 import uuid
 
-from rest_framework import generics, permissions, viewsets
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.response import Response
-
-from businesses.models import Business, Membership
-import uuid
+from django.db import transaction
 from django.utils.text import slugify
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from businesses.clerk import ClerkAPIError, get_organization
+from businesses.models import Business, Membership
 
 from .models import Customer
 from .permissions import IsBusinessMember, active_business_ids
@@ -26,8 +24,50 @@ class MeView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    @transaction.atomic
+    def _sync_active_clerk_organization(self, request) -> None:
+        claims = request.auth if isinstance(request.auth, dict) else {}
+        organization_claim = claims.get("o") or {}
+        organization_id = organization_claim.get("id")
+        if not organization_id:
+            return
+
+        try:
+            organization = get_organization(organization_id)
+        except ClerkAPIError:
+            return
+
+        role = (
+            Membership.Role.ADMIN
+            if organization_claim.get("role") in {"admin", "org:admin"}
+            else Membership.Role.STAFF
+        )
+        business = Business.objects.filter(clerk_organization_id=organization_id).first()
+        if business is None:
+            if organization.get("created_by") != request.user.clerk_user_id:
+                return
+            name = str(organization.get("name") or "FieldServe business").strip()
+            base_slug = slugify(name) or "business"
+            business = Business.objects.create(
+                owner=request.user,
+                name=name,
+                slug=f"{base_slug}-{uuid.uuid4().hex[:6]}",
+                clerk_organization_id=organization_id,
+            )
+
+        membership, _ = Membership.objects.get_or_create(
+            business=business,
+            user=request.user,
+            defaults={"role": role, "status": Membership.Status.ACTIVE},
+        )
+        if membership.role != role or membership.status != Membership.Status.ACTIVE:
+            membership.role = role
+            membership.status = Membership.Status.ACTIVE
+            membership.save(update_fields=["role", "status"])
+
     def retrieve(self, request, *args, **kwargs):
         user = self.get_object()
+        self._sync_active_clerk_organization(request)
         data = UserSerializer(user).data
         memberships = (
             Membership.objects.filter(user=user)
@@ -68,10 +108,13 @@ class CustomerViewSet(viewsets.ModelViewSet):
         if requested is None:
             if not biz_ids:
                 raise PermissionDenied("User has no active business.")
-            serializer.save(business_id=biz_ids[0])
+            business = Business.objects.get(pk=biz_ids[0])
+            serializer.validate_location_for_business(serializer.validated_data, business)
+            serializer.save(business=business)
         else:
             if requested.id not in biz_ids:
                 raise PermissionDenied("Not a member of that business.")
+            serializer.validate_location_for_business(serializer.validated_data, requested)
             serializer.save()
 
 
@@ -131,7 +174,10 @@ class OnboardUserView(APIView):
         Membership.objects.get_or_create(
             user=request.user,
             business=business,
-            defaults={'role': 'owner', 'status': 'active'}
+            defaults={
+                "role": Membership.Role.ADMIN,
+                "status": Membership.Status.ACTIVE,
+            },
         )
 
         return Response(

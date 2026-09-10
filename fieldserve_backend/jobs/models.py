@@ -51,3 +51,21 @@ class Job(models.Model):
 
     def __str__(self) -> str:
         return f"{self.service_type} @ {self.scheduled_at:%Y-%m-%d %H:%M}"
+
+
+class JobIndemnity(models.Model):
+    job = models.OneToOneField(Job, on_delete=models.CASCADE, related_name="indemnity")
+    document = models.ForeignKey(
+        "businesses.IndemnityDocument", on_delete=models.PROTECT, related_name="job_acknowledgements"
+    )
+    version = models.PositiveIntegerField()
+    source = models.CharField(max_length=8)
+    document_checksum = models.CharField(max_length=64, blank=True)
+    signed_name = models.CharField(max_length=120, blank=True)
+    signature = models.FileField(upload_to="indemnity_signatures/%Y/%m/", blank=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_signed(self) -> bool:
+        return self.signed_at is not None and bool(self.signature) and bool(self.signed_name)

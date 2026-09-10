@@ -33,7 +33,7 @@ STORAGES = {
         ),
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
 
@@ -92,7 +92,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -171,6 +170,7 @@ CLERK_SECRET_KEY = os.environ.get("CLERK_SECRET_KEY", "")
 CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL", "")
 CLERK_ISSUER = os.environ.get("CLERK_ISSUER", "")
 CLERK_WEBHOOK_SECRET = os.environ.get("CLERK_WEBHOOK_SECRET", "")
+CLERK_JWT_LEEWAY_SECONDS = int(os.environ.get("CLERK_JWT_LEEWAY_SECONDS", "30"))
 
 # --- ML service (FastAPI) ---
 ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://ml:8001").strip()

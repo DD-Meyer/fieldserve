@@ -111,6 +111,12 @@ export default function JobDetail() {
     return `$${(n || 0).toFixed(2)}`;
   }, [job?.price]);
 
+  const assignedToName = useMemo(() => {
+    if (!job) return "Unassigned";
+    const name = `${job.assigned_to_first_name ?? ""} ${job.assigned_to_last_name ?? ""}`.trim();
+    return name || job.assigned_to_email || (job.assigned_to ? `Staff #${job.assigned_to}` : "Unassigned");
+  }, [job]);
+
   const doTransition = (to: JobStatus, label: string) => {
     if (!job) return;
     const destructive = to === "cancelled";
@@ -212,6 +218,7 @@ export default function JobDetail() {
             label="Duration"
             value={job.duration_minutes ? `${job.duration_minutes} min` : "—"}
           />
+          <InfoRow label="Assigned to" value={assignedToName} />
           <InfoRow label="Notes" value={job.notes} />
           <InfoRow
             label="Pre-service walkaround"

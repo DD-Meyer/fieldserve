@@ -47,3 +47,17 @@ export function useCreateCustomer() {
     },
   });
 }
+
+export function useUpdateCustomer() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<Customer> }) =>
+      api.patch<Customer>(`/api/customers/${id}/`, patch),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer", id] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}

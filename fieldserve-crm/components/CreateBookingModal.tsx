@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
 import {
   useCreateJob,
@@ -27,6 +28,7 @@ import {
   type Service,
 } from "../lib/hooks/useServices";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import { useTeamMembers } from "../lib/hooks/useTeam";
 import DateTimePickerField from "./DateTimePickerField";
 
 type Props = {
@@ -85,6 +87,8 @@ type CustomerFormState = {
   email: string;
   phone: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type ServiceFormState = {
@@ -96,13 +100,19 @@ type ServiceFormState = {
 
 function apiErrorMessage(error: any, fallback: string): string {
   const body = error?.body;
-  if (body && typeof body === "object") {
+  if (Array.isArray(body)) {
+    const text = body.map((v) => String(v)).join("\n");
+    if (text) return text;
+  } else if (body && typeof body === "object") {
+    if (typeof (body as any).detail === "string") return (body as any).detail;
     const messages = Object.entries(body as Record<string, unknown>)
       .flatMap(([field, value]) => {
         const text = Array.isArray(value) ? value.join(" ") : String(value);
         return text ? `${field}: ${text}` : [];
       });
     if (messages.length) return messages.join("\n");
+  } else if (typeof body === "string" && body) {
+    return body;
   }
   return error?.message || fallback;
 }
@@ -112,6 +122,8 @@ const EMPTY_CUSTOMER: CustomerFormState = {
   email: "",
   phone: "",
   address: "",
+  latitude: null,
+  longitude: null,
 };
 
 const EMPTY_SERVICE: ServiceFormState = {
@@ -132,6 +144,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const checkSlot = useCheckSlot();
   const suggestSlots = useSuggestSlots();
   const business = useCurrentBusiness();
+  const isAdmin = business.data?.role === "admin";
+  const isMobileBusiness = business.data?.industry_mode === "mobile";
+  const team = useTeamMembers(isAdmin ? business.data?.id ?? null : null);
 
   const customers = custPage?.results ?? [];
   const services = (svcPage?.results ?? []).filter((s) => s.is_active);
@@ -165,6 +180,13 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const [serviceErr, setServiceErr] = useState<string | null>(null);
   const [serviceSearch, setServiceSearch] = useState("");
   const [servicePickerOpen, setServicePickerOpen] = useState(false);
+  const [assignedTo, setAssignedTo] = useState<number | null>(null);
+  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+
+  const activeMembers = (team.data ?? []).filter(
+    (member) => member.status === "active" && member.user !== null,
+  );
+  const selectedAssignee = activeMembers.find((member) => member.user === assignedTo);
 
   const visibleServices = useMemo(() => {
     if (!createdService || services.some((service) => service.id === createdService.id)) {
@@ -194,6 +216,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setCustErr(null);
       setServiceSearch("");
       setServicePickerOpen(false);
+      setAssignedTo(null);
+      setAssigneePickerOpen(false);
       setSlotState(null);
       setSuggestions([]);
       setOtherAvailable([]);
@@ -339,6 +363,13 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setCustErr("Name is required.");
       return;
     }
+    if (
+      isMobileBusiness &&
+      (!newCust.address.trim() || newCust.latitude == null || newCust.longitude == null)
+    ) {
+      setCustErr("Select the customer's address from the search results.");
+      return;
+    }
     if (duplicateHit) {
       setCustErr(
         `"${duplicateHit.full_name}" already exists — select them instead.`,
@@ -351,6 +382,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         email: newCust.email.trim(),
         phone: newCust.phone.trim(),
         address: newCust.address.trim(),
+        latitude: newCust.latitude,
+        longitude: newCust.longitude,
       });
       setCustomerId(created.id);
       setCreatedCustomer(created);
@@ -407,6 +440,13 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     if (!customerId) return setErr("Pick a customer.");
     if (!selectedService) return setErr("Pick a service.");
     if (!scheduledAt) return setErr("Enter a date/time (YYYY-MM-DDTHH:mm).");
+    if (
+      isMobileBusiness &&
+      (selectedCustomer?.latitude == null || selectedCustomer?.longitude == null)
+    ) {
+      return setErr("This customer needs a saved location before a mobile booking can be created.");
+    }
+    if (isAdmin && !assignedTo) return setErr("Assign a team member.");
     if (slotState && !slotState.ok) {
       return setErr(
         slotState.reason === "outside_hours"
@@ -425,6 +465,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
           ? Number(priceOverride)
           : (Number(selectedService.price) as unknown as string),
         notes,
+        assigned_to: assignedTo,
       });
       onCreated?.();
       onClose();
@@ -440,7 +481,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         });
         setErr("Slot unavailable — try a suggestion below.");
       } else {
-        setErr(e?.message || "Could not create booking.");
+        setErr(apiErrorMessage(e, "Could not create booking."));
       }
     }
   };
@@ -597,14 +638,75 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   keyboardType="phone-pad"
                   className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                 />
-                <TextInput
-                  value={newCust.address}
-                  onChangeText={(v) =>
-                    setNewCust((s) => ({ ...s, address: v }))
-                  }
-                  placeholder="Address"
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
-                />
+                {isMobileBusiness ? (
+                  <View className="mb-2" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+                    <GooglePlacesAutocomplete
+                      placeholder="Search for the customer's address"
+                      fetchDetails={true}
+                      disableScroll={true}
+                      minLength={2}
+                      debounce={300}
+                      onPress={(data, details = null) => {
+                        const latitude = details?.geometry?.location?.lat;
+                        const longitude = details?.geometry?.location?.lng;
+                        if (latitude == null || longitude == null) return;
+                        setNewCust((current) => ({
+                          ...current,
+                          address: data.description,
+                          latitude,
+                          longitude,
+                        }));
+                      }}
+                      query={{
+                        key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                        language: "en",
+                        types: "address",
+                      }}
+                      styles={{
+                        container: {
+                          flex: 0,
+                          width: "100%",
+                          zIndex: 1000,
+                        },
+                        textInput: {
+                          borderWidth: 1,
+                          borderColor: "#e2e8f0",
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          height: 42,
+                          color: "#0f172a",
+                          fontSize: 14,
+                        },
+                        listView: {
+                          position: "absolute",
+                          top: 44,
+                          left: 0,
+                          right: 0,
+                          borderWidth: 1,
+                          borderColor: "#e2e8f0",
+                          backgroundColor: "#ffffff",
+                          elevation: 1001,
+                          zIndex: 9999,
+                          maxHeight: 180,
+                        },
+                      }}
+                    />
+                    {newCust.latitude != null && newCust.longitude != null ? (
+                      <Text className="text-[11px] text-green-700 mt-1">
+                        Location selected: {newCust.address}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : (
+                  <TextInput
+                    value={newCust.address}
+                    onChangeText={(v) =>
+                      setNewCust((s) => ({ ...s, address: v }))
+                    }
+                    placeholder="Address"
+                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  />
+                )}
 
                 {duplicateHit ? (
                   <Text className="text-[11px] text-amber-700 mb-2">
@@ -863,24 +965,39 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   Recommended for {targetDate}
                 </Text>
                 <View className="flex-row flex-wrap">
-                  {suggestions.map((r) => (
-                    <Pressable
-                      key={r.start}
-                      onPress={() => {
-                        setScheduledAt(toLocalInput(r.start));
-                        setBookingDate(toDateOnly(r.start));
-                        setSlotState(null);
-                      }}
-                      className="bg-white border border-blue-300 rounded-xl px-3 py-2 mr-2 mb-2"
-                    >
-                      <Text className="text-xs font-semibold text-blue-800">
-                        {formatTime(r.start)} · {r.label}
-                      </Text>
-                      <Text className="text-[10px] text-blue-600 mt-0.5">
-                        score {r.score} · {r.total_travel_minutes} min travel
-                      </Text>
-                    </Pressable>
-                  ))}
+                  {suggestions.map((r) => {
+                    const isActive = toLocalInput(r.start) === scheduledAt;
+                    return (
+                      <Pressable
+                        key={r.start}
+                        onPress={() => {
+                          setScheduledAt(toLocalInput(r.start));
+                          setBookingDate(toDateOnly(r.start));
+                          setSlotState(null);
+                        }}
+                        className={`rounded-xl px-3 py-2 mr-2 mb-2 border ${
+                          isActive
+                            ? "bg-slate-900 border-slate-900"
+                            : "bg-white border-blue-300"
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs font-semibold ${
+                            isActive ? "text-white" : "text-blue-800"
+                          }`}
+                        >
+                          {formatTime(r.start)} · {r.label}
+                        </Text>
+                        <Text
+                          className={`text-[10px] mt-0.5 ${
+                            isActive ? "text-slate-300" : "text-blue-600"
+                          }`}
+                        >
+                          score {r.score} · {r.total_travel_minutes} min travel
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
             ) : customerId && selectedService && suggestSlots.isPending ? (
@@ -938,6 +1055,47 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             ) : slotState?.ok ? (
               <View className="mb-3">
                 <Text className="text-[11px] text-green-700">Slot available.</Text>
+              </View>
+            ) : null}
+
+            {isAdmin ? (
+              <View className="mb-3">
+                <Text className="text-xs font-semibold text-slate-600 mb-1">
+                  Assign to *
+                </Text>
+                <Pressable
+                  onPress={() => setAssigneePickerOpen((open) => !open)}
+                  className={`bg-white border rounded-xl px-3 py-3 flex-row items-center justify-between ${
+                    !assignedTo ? "border-red-300" : "border-slate-200"
+                  }`}
+                >
+                  <Text className={`text-sm ${selectedAssignee ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
+                    {selectedAssignee
+                      ? `${selectedAssignee.user_first_name ?? ""} ${selectedAssignee.user_last_name ?? ""}`.trim() || selectedAssignee.user_email
+                      : "Select team member"}
+                  </Text>
+                  <Text className="text-slate-400 text-xs">{assigneePickerOpen ? "▲" : "▼"}</Text>
+                </Pressable>
+                {assigneePickerOpen ? (
+                  <View className="border border-slate-200 rounded-xl mt-2 overflow-hidden">
+                    {activeMembers.map((member) => {
+                      const name = `${member.user_first_name ?? ""} ${member.user_last_name ?? ""}`.trim() || member.user_email;
+                      return (
+                        <Pressable
+                          key={member.id}
+                          onPress={() => {
+                            setAssignedTo(member.user);
+                            setAssigneePickerOpen(false);
+                          }}
+                          className={`px-3 py-3 border-t border-slate-100 ${assignedTo === member.user ? "bg-blue-50" : "bg-white"}`}
+                        >
+                          <Text className="text-sm font-semibold text-slate-900">{name}</Text>
+                          <Text className="text-[11px] text-slate-500 capitalize mt-0.5">{member.role}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
             ) : null}
 

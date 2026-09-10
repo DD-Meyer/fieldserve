@@ -17,6 +17,9 @@ export type Job = {
   customer_name: string;
   customer_address: string;
   assigned_to: number | null;
+  assigned_to_first_name?: string | null;
+  assigned_to_last_name?: string | null;
+  assigned_to_email?: string | null;
   service_type: string;
   notes: string;
   address: string;

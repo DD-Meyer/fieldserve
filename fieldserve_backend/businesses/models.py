@@ -64,9 +64,8 @@ class Business(models.Model):
 
 class Membership(models.Model):
     class Role(models.TextChoices):
-        OWNER = "owner", "Owner"
         ADMIN = "admin", "Admin"
-        WORKER = "worker", "Worker"
+        STAFF = "staff", "Staff"
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -80,8 +79,12 @@ class Membership(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="memberships",
+        null=True,
+        blank=True,
     )
-    role = models.CharField(max_length=16, choices=Role.choices, default=Role.WORKER)
+    invited_email = models.EmailField(blank=True)
+    clerk_invitation_id = models.CharField(max_length=64, blank=True, db_index=True)
+    role = models.CharField(max_length=16, choices=Role.choices, default=Role.STAFF)
     status = models.CharField(
         max_length=16, choices=Status.choices, default=Status.ACTIVE
     )
@@ -93,7 +96,8 @@ class Membership(models.Model):
         ordering = ["business_id", "role"]
 
     def __str__(self) -> str:
-        return f"{self.user} @ {self.business} ({self.role})"
+        identity = self.user or self.invited_email
+        return f"{identity} @ {self.business} ({self.role})"
 
 
 class Service(models.Model):
@@ -117,3 +121,39 @@ class Service(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.business})"
+
+
+class IndemnityDocument(models.Model):
+    class Source(models.TextChoices):
+        TEXT = "text", "Text"
+        PDF = "pdf", "PDF"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+        ARCHIVED = "archived", "Archived"
+
+    business = models.ForeignKey(
+        Business, on_delete=models.CASCADE, related_name="indemnities"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_indemnities"
+    )
+    version = models.PositiveIntegerField()
+    source = models.CharField(max_length=8, choices=Source.choices)
+    text = models.TextField(blank=True)
+    document = models.FileField(upload_to="indemnities/%Y/%m/", blank=True)
+    checksum = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [
+            models.UniqueConstraint(fields=["business", "version"], name="unique_indemnity_version"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.business} indemnity v{self.version}"
