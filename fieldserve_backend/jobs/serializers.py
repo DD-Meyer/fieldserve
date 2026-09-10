@@ -13,6 +13,15 @@ class JobSerializer(serializers.ModelSerializer):
     longitude = serializers.FloatField(write_only=True, required=False, allow_null=True)
     customer_name = serializers.CharField(source="customer.full_name", read_only=True)
     customer_address = serializers.CharField(source="customer.address", read_only=True)
+    assigned_to_first_name = serializers.CharField(
+        source="assigned_to.first_name", read_only=True, default=None
+    )
+    assigned_to_last_name = serializers.CharField(
+        source="assigned_to.last_name", read_only=True, default=None
+    )
+    assigned_to_email = serializers.CharField(
+        source="assigned_to.email", read_only=True, default=None
+    )
     walkaround_complete = serializers.SerializerMethodField()
     walkaround_captured_angles = serializers.SerializerMethodField()
     walkaround_missing_angles = serializers.SerializerMethodField()
@@ -31,6 +40,9 @@ class JobSerializer(serializers.ModelSerializer):
             "customer_name",
             "customer_address",
             "assigned_to",
+            "assigned_to_first_name",
+            "assigned_to_last_name",
+            "assigned_to_email",
             "service_type",
             "notes",
             "address",
@@ -59,6 +71,9 @@ class JobSerializer(serializers.ModelSerializer):
             "completed_at",
             "customer_name",
             "customer_address",
+            "assigned_to_first_name",
+            "assigned_to_last_name",
+            "assigned_to_email",
             "walkaround_complete",
             "walkaround_captured_angles",
             "walkaround_missing_angles",

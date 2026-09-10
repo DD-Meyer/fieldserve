@@ -73,6 +73,12 @@ function isoToLocalInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function isoToTimeSlot(iso: string): string | null {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Accept: "application/json" },
@@ -174,6 +180,7 @@ export default function PublicBookingPage() {
   const [serviceId, setServiceId] = useState<number | null>(null);
   const [scheduledAt, setScheduledAt] = useState(""); // ISO local: YYYY-MM-DDTHH:mm
   const [suggestions, setSuggestions] = useState<SlotRecommendation[]>([]);
+  const [otherAvailable, setOtherAvailable] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [knownCustomer, setKnownCustomer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -198,6 +205,7 @@ export default function PublicBookingPage() {
   useEffect(() => {
     if (!serviceId || !slug) {
       setSuggestions([]);
+      setOtherAvailable([]);
       return;
     }
     let cancelled = false;
@@ -212,10 +220,16 @@ export default function PublicBookingPage() {
       },
     )
       .then((res) => {
-        if (!cancelled) setSuggestions(res.recommendations);
+        if (!cancelled) {
+          setSuggestions(res.recommendations);
+          setOtherAvailable(res.other_available);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSuggestions([]);
+        if (!cancelled) {
+          setSuggestions([]);
+          setOtherAvailable([]);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingSlots(false);
@@ -225,6 +239,16 @@ export default function PublicBookingPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, serviceId, targetDate, email, phone]);
+
+  const availableTimeSlots = useMemo(() => {
+    const slots = [
+      ...suggestions.map((r) => r.start),
+      ...otherAvailable,
+    ]
+      .map(isoToTimeSlot)
+      .filter((slot): slot is string => Boolean(slot));
+    return Array.from(new Set(slots)).sort();
+  }, [suggestions, otherAvailable]);
 
   useEffect(() => {
     if (!slug) return;
@@ -548,6 +572,7 @@ export default function PublicBookingPage() {
               onChange={setScheduledAt}
               placeholder="Pick a date and time"
               minimumDate={minPickDate}
+              timeSlots={availableTimeSlots}
             />
           </View>
           <Field

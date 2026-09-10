@@ -93,11 +93,16 @@ class JobViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Customer is not in your business.")
         assigned_to = serializer.validated_data.get("assigned_to")
         business = serializer.validated_data.get("business") or getattr(cust, "business", None)
-        if assigned_to is not None and business is not None and not is_active_admin(
-            self.request.user, business.id
-        ):
-            raise PermissionDenied("Only Admins can assign jobs.")
-        serializer.save()
+        is_admin = business is not None and is_active_admin(self.request.user, business.id)
+        if assigned_to is not None and assigned_to != self.request.user and not is_admin:
+            raise PermissionDenied("Only Admins can assign jobs to others.")
+        if assigned_to is None:
+            if is_admin:
+                raise ValidationError({"assigned_to": "Assign a team member to this booking."})
+            # Staff bookings default to the creator so they show up on their own schedule.
+            serializer.save(assigned_to=self.request.user)
+        else:
+            serializer.save()
 
     def perform_update(self, serializer):
         if "assigned_to" in serializer.validated_data and not is_active_admin(

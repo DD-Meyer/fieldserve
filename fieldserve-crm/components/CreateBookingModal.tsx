@@ -97,13 +97,19 @@ type ServiceFormState = {
 
 function apiErrorMessage(error: any, fallback: string): string {
   const body = error?.body;
-  if (body && typeof body === "object") {
+  if (Array.isArray(body)) {
+    const text = body.map((v) => String(v)).join("\n");
+    if (text) return text;
+  } else if (body && typeof body === "object") {
+    if (typeof (body as any).detail === "string") return (body as any).detail;
     const messages = Object.entries(body as Record<string, unknown>)
       .flatMap(([field, value]) => {
         const text = Array.isArray(value) ? value.join(" ") : String(value);
         return text ? `${field}: ${text}` : [];
       });
     if (messages.length) return messages.join("\n");
+  } else if (typeof body === "string" && body) {
+    return body;
   }
   return error?.message || fallback;
 }
@@ -419,6 +425,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     if (!customerId) return setErr("Pick a customer.");
     if (!selectedService) return setErr("Pick a service.");
     if (!scheduledAt) return setErr("Enter a date/time (YYYY-MM-DDTHH:mm).");
+    if (isAdmin && !assignedTo) return setErr("Assign a team member.");
     if (slotState && !slotState.ok) {
       return setErr(
         slotState.reason === "outside_hours"
@@ -453,7 +460,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         });
         setErr("Slot unavailable — try a suggestion below.");
       } else {
-        setErr(e?.message || "Could not create booking.");
+        setErr(apiErrorMessage(e, "Could not create booking."));
       }
     }
   };
@@ -876,24 +883,39 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   Recommended for {targetDate}
                 </Text>
                 <View className="flex-row flex-wrap">
-                  {suggestions.map((r) => (
-                    <Pressable
-                      key={r.start}
-                      onPress={() => {
-                        setScheduledAt(toLocalInput(r.start));
-                        setBookingDate(toDateOnly(r.start));
-                        setSlotState(null);
-                      }}
-                      className="bg-white border border-blue-300 rounded-xl px-3 py-2 mr-2 mb-2"
-                    >
-                      <Text className="text-xs font-semibold text-blue-800">
-                        {formatTime(r.start)} · {r.label}
-                      </Text>
-                      <Text className="text-[10px] text-blue-600 mt-0.5">
-                        score {r.score} · {r.total_travel_minutes} min travel
-                      </Text>
-                    </Pressable>
-                  ))}
+                  {suggestions.map((r) => {
+                    const isActive = toLocalInput(r.start) === scheduledAt;
+                    return (
+                      <Pressable
+                        key={r.start}
+                        onPress={() => {
+                          setScheduledAt(toLocalInput(r.start));
+                          setBookingDate(toDateOnly(r.start));
+                          setSlotState(null);
+                        }}
+                        className={`rounded-xl px-3 py-2 mr-2 mb-2 border ${
+                          isActive
+                            ? "bg-slate-900 border-slate-900"
+                            : "bg-white border-blue-300"
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs font-semibold ${
+                            isActive ? "text-white" : "text-blue-800"
+                          }`}
+                        >
+                          {formatTime(r.start)} · {r.label}
+                        </Text>
+                        <Text
+                          className={`text-[10px] mt-0.5 ${
+                            isActive ? "text-slate-300" : "text-blue-600"
+                          }`}
+                        >
+                          score {r.score} · {r.total_travel_minutes} min travel
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
             ) : customerId && selectedService && suggestSlots.isPending ? (
@@ -957,30 +979,23 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             {isAdmin ? (
               <View className="mb-3">
                 <Text className="text-xs font-semibold text-slate-600 mb-1">
-                  Assign to
+                  Assign to *
                 </Text>
                 <Pressable
                   onPress={() => setAssigneePickerOpen((open) => !open)}
-                  className="bg-white border border-slate-200 rounded-xl px-3 py-3 flex-row items-center justify-between"
+                  className={`bg-white border rounded-xl px-3 py-3 flex-row items-center justify-between ${
+                    !assignedTo ? "border-red-300" : "border-slate-200"
+                  }`}
                 >
                   <Text className={`text-sm ${selectedAssignee ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
                     {selectedAssignee
                       ? `${selectedAssignee.user_first_name ?? ""} ${selectedAssignee.user_last_name ?? ""}`.trim() || selectedAssignee.user_email
-                      : "Unassigned"}
+                      : "Select team member"}
                   </Text>
                   <Text className="text-slate-400 text-xs">{assigneePickerOpen ? "▲" : "▼"}</Text>
                 </Pressable>
                 {assigneePickerOpen ? (
                   <View className="border border-slate-200 rounded-xl mt-2 overflow-hidden">
-                    <Pressable
-                      onPress={() => {
-                        setAssignedTo(null);
-                        setAssigneePickerOpen(false);
-                      }}
-                      className={`px-3 py-3 ${assignedTo === null ? "bg-blue-50" : "bg-white"}`}
-                    >
-                      <Text className="text-sm text-slate-900">Unassigned</Text>
-                    </Pressable>
                     {activeMembers.map((member) => {
                       const name = `${member.user_first_name ?? ""} ${member.user_last_name ?? ""}`.trim() || member.user_email;
                       return (
