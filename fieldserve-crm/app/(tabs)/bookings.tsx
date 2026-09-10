@@ -95,7 +95,7 @@ export default function BookingsPage() {
       (j) =>
         j.customer_name.toLowerCase().includes(q) ||
         j.service_type.toLowerCase().includes(q) ||
-        j.address.toLowerCase().includes(q) ||
+        (j.address ?? "").toLowerCase().includes(q) ||
         j.status.toLowerCase().includes(q),
     );
   }, [data?.results, searchQuery]);

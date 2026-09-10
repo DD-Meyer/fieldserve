@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import "../../global.css";
 
 import AppHeader, {
@@ -29,6 +30,7 @@ import {
   useCustomers,
   type Customer,
 } from "../../lib/hooks/useCustomers";
+import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 import { styled } from "nativewind";
 import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
 import CustomerBackground from "../../components/CustomerBackground";
@@ -287,22 +289,34 @@ function AddCustomerModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const create = useCreateCustomer();
+  const { data: business } = useCurrentBusiness();
+  const isMobileBusiness = business?.industry_mode === "mobile";
 
   const submit = async () => {
     setErr(null);
+    if (isMobileBusiness && (!address.trim() || latitude == null || longitude == null)) {
+      setErr("Select the customer's address from the search results.");
+      return;
+    }
     try {
       await create.mutateAsync({
         full_name: fullName.trim(),
         email: email.trim(),
         phone: phone.trim(),
         address: address.trim(),
+        latitude,
+        longitude,
       });
       setFullName("");
       setEmail("");
       setPhone("");
       setAddress("");
+      setLatitude(null);
+      setLongitude(null);
       onCreated();
     } catch (e: any) {
       setErr(e?.message || "Could not create customer");
@@ -353,12 +367,70 @@ function AddCustomerModal({
           />
 
           <Text className="text-xs text-slate-500 mb-1">Address</Text>
-          <TextInput
-            value={address}
-            onChangeText={setAddress}
-            placeholder="12 Riverside Ave, London"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
-          />
+          {isMobileBusiness ? (
+            <View className="mb-3" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+              <GooglePlacesAutocomplete
+                placeholder="Search for the customer's address"
+                fetchDetails={true}
+                disableScroll={true}
+                minLength={2}
+                debounce={300}
+                onPress={(data, details = null) => {
+                  const selectedLatitude = details?.geometry?.location?.lat;
+                  const selectedLongitude = details?.geometry?.location?.lng;
+                  if (selectedLatitude == null || selectedLongitude == null) return;
+                  setAddress(data.description);
+                  setLatitude(selectedLatitude);
+                  setLongitude(selectedLongitude);
+                }}
+                query={{
+                  key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                  language: "en",
+                  types: "address",
+                }}
+                styles={{
+                  container: {
+                    flex: 0,
+                    width: "100%",
+                    zIndex: 1000,
+                  },
+                  textInput: {
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    height: 48,
+                    color: "#0f172a",
+                    fontSize: 14,
+                  },
+                  listView: {
+                    position: "absolute",
+                    top: 50,
+                    left: 0,
+                    right: 0,
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    backgroundColor: "#ffffff",
+                    elevation: 1001,
+                    zIndex: 9999,
+                    maxHeight: 180,
+                  },
+                }}
+              />
+              {latitude != null && longitude != null ? (
+                <Text className="text-[11px] text-green-700 mt-1">
+                  Location selected: {address}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <TextInput
+              value={address}
+              onChangeText={setAddress}
+              placeholder="12 Riverside Ave, London"
+              className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+            />
+          )}
 
           {err ? <Text className="text-xs text-red-600 mb-2">{err}</Text> : null}
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import ExpandableLeafletMap from "../ExpandableLeafletMap";
 import type { LeafletMarker } from "../leafletHtml";
@@ -14,6 +15,7 @@ import {
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 
 const AVG_SPEED_KMH = 40;
+type RouteScope = "company" | "mine";
 
 function formatHours(min: number) {
   const h = Math.floor(Math.abs(min) / 60);
@@ -91,22 +93,36 @@ function hasLatLng(j: Job): j is Job & { latitude: number; longitude: number } {
 
 export default function ScheduleMobile() {
   const tabBarSpace = useTabBarSpace();
+  const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
+  const [scope, setScope] = useState<RouteScope>("company");
   const today = toIsoDate(new Date());
+  const business = useCurrentBusiness();
+  const isAdmin = business.data?.role === "admin";
+  const effectiveScope = isAdmin ? scope : "mine";
 
   const { data, isLoading, error } = useJobs({
     date: selectedDate,
     ordering: "scheduled_at",
+    assigned_to: effectiveScope === "mine" ? "me" : undefined,
   });
-  const business = useCurrentBusiness();
 
   const jobs = useMemo(() => data?.results ?? [], [data?.results]);
   const activeJobs = useMemo(
     () => jobs.filter((j) => j.status !== "cancelled"),
     [jobs],
   );
-  const geoJobs = useMemo(() => activeJobs.filter(hasLatLng), [activeJobs]);
+  const missingLocationJobs = useMemo(
+    () => activeJobs.filter((job) => !hasLatLng(job)),
+    [activeJobs],
+  );
+  const canRoute =
+    business.data?.industry_mode === "mobile" && missingLocationJobs.length === 0;
+  const geoJobs = useMemo(
+    () => (canRoute ? activeJobs.filter(hasLatLng) : []),
+    [activeJobs, canRoute],
+  );
 
   const depot = useMemo(() => {
     const b = business.data;
@@ -191,6 +207,34 @@ export default function ScheduleMobile() {
         Ordered by scheduled time. Travel follows the fastest available road route.
       </Text>
 
+      {isAdmin ? (
+        <View className="flex-row rounded-lg border border-slate-200 bg-slate-100 p-1 mb-4">
+          {([
+            ["company", "Company-wide"],
+            ["mine", "Assigned to me"],
+          ] as const).map(([key, label]) => {
+            const selected = scope === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setScope(key)}
+                className={`flex-1 items-center rounded-md py-2 ${
+                  selected ? "bg-white" : ""
+                }`}
+              >
+                <Text
+                  className={`text-xs font-semibold ${
+                    selected ? "text-slate-900" : "text-slate-500"
+                  }`}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
       <View className="flex-row items-center justify-between bg-white border border-slate-200 rounded-2xl px-3 py-2 mb-4">
         <Pressable
           onPress={() => setSelectedDate((d) => shiftDate(d, -1))}
@@ -242,7 +286,7 @@ export default function ScheduleMobile() {
         </View>
       </View>
 
-      {mapMarkers.length > 0 ? (
+      {canRoute && mapMarkers.length > 0 ? (
         <View className="mt-4">
           <ExpandableLeafletMap
             title={`${humanDate(selectedDate)} road route`}
@@ -285,13 +329,26 @@ export default function ScheduleMobile() {
         )}
       </View>
 
-      {stops.length > 0 && geoJobs.length < stops.length ? (
-        <View className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 flex-row">
-          <Text className="text-amber-700 text-sm mr-2">ⓘ</Text>
-          <Text className="text-amber-800 text-xs leading-4 flex-1">
-            Some jobs don&apos;t have a saved lat/lng, so travel estimates skip
-            those legs. Geocode customer addresses to see the full route.
+      {business.data?.industry_mode === "mobile" && missingLocationJobs.length > 0 ? (
+        <View className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3">
+          <Text className="text-amber-800 text-xs leading-4 mb-2">
+            Add a saved customer location before this day&apos;s route can be calculated.
           </Text>
+          {missingLocationJobs.map((job) => (
+            <Pressable
+              key={job.id}
+              onPress={() => router.push(`/customer/${job.customer}`)}
+              className="py-2 border-t border-amber-100"
+              accessibilityLabel={`Add a location for ${job.customer_name}`}
+            >
+              <Text className="text-xs font-semibold text-amber-900">
+                {job.customer_name || `Customer #${job.customer}`}
+              </Text>
+              <Text className="text-[11px] text-amber-700 mt-0.5">
+                Add customer location
+              </Text>
+            </Pressable>
+          ))}
         </View>
       ) : null}
     </ScrollView>

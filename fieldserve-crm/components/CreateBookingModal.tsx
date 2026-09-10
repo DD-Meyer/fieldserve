@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
 import {
   useCreateJob,
@@ -86,6 +87,8 @@ type CustomerFormState = {
   email: string;
   phone: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type ServiceFormState = {
@@ -119,6 +122,8 @@ const EMPTY_CUSTOMER: CustomerFormState = {
   email: "",
   phone: "",
   address: "",
+  latitude: null,
+  longitude: null,
 };
 
 const EMPTY_SERVICE: ServiceFormState = {
@@ -140,6 +145,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const suggestSlots = useSuggestSlots();
   const business = useCurrentBusiness();
   const isAdmin = business.data?.role === "admin";
+  const isMobileBusiness = business.data?.industry_mode === "mobile";
   const team = useTeamMembers(isAdmin ? business.data?.id ?? null : null);
 
   const customers = custPage?.results ?? [];
@@ -357,6 +363,13 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setCustErr("Name is required.");
       return;
     }
+    if (
+      isMobileBusiness &&
+      (!newCust.address.trim() || newCust.latitude == null || newCust.longitude == null)
+    ) {
+      setCustErr("Select the customer's address from the search results.");
+      return;
+    }
     if (duplicateHit) {
       setCustErr(
         `"${duplicateHit.full_name}" already exists — select them instead.`,
@@ -369,6 +382,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         email: newCust.email.trim(),
         phone: newCust.phone.trim(),
         address: newCust.address.trim(),
+        latitude: newCust.latitude,
+        longitude: newCust.longitude,
       });
       setCustomerId(created.id);
       setCreatedCustomer(created);
@@ -425,6 +440,12 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     if (!customerId) return setErr("Pick a customer.");
     if (!selectedService) return setErr("Pick a service.");
     if (!scheduledAt) return setErr("Enter a date/time (YYYY-MM-DDTHH:mm).");
+    if (
+      isMobileBusiness &&
+      (selectedCustomer?.latitude == null || selectedCustomer?.longitude == null)
+    ) {
+      return setErr("This customer needs a saved location before a mobile booking can be created.");
+    }
     if (isAdmin && !assignedTo) return setErr("Assign a team member.");
     if (slotState && !slotState.ok) {
       return setErr(
@@ -617,14 +638,75 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   keyboardType="phone-pad"
                   className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                 />
-                <TextInput
-                  value={newCust.address}
-                  onChangeText={(v) =>
-                    setNewCust((s) => ({ ...s, address: v }))
-                  }
-                  placeholder="Address"
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
-                />
+                {isMobileBusiness ? (
+                  <View className="mb-2" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+                    <GooglePlacesAutocomplete
+                      placeholder="Search for the customer's address"
+                      fetchDetails={true}
+                      disableScroll={true}
+                      minLength={2}
+                      debounce={300}
+                      onPress={(data, details = null) => {
+                        const latitude = details?.geometry?.location?.lat;
+                        const longitude = details?.geometry?.location?.lng;
+                        if (latitude == null || longitude == null) return;
+                        setNewCust((current) => ({
+                          ...current,
+                          address: data.description,
+                          latitude,
+                          longitude,
+                        }));
+                      }}
+                      query={{
+                        key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                        language: "en",
+                        types: "address",
+                      }}
+                      styles={{
+                        container: {
+                          flex: 0,
+                          width: "100%",
+                          zIndex: 1000,
+                        },
+                        textInput: {
+                          borderWidth: 1,
+                          borderColor: "#e2e8f0",
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          height: 42,
+                          color: "#0f172a",
+                          fontSize: 14,
+                        },
+                        listView: {
+                          position: "absolute",
+                          top: 44,
+                          left: 0,
+                          right: 0,
+                          borderWidth: 1,
+                          borderColor: "#e2e8f0",
+                          backgroundColor: "#ffffff",
+                          elevation: 1001,
+                          zIndex: 9999,
+                          maxHeight: 180,
+                        },
+                      }}
+                    />
+                    {newCust.latitude != null && newCust.longitude != null ? (
+                      <Text className="text-[11px] text-green-700 mt-1">
+                        Location selected: {newCust.address}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : (
+                  <TextInput
+                    value={newCust.address}
+                    onChangeText={(v) =>
+                      setNewCust((s) => ({ ...s, address: v }))
+                    }
+                    placeholder="Address"
+                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  />
+                )}
 
                 {duplicateHit ? (
                   <Text className="text-[11px] text-amber-700 mb-2">

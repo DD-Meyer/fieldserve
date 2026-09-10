@@ -136,13 +136,58 @@ class JobSerializer(serializers.ModelSerializer):
         return biz
 
     def validate(self, attrs):
+        latitude = attrs.get("latitude")
+        longitude = attrs.get("longitude")
+        if (latitude is None) != (longitude is None):
+            raise serializers.ValidationError(
+                "Provide both latitude and longitude when selecting an address."
+            )
+        if latitude is not None and not -90 <= latitude <= 90:
+            raise serializers.ValidationError(
+                {"latitude": "Latitude must be between -90 and 90."}
+            )
+        if longitude is not None and not -180 <= longitude <= 180:
+            raise serializers.ValidationError(
+                {"longitude": "Longitude must be between -180 and 180."}
+            )
+
         scheduled_at = attrs.get("scheduled_at") or (
             self.instance.scheduled_at if self.instance else None
         )
-        if scheduled_at is None:
-            return attrs
         business = self._resolve_business(attrs)
         if business is None:
+            return attrs
+
+        customer = attrs.get("customer") or (
+            self.instance.customer if self.instance else None
+        )
+        effective_address = attrs.get("address")
+        if effective_address is None:
+            effective_address = (
+                self.instance.address if self.instance else getattr(customer, "address", "")
+            )
+        if latitude is None and longitude is None:
+            location = self.instance.location if self.instance else None
+            if location is None:
+                location = getattr(customer, "location", None)
+            if location is not None:
+                latitude = location.y
+                longitude = location.x
+
+        if business.industry_mode == business.Industry.MOBILE and (
+            not str(effective_address or "").strip()
+            or latitude is None
+            or longitude is None
+        ):
+            raise serializers.ValidationError(
+                {
+                    "location": (
+                        "Mobile bookings require a customer address and selected map location."
+                    )
+                }
+            )
+
+        if scheduled_at is None:
             return attrs
 
         assigned_to = attrs.get("assigned_to")
@@ -159,27 +204,12 @@ class JobSerializer(serializers.ModelSerializer):
             self.instance.duration_minutes if self.instance else None
         ) or 30
 
-        lat = attrs.get("latitude")
-        lng = attrs.get("longitude")
-        if lat is None or lng is None:
-            if self.instance and self.instance.location is not None:
-                lat = self.instance.location.y
-                lng = self.instance.location.x
-            else:
-                cust = attrs.get("customer") or (
-                    self.instance.customer if self.instance else None
-                )
-                loc = getattr(cust, "location", None)
-                if loc is not None:
-                    lat = loc.y
-                    lng = loc.x
-
         result = check_slot(
             business=business,
             scheduled_at=scheduled_at,
             duration_minutes=int(duration),
-            lat=float(lat) if lat is not None else None,
-            lng=float(lng) if lng is not None else None,
+            lat=float(latitude) if latitude is not None else None,
+            lng=float(longitude) if longitude is not None else None,
             exclude_job_id=self.instance.pk if self.instance else None,
         )
         if not result.ok:
@@ -191,6 +221,8 @@ class JobSerializer(serializers.ModelSerializer):
         cust = validated_data.get("customer")
         if cust and not validated_data.get("address"):
             validated_data["address"] = cust.address
+        if cust and "location" not in validated_data and cust.location is not None:
+            validated_data["location"] = cust.location.clone()
         if cust and "business" not in validated_data:
             validated_data["business"] = cust.business
         active_indemnity_for(validated_data["business"])

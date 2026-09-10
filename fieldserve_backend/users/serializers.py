@@ -58,10 +58,69 @@ class CustomerSerializer(serializers.ModelSerializer):
             validated_data["location"] = Point(float(lng), float(lat), srid=4326)
         return validated_data
 
+    def validate_location_for_business(self, attrs, business):
+        latitude = attrs.get("latitude")
+        longitude = attrs.get("longitude")
+        if (latitude is None) != (longitude is None):
+            raise serializers.ValidationError(
+                "Provide both latitude and longitude when selecting an address."
+            )
+        if latitude is not None and not -90 <= latitude <= 90:
+            raise serializers.ValidationError(
+                {"latitude": "Latitude must be between -90 and 90."}
+            )
+        if longitude is not None and not -180 <= longitude <= 180:
+            raise serializers.ValidationError(
+                {"longitude": "Longitude must be between -180 and 180."}
+            )
+
+        address = attrs.get("address")
+        if address is None and self.instance is not None:
+            address = self.instance.address
+        location = self.instance.location if self.instance is not None else None
+        has_location = latitude is not None and longitude is not None or location is not None
+        if business.industry_mode == business.Industry.MOBILE and (
+            not str(address or "").strip() or not has_location
+        ):
+            raise serializers.ValidationError(
+                {
+                    "location": (
+                        "Mobile customers require an address and selected map location."
+                    )
+                }
+            )
+        return attrs
+
+    def validate(self, attrs):
+        business = attrs.get("business") or getattr(self.instance, "business", None)
+        if business is not None:
+            self.validate_location_for_business(attrs, business)
+        else:
+            latitude = attrs.get("latitude")
+            longitude = attrs.get("longitude")
+            if (latitude is None) != (longitude is None):
+                raise serializers.ValidationError(
+                    "Provide both latitude and longitude when selecting an address."
+                )
+        return attrs
+
     def create(self, validated_data):
         validated_data = self._apply_latlng(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         validated_data = self._apply_latlng(validated_data)
-        return super().update(instance, validated_data)
+        customer = super().update(instance, validated_data)
+        if customer.location is not None:
+            from jobs.models import Job
+
+            Job.objects.filter(
+                customer=customer,
+                location__isnull=True,
+                status__in=[
+                    Job.Status.PENDING,
+                    Job.Status.SCHEDULED,
+                    Job.Status.IN_PROGRESS,
+                ],
+            ).update(address=customer.address, location=customer.location)
+        return customer

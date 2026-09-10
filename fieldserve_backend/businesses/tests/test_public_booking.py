@@ -53,6 +53,9 @@ def test_public_booking_creates_customer_and_job(
             "full_name": "Grace Hopper",
             "email": "grace@example.com",
             "phone": "+15551234",
+            "address": "1 King's Cross, London, UK",
+            "latitude": 51.5308,
+            "longitude": -0.1238,
             "service_id": service.id,
             "scheduled_at": when,
         },
@@ -63,6 +66,28 @@ def test_public_booking_creates_customer_and_job(
     job = Job.objects.get(pk=resp.data["booking_id"])
     assert job.status == Job.Status.PENDING
     assert job.service_type == service.name
+    assert job.address == "1 King's Cross, London, UK"
+    assert job.location.x == pytest.approx(-0.1238)
+    assert job.location.y == pytest.approx(51.5308)
+
+
+def test_public_mobile_booking_requires_selected_location(
+    api, business, service, disable_ml_signals
+):
+    resp = api.post(
+        f"/api/public/businesses/{business.slug}/bookings/",
+        {
+            "full_name": "Grace Hopper",
+            "email": "grace@example.com",
+            "service_id": service.id,
+            "scheduled_at": _future_workhour(days=2),
+            "address": "1 King's Cross, London, UK",
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 400
+    assert "location" in resp.data
 
 
 def test_public_booking_finds_existing_customer_by_email(
@@ -72,6 +97,8 @@ def test_public_booking_finds_existing_customer_by_email(
         business=business,
         full_name="Ada Byron",
         email="ada.byron@example.com",
+        address="1 King's Cross, London, UK",
+        location="POINT(-0.1238 51.5308)",
     )
     when = _future_workhour(days=1)
     resp = api.post(
@@ -79,6 +106,9 @@ def test_public_booking_finds_existing_customer_by_email(
         {
             "full_name": "Ada Byron",
             "email": "ADA.BYRON@example.com",  # different case
+            "address": "1 King's Cross, London, UK",
+            "latitude": 51.5308,
+            "longitude": -0.1238,
             "service_id": service.id,
             "scheduled_at": when,
         },
@@ -86,6 +116,26 @@ def test_public_booking_finds_existing_customer_by_email(
     )
     assert resp.status_code == 201
     assert resp.data["customer_id"] == existing.pk
+
+
+def test_public_fixed_booking_allows_missing_location(
+    api, business, service, disable_ml_signals
+):
+    business.industry_mode = business.Industry.FIXED
+    business.save(update_fields=["industry_mode"])
+
+    resp = api.post(
+        f"/api/public/businesses/{business.slug}/bookings/",
+        {
+            "full_name": "Grace Hopper",
+            "email": "grace@example.com",
+            "service_id": service.id,
+            "scheduled_at": _future_workhour(days=2),
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 201, resp.data
 
 
 def test_public_booking_requires_contact(api, business, service, disable_ml_signals):

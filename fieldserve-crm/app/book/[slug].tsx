@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
@@ -176,6 +177,8 @@ export default function PublicBookingPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [serviceId, setServiceId] = useState<number | null>(null);
   const [scheduledAt, setScheduledAt] = useState(""); // ISO local: YYYY-MM-DDTHH:mm
@@ -191,6 +194,7 @@ export default function PublicBookingPage() {
   } | null>(null);
 
   const brand = bizState.data?.brand_color || "#2563EB";
+  const isMobileBusiness = bizState.data?.industry_mode === "mobile";
 
   const targetDate = useMemo(() => {
     if (scheduledAt) return scheduledAt.slice(0, 10);
@@ -299,6 +303,10 @@ export default function PublicBookingPage() {
       );
       return;
     }
+    if (isMobileBusiness && (!address.trim() || latitude == null || longitude == null)) {
+      Alert.alert("Select an address", "Choose the service address from the search results.");
+      return;
+    }
     setSubmitting(true);
     try {
       const iso = new Date(scheduledAt).toISOString();
@@ -311,6 +319,8 @@ export default function PublicBookingPage() {
         email,
         phone,
         address,
+        latitude,
+        longitude,
         notes,
         service_id: serviceId,
         scheduled_at: iso,
@@ -504,12 +514,73 @@ export default function PublicBookingPage() {
             placeholder="+44 …"
             keyboardType="phone-pad"
           />
-          <Field
-            label="Address"
-            value={address}
-            onChange={setAddress}
-            placeholder="Where the service happens"
-          />
+          {isMobileBusiness ? (
+            <View className="mb-3" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+              <Text className="text-xs font-semibold text-slate-600 mb-1">
+                Service address
+              </Text>
+              <GooglePlacesAutocomplete
+                placeholder="Search for the service address"
+                fetchDetails={true}
+                disableScroll={true}
+                minLength={2}
+                debounce={300}
+                onPress={(data, details = null) => {
+                  const selectedLatitude = details?.geometry?.location?.lat;
+                  const selectedLongitude = details?.geometry?.location?.lng;
+                  if (selectedLatitude == null || selectedLongitude == null) return;
+                  setAddress(data.description);
+                  setLatitude(selectedLatitude);
+                  setLongitude(selectedLongitude);
+                }}
+                query={{
+                  key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                  language: "en",
+                  types: "address",
+                }}
+                styles={{
+                  container: {
+                    flex: 0,
+                    width: "100%",
+                    zIndex: 1000,
+                  },
+                  textInput: {
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    height: 42,
+                    color: "#0f172a",
+                    fontSize: 14,
+                  },
+                  listView: {
+                    position: "absolute",
+                    top: 44,
+                    left: 0,
+                    right: 0,
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    backgroundColor: "#ffffff",
+                    elevation: 1001,
+                    zIndex: 9999,
+                    maxHeight: 180,
+                  },
+                }}
+              />
+              {latitude != null && longitude != null ? (
+                <Text className="text-[11px] text-green-700 mt-1">
+                  Location selected: {address}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Field
+              label="Address"
+              value={address}
+              onChange={setAddress}
+              placeholder="Where the service happens"
+            />
+          )}
         </View>
 
         <Text className="text-sm font-bold text-slate-900 mb-2">

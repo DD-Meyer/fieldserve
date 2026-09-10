@@ -108,10 +108,13 @@ class CustomerViewSet(viewsets.ModelViewSet):
         if requested is None:
             if not biz_ids:
                 raise PermissionDenied("User has no active business.")
-            serializer.save(business_id=biz_ids[0])
+            business = Business.objects.get(pk=biz_ids[0])
+            serializer.validate_location_for_business(serializer.validated_data, business)
+            serializer.save(business=business)
         else:
             if requested.id not in biz_ids:
                 raise PermissionDenied("Not a member of that business.")
+            serializer.validate_location_for_business(serializer.validated_data, requested)
             serializer.save()
 
 

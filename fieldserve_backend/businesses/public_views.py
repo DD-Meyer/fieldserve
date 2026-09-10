@@ -122,6 +122,19 @@ def public_booking_create(request, slug: str):
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
 
+    if biz.industry_mode == Business.Industry.MOBILE and (
+        not (data.get("address") or "").strip()
+        or data.get("latitude") is None
+        or data.get("longitude") is None
+    ):
+        raise serializers.ValidationError(
+            {
+                "location": (
+                    "Mobile bookings require an address and selected map location."
+                )
+            }
+        )
+
     service = get_object_or_404(
         Service, pk=data["service_id"], business=biz, is_active=True
     )

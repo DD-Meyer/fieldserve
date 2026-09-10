@@ -1,13 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
@@ -15,6 +18,8 @@ import "../../global.css";
 import AppHeader from "../../components/AppHeader";
 import RiskBadge, { levelFromProb, type RiskLevel } from "../../components/RiskBadge";
 import { useCustomer, useJobs } from "../../lib/hooks/useJobs";
+import { useUpdateCustomer } from "../../lib/hooks/useCustomers";
+import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 import {
   useChurnHistory,
   useChurnScores,
@@ -63,6 +68,18 @@ export default function CustomerProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const customerId = id ? Number(id) : null;
+  const [locationEditorOpen, setLocationEditorOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const updateCustomer = useUpdateCustomer();
+  const { data: business } = useCurrentBusiness();
+  const isMobileBusiness = business?.industry_mode === "mobile";
 
   const { data: customer, isLoading: custLoading } = useCustomer(customerId);
   const { data: jobsPage } = useJobs(
@@ -101,6 +118,49 @@ export default function CustomerProfile() {
   }
 
   const jobs = jobsPage?.results ?? [];
+
+  const openLocationEditor = () => {
+    setFullName(customer.full_name);
+    setEmail(customer.email);
+    setPhone(customer.phone);
+    setAddress(customer.address);
+    setNotes(customer.notes);
+    setLatitude(customer.latitude ?? null);
+    setLongitude(customer.longitude ?? null);
+    setLocationError(null);
+    setLocationEditorOpen(true);
+  };
+
+  const saveProfile = async () => {
+    if (!fullName.trim()) {
+      setLocationError("Customer name is required.");
+      return;
+    }
+    if (
+      isMobileBusiness &&
+      (!address.trim() || latitude == null || longitude == null)
+    ) {
+      setLocationError("Select an address from the search results.");
+      return;
+    }
+    try {
+      await updateCustomer.mutateAsync({
+        id: customer.id,
+        patch: {
+          full_name: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          latitude,
+          longitude,
+          notes: notes.trim(),
+        },
+      });
+      setLocationEditorOpen(false);
+    } catch (error: any) {
+      setLocationError(error?.message || "Could not save customer location.");
+    }
+  };
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
@@ -145,6 +205,16 @@ export default function CustomerProfile() {
           <InfoRow label="Email" value={customer.email} />
           <InfoRow label="Phone" value={customer.phone} />
           <InfoRow label="Address" value={customer.address} />
+          <Pressable
+            onPress={openLocationEditor}
+            className="mt-3 border border-blue-600 rounded-full py-2 items-center"
+          >
+            <Text className="text-blue-600 text-xs font-semibold">
+              {customer.latitude != null && customer.longitude != null
+                ? "Edit customer"
+                : "Add customer location"}
+            </Text>
+          </Pressable>
           {customer.email ? (
             <Pressable
               onPress={() => Linking.openURL(`mailto:${customer.email}`)}
@@ -214,6 +284,129 @@ export default function CustomerProfile() {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={locationEditorOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLocationEditorOpen(false)}
+      >
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="bg-white rounded-t-3xl p-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-bold text-slate-900">Edit customer</Text>
+              <Pressable onPress={() => setLocationEditorOpen(false)}>
+                <Text className="text-slate-500">Close</Text>
+              </Pressable>
+            </View>
+            <Text className="text-xs font-semibold text-slate-600 mb-1">Full name</Text>
+            <TextInput
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Customer name"
+              className="border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 mb-3"
+            />
+            <Text className="text-xs font-semibold text-slate-600 mb-1">Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="name@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              className="border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 mb-3"
+            />
+            <Text className="text-xs font-semibold text-slate-600 mb-1">Phone</Text>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+44 7700 900000"
+              keyboardType="phone-pad"
+              className="border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 mb-3"
+            />
+            <Text className="text-xs font-semibold text-slate-600 mb-1">Address</Text>
+            <View className="mb-3" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+              <GooglePlacesAutocomplete
+                placeholder={address || "Search for an address"}
+                fetchDetails={true}
+                disableScroll={true}
+                minLength={2}
+                debounce={300}
+                onPress={(data, details = null) => {
+                  const selectedLatitude = details?.geometry?.location?.lat;
+                  const selectedLongitude = details?.geometry?.location?.lng;
+                  if (selectedLatitude == null || selectedLongitude == null) return;
+                  setAddress(data.description);
+                  setLatitude(selectedLatitude);
+                  setLongitude(selectedLongitude);
+                }}
+                query={{
+                  key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                  language: "en",
+                  types: "address",
+                }}
+                textInputProps={{
+                  onChangeText: () => {
+                    setLatitude(null);
+                    setLongitude(null);
+                  },
+                }}
+                styles={{
+                  container: {
+                    flex: 0,
+                    width: "100%",
+                    zIndex: 1000,
+                  },
+                  textInput: {
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    height: 48,
+                    color: "#0f172a",
+                    fontSize: 14,
+                  },
+                  listView: {
+                    position: "absolute",
+                    top: 50,
+                    left: 0,
+                    right: 0,
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    backgroundColor: "#ffffff",
+                    elevation: 1001,
+                    zIndex: 9999,
+                    maxHeight: 180,
+                  },
+                }}
+              />
+            </View>
+            {latitude != null && longitude != null ? (
+              <Text className="text-[11px] text-green-700 mt-2">Location selected: {address}</Text>
+            ) : null}
+            <Text className="text-xs font-semibold text-slate-600 mb-1 mt-3">Notes</Text>
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Customer notes"
+              multiline
+              className="border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900"
+              style={{ minHeight: 84, textAlignVertical: "top" }}
+            />
+            {locationError ? <Text className="text-xs text-red-600 mt-2">{locationError}</Text> : null}
+            <Pressable
+              onPress={saveProfile}
+              disabled={updateCustomer.isPending}
+              className="bg-blue-600 rounded-full py-3 items-center mt-4 disabled:opacity-50"
+            >
+              {updateCustomer.isPending ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text className="text-white text-sm font-semibold">Save changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
