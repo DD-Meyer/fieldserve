@@ -18,10 +18,10 @@ import AppHeader, {
   FLOATING_HEADER_CONTENT_OFFSET,
 } from "../../components/AppHeader";
 import CreateBookingModal from "../../components/CreateBookingModal";
+import ShareBookingModal from "../../components/ShareBookingModal";
 import FilterPills from "../../components/FilterPills";
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 import { useJobs, type Job, type JobStatus } from "../../lib/hooks/useJobs";
-import { useShareBooking } from "../../lib/hooks/useShareBooking";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -115,7 +115,7 @@ export default function BookingsPage() {
   }, [jobs]);
 
   // Handle sharing the booking form link
-  const { handleShare } = useShareBooking();
+  const [showShare, setShowShare] = useState(false);
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
@@ -140,7 +140,7 @@ export default function BookingsPage() {
               <Text className="text-xs font-semibold text-white">+ New</Text>
             </Pressable>
             <Pressable
-              onPress={handleShare}
+              onPress={() => setShowShare(true)}
               className="px-3 py-1.5 rounded-full bg-slate-900"
             >
               <Text className="text-xs font-semibold text-white">Share</Text>
@@ -303,6 +303,7 @@ export default function BookingsPage() {
         onClose={() => setShowCreate(false)}
         onCreated={() => refetch()}
       />
+      <ShareBookingModal visible={showShare} onClose={() => setShowShare(false)} />
     </SafeAreaView>
   );
 }

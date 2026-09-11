@@ -14,6 +14,7 @@ Throttled by IP to keep abuse manageable.
 from __future__ import annotations
 
 from django.contrib.gis.geos import Point
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import permissions, serializers, status
@@ -21,13 +22,12 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
-from jobs import scheduler
 from jobs.indemnity import active_indemnity_for, attach_active_indemnity
 from jobs.models import Job
-from jobs.scheduling_utils import check_slot
+from jobs.scheduling_utils import check_slot_for_any, find_available_member, suggest_slots_for_any
 from users.models import Customer
 
-from .models import Business, Service
+from .models import Business, Membership, Service
 
 
 class _BookingThrottle(AnonRateThrottle):
@@ -96,6 +96,17 @@ def _get_active_business(slug: str) -> Business:
     return biz
 
 
+def _qualified_members(business: Business, service: Service):
+    """Active members qualified to perform this service, for auto-assignment."""
+    memberships = Membership.objects.filter(
+        business=business,
+        status=Membership.Status.ACTIVE,
+        user__isnull=False,
+        services=service,
+    ).select_related("user")
+    return [m.user for m in memberships]
+
+
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([_BookingThrottle])
@@ -140,10 +151,22 @@ def public_booking_create(request, slug: str):
     )
     active_indemnity_for(biz)
 
-    slot = check_slot(
+    candidates = _qualified_members(biz, service)
+    if not candidates:
+        return Response(
+            {
+                "detail": "slot_unavailable",
+                "reason": "no_qualified_staff",
+                "suggested_slots": [],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    slot = check_slot_for_any(
         business=biz,
         scheduled_at=data["scheduled_at"],
         duration_minutes=service.duration_minutes,
+        candidates=candidates,
         lat=data.get("latitude"),
         lng=data.get("longitude"),
     )
@@ -196,18 +219,40 @@ def public_booking_create(request, slug: str):
                 setattr(customer, k, v)
             customer.save(update_fields=list(updates.keys()) + ["updated_at"])
 
-    job = Job.objects.create(
-        business=biz,
-        customer=customer,
-        service_type=service.name,
-        notes=data.get("notes", ""),
-        address=customer.address,
-        location=location or customer.location,
-        scheduled_at=data["scheduled_at"],
-        duration_minutes=service.duration_minutes,
-        price=service.price,
-        status=Job.Status.PENDING,
-    )
+    # Re-resolve the actual assignee at commit time to close the race window
+    # between the pre-flight check above and this write.
+    with transaction.atomic():
+        assignee = find_available_member(
+            business=biz,
+            scheduled_at=data["scheduled_at"],
+            duration_minutes=service.duration_minutes,
+            candidates=candidates,
+            lat=data.get("latitude"),
+            lng=data.get("longitude"),
+        )
+        if assignee is None:
+            return Response(
+                {
+                    "detail": "slot_unavailable",
+                    "reason": "buffer_conflict",
+                    "suggested_slots": [],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        job = Job.objects.create(
+            business=biz,
+            customer=customer,
+            assigned_to=assignee,
+            service_type=service.name,
+            notes=data.get("notes", ""),
+            address=customer.address,
+            location=location or customer.location,
+            scheduled_at=data["scheduled_at"],
+            duration_minutes=service.duration_minutes,
+            price=service.price,
+            status=Job.Status.PENDING,
+        )
     attach_active_indemnity(job)
 
     return Response(
@@ -236,10 +281,12 @@ def public_check_slot(request, slug: str):
             status=status.HTTP_400_BAD_REQUEST,
         )
     service = get_object_or_404(Service, pk=service_id, business=biz, is_active=True)
-    slot = check_slot(
+    candidates = _qualified_members(biz, service)
+    slot = check_slot_for_any(
         business=biz,
         scheduled_at=scheduled_at,
         duration_minutes=service.duration_minutes,
+        candidates=candidates,
     )
     # Public response deliberately excludes conflicting-job PII.
     return Response(
@@ -330,10 +377,12 @@ def public_suggest_slots(request, slug: str):
         lat = existing.location.y
         lng = existing.location.x
 
-    result = scheduler.suggest_slots(
+    candidates = _qualified_members(biz, service)
+    result = suggest_slots_for_any(
         business=biz,
         day=day,
         duration_minutes=service.duration_minutes,
+        candidates=candidates,
         lat=lat,
         lng=lng,
     )

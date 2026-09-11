@@ -114,6 +114,7 @@ export type CheckSlotInput = {
   latitude?: number | null;
   longitude?: number | null;
   exclude_job_id?: number | null;
+  assigned_to?: number | null;
 };
 
 export type CheckSlotResponse = {
@@ -146,6 +147,7 @@ export type SuggestSlotsInput = {
   service?: number;
   duration_minutes?: number;
   exclude_job_id?: number | null;
+  assigned_to?: number | null;
 };
 
 export type SuggestSlotsResponse = {

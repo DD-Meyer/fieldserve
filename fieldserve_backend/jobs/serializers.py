@@ -211,6 +211,7 @@ class JobSerializer(serializers.ModelSerializer):
             lat=float(latitude) if latitude is not None else None,
             lng=float(longitude) if longitude is not None else None,
             exclude_job_id=self.instance.pk if self.instance else None,
+            assigned_to=assigned_to or (self.instance.assigned_to if self.instance else None),
         )
         if not result.ok:
             raise serializers.ValidationError(result.as_error())

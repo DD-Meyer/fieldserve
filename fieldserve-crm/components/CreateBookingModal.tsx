@@ -28,6 +28,7 @@ import {
   type Service,
 } from "../lib/hooks/useServices";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import { useMe } from "../lib/hooks/useMe";
 import { useTeamMembers } from "../lib/hooks/useTeam";
 import DateTimePickerField from "./DateTimePickerField";
 
@@ -144,6 +145,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const checkSlot = useCheckSlot();
   const suggestSlots = useSuggestSlots();
   const business = useCurrentBusiness();
+  const { data: me } = useMe();
   const isAdmin = business.data?.role === "admin";
   const isMobileBusiness = business.data?.industry_mode === "mobile";
   const team = useTeamMembers(isAdmin ? business.data?.id ?? null : null);
@@ -186,7 +188,16 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const activeMembers = (team.data ?? []).filter(
     (member) => member.status === "active" && member.user !== null,
   );
+  const qualifiedMembers = useMemo(
+    () =>
+      serviceId == null
+        ? []
+        : activeMembers.filter((member) => member.services?.includes(serviceId)),
+    [activeMembers, serviceId],
+  );
   const selectedAssignee = activeMembers.find((member) => member.user === assignedTo);
+  // Staff book for themselves; admins must explicitly pick a qualified member.
+  const effectiveAssignedTo = isAdmin ? assignedTo : me?.id ?? null;
 
   const visibleServices = useMemo(() => {
     if (!createdService || services.some((service) => service.id === createdService.id)) {
@@ -284,6 +295,12 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
 
   const targetDate = bookingDate || (scheduledAt ? toDateOnly(scheduledAt) : getTomorrowDate());
 
+  useEffect(() => {
+    // A member qualified for the previous service may not be for the new one.
+    setAssignedTo(null);
+    setAssigneePickerOpen(false);
+  }, [serviceId]);
+
   const availableTimeSlots = useMemo(() => {
     const slots = [
       ...suggestions.map((recommendation) => recommendation.start),
@@ -295,7 +312,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   }, [suggestions, otherAvailable]);
 
   useEffect(() => {
-    if (!customerId || !selectedService || !targetDate) {
+    if (!customerId || !selectedService || !targetDate || !effectiveAssignedTo) {
       setSuggestions([]);
       setOtherAvailable([]);
       return;
@@ -306,6 +323,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         date: targetDate,
         customer: customerId,
         duration_minutes: selectedService.duration_minutes,
+        assigned_to: effectiveAssignedTo,
       })
       .then((res) => {
         if (!cancelled) {
@@ -323,10 +341,10 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId, serviceId, targetDate]);
+  }, [customerId, serviceId, targetDate, effectiveAssignedTo]);
 
   useEffect(() => {
-    if (!customerId || !selectedService || !scheduledAt) {
+    if (!customerId || !selectedService || !scheduledAt || !effectiveAssignedTo) {
       setSlotState(null);
       return;
     }
@@ -339,6 +357,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             customer: customerId,
             scheduled_at: iso,
             duration_minutes: selectedService.duration_minutes,
+            assigned_to: effectiveAssignedTo,
           })
           .then((res) => {
             if (!cancelled) setSlotState(res);
@@ -355,7 +374,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       clearTimeout(handle);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId, serviceId, scheduledAt]);
+  }, [customerId, serviceId, scheduledAt, effectiveAssignedTo]);
 
   const submitNewCustomer = async () => {
     setCustErr(null);
@@ -955,9 +974,67 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
               ) : null}  
             </View>
 
+            {isAdmin && serviceId != null ? (
+              <View className="mb-3">
+                <Text className="text-xs font-semibold text-slate-600 mb-1">
+                  Assign to *
+                </Text>
+                {qualifiedMembers.length === 0 ? (
+                  <View className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-3">
+                    <Text className="text-xs text-amber-800">
+                      No team member is set up for this service yet. Add it to a member's
+                      profile under Team settings before booking.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Pressable
+                      onPress={() => setAssigneePickerOpen((open) => !open)}
+                      className={`bg-white border rounded-xl px-3 py-3 flex-row items-center justify-between ${
+                        !assignedTo ? "border-red-300" : "border-slate-200"
+                      }`}
+                    >
+                      <Text className={`text-sm ${selectedAssignee ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
+                        {selectedAssignee
+                          ? `${selectedAssignee.user_first_name ?? ""} ${selectedAssignee.user_last_name ?? ""}`.trim() || selectedAssignee.user_email
+                          : "Select team member"}
+                      </Text>
+                      <Text className="text-slate-400 text-xs">{assigneePickerOpen ? "▲" : "▼"}</Text>
+                    </Pressable>
+                    {assigneePickerOpen ? (
+                      <View className="border border-slate-200 rounded-xl mt-2 overflow-hidden">
+                        {qualifiedMembers.map((member) => {
+                          const name = `${member.user_first_name ?? ""} ${member.user_last_name ?? ""}`.trim() || member.user_email;
+                          return (
+                            <Pressable
+                              key={member.id}
+                              onPress={() => {
+                                setAssignedTo(member.user);
+                                setAssigneePickerOpen(false);
+                              }}
+                              className={`px-3 py-3 border-t border-slate-100 ${assignedTo === member.user ? "bg-blue-50" : "bg-white"}`}
+                            >
+                              <Text className="text-sm font-semibold text-slate-900">{name}</Text>
+                              <Text className="text-[11px] text-slate-500 capitalize mt-0.5">{member.role}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              </View>
+            ) : null}
+
             <Text className="text-xs font-semibold text-slate-600 mb-1">
               Date & time
             </Text>
+
+            {!effectiveAssignedTo ? (
+              <Text className="text-[11px] text-slate-500 mb-2">
+                {isAdmin ? "Assign a team member to see their available times." : "Pick a service to see available times."}
+              </Text>
+            ) : null}
 
             {suggestions.length > 0 ? (
               <View className="mb-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
@@ -1017,6 +1094,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 placeholder="Pick a date and time"
                 minimumDate={new Date()}
                 timeSlots={availableTimeSlots}
+                disabled={!effectiveAssignedTo}
               />
             </View>
 
@@ -1055,47 +1133,6 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             ) : slotState?.ok ? (
               <View className="mb-3">
                 <Text className="text-[11px] text-green-700">Slot available.</Text>
-              </View>
-            ) : null}
-
-            {isAdmin ? (
-              <View className="mb-3">
-                <Text className="text-xs font-semibold text-slate-600 mb-1">
-                  Assign to *
-                </Text>
-                <Pressable
-                  onPress={() => setAssigneePickerOpen((open) => !open)}
-                  className={`bg-white border rounded-xl px-3 py-3 flex-row items-center justify-between ${
-                    !assignedTo ? "border-red-300" : "border-slate-200"
-                  }`}
-                >
-                  <Text className={`text-sm ${selectedAssignee ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
-                    {selectedAssignee
-                      ? `${selectedAssignee.user_first_name ?? ""} ${selectedAssignee.user_last_name ?? ""}`.trim() || selectedAssignee.user_email
-                      : "Select team member"}
-                  </Text>
-                  <Text className="text-slate-400 text-xs">{assigneePickerOpen ? "▲" : "▼"}</Text>
-                </Pressable>
-                {assigneePickerOpen ? (
-                  <View className="border border-slate-200 rounded-xl mt-2 overflow-hidden">
-                    {activeMembers.map((member) => {
-                      const name = `${member.user_first_name ?? ""} ${member.user_last_name ?? ""}`.trim() || member.user_email;
-                      return (
-                        <Pressable
-                          key={member.id}
-                          onPress={() => {
-                            setAssignedTo(member.user);
-                            setAssigneePickerOpen(false);
-                          }}
-                          className={`px-3 py-3 border-t border-slate-100 ${assignedTo === member.user ? "bg-blue-50" : "bg-white"}`}
-                        >
-                          <Text className="text-sm font-semibold text-slate-900">{name}</Text>
-                          <Text className="text-[11px] text-slate-500 capitalize mt-0.5">{member.role}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
               </View>
             ) : null}
 

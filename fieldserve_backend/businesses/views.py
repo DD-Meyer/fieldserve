@@ -91,6 +91,7 @@ class MembershipSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True, allow_null=True)
     user_first_name = serializers.CharField(source="user.first_name", read_only=True, allow_null=True)
     user_last_name = serializers.CharField(source="user.last_name", read_only=True, allow_null=True)
+    services = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
         model = Membership
@@ -106,6 +107,8 @@ class MembershipSerializer(serializers.ModelSerializer):
             "status",
             "invited_at",
             "joined_at",
+            "services",
+            "buffer_minutes",
         ]
         read_only_fields = ["id", "business", "user", "invited_email", "status", "invited_at", "joined_at"]
 
@@ -113,11 +116,23 @@ class MembershipSerializer(serializers.ModelSerializer):
 class MembershipUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Membership
-        fields = ["role"]
+        fields = ["role", "services", "buffer_minutes"]
+        extra_kwargs = {
+            "role": {"required": False},
+            "services": {"required": False},
+            "buffer_minutes": {"required": False},
+        }
 
     def validate_role(self, value):
         if value not in Membership.Role.values:
             raise serializers.ValidationError("Use either admin or staff.")
+        return value
+
+    def validate_services(self, value):
+        business_id = self.instance.business_id if self.instance else None
+        for service in value:
+            if business_id is not None and service.business_id != business_id:
+                raise serializers.ValidationError("Service does not belong to this business.")
         return value
 
 
@@ -272,10 +287,10 @@ class BusinessViewSet(viewsets.ModelViewSet):
             membership.save(update_fields=["status"])
             return Response(status=204)
         if membership.status != Membership.Status.ACTIVE or not membership.user_id:
-            raise serializers.ValidationError("Only active members can change role.")
+            raise serializers.ValidationError("Only active members can be edited.")
         serializer = MembershipUpdateSerializer(membership, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("role") != membership.role:
+        if "role" in serializer.validated_data and serializer.validated_data["role"] != membership.role:
             if serializer.validated_data["role"] != Membership.Role.ADMIN:
                 self._protect_final_admin(business, membership)
             try:

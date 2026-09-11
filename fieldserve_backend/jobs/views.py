@@ -3,6 +3,7 @@ from datetime import datetime
 
 import requests
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import permissions, status, viewsets
@@ -263,6 +264,10 @@ class JobViewSet(viewsets.ModelViewSet):
 
         duration = int(data.get("duration_minutes") or 30)
         exclude = data.get("exclude_job_id")
+        assigned_to_id = data.get("assigned_to")
+        assigned_to = None
+        if assigned_to_id:
+            assigned_to = get_user_model().objects.filter(pk=assigned_to_id).first()
         result = check_slot(
             business=business,
             scheduled_at=scheduled_at,
@@ -270,6 +275,7 @@ class JobViewSet(viewsets.ModelViewSet):
             lat=float(lat) if lat is not None else None,
             lng=float(lng) if lng is not None else None,
             exclude_job_id=int(exclude) if exclude else None,
+            assigned_to=assigned_to,
         )
         return Response(
             {
@@ -284,7 +290,7 @@ class JobViewSet(viewsets.ModelViewSet):
         """Return ranked booking slot recommendations for a given day.
 
         Body: `{ date: YYYY-MM-DD, customer: int, service?: int,
-                 duration_minutes?: int, exclude_job_id?: int }`
+                 duration_minutes?: int, exclude_job_id?: int, assigned_to?: int }`
         Response: `{ date, recommendations: [...], other_available: [...] }`
         """
         biz_ids = active_business_ids(request.user)
@@ -317,6 +323,10 @@ class JobViewSet(viewsets.ModelViewSet):
         lng = customer.location.x if customer.location is not None else None
 
         exclude = data.get("exclude_job_id")
+        assigned_to_id = data.get("assigned_to")
+        assigned_to = None
+        if assigned_to_id:
+            assigned_to = get_user_model().objects.filter(pk=assigned_to_id).first()
         result = scheduler.suggest_slots(
             business=business,
             day=day,
@@ -324,6 +334,7 @@ class JobViewSet(viewsets.ModelViewSet):
             lat=lat,
             lng=lng,
             exclude_job_id=int(exclude) if exclude else None,
+            assigned_to=assigned_to,
         )
         return Response(
             {
