@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from users.permissions import IsBusinessMember, active_business_ids, is_active_admin
+from users.permissions import IsBusinessMember, active_business_ids, default_business_for, is_active_admin
 
 from .clerk import (
     ClerkAPIError,
@@ -306,10 +306,7 @@ class BusinessViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def current(self, request):
-        queryset = self.get_queryset()
-        biz = queryset.filter(owner=request.user).order_by("created_at", "id").first()
-        if biz is None:
-            biz = queryset.order_by("-created_at", "-id").first()
+        biz = default_business_for(request.user)
         if biz is None:
             return Response({"detail": "No business found."}, status=404)
         return Response(self.get_serializer(biz).data)
@@ -420,9 +417,9 @@ class ServiceViewSet(viewsets.ModelViewSet):
         biz_ids = active_business_ids(self.request.user)
         biz = serializer.validated_data.get("business")
         if biz is None:
-            if not biz_ids:
+            biz = default_business_for(self.request.user)
+            if biz is None:
                 raise PermissionDenied("User has no active business.")
-            biz = Business.objects.get(pk=biz_ids[0])
         elif biz.id not in biz_ids:
             raise PermissionDenied("Not a member of that business.")
         slug = self._resolve_slug(biz, serializer.validated_data["name"])

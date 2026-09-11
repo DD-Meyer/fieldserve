@@ -11,7 +11,7 @@ from businesses.clerk import ClerkAPIError, get_organization
 from businesses.models import Business, Membership
 
 from .models import Customer
-from .permissions import IsBusinessMember, active_business_ids
+from .permissions import IsBusinessMember, active_business_ids, default_business_for
 from .serializers import CustomerSerializer, UserSerializer
 
 
@@ -106,9 +106,9 @@ class CustomerViewSet(viewsets.ModelViewSet):
         biz_ids = active_business_ids(self.request.user)
         requested = serializer.validated_data.get("business")
         if requested is None:
-            if not biz_ids:
+            business = default_business_for(self.request.user)
+            if business is None:
                 raise PermissionDenied("User has no active business.")
-            business = Business.objects.get(pk=biz_ids[0])
             serializer.validate_location_for_business(serializer.validated_data, business)
             serializer.save(business=business)
         else:
