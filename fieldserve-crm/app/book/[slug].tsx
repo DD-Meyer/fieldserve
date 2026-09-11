@@ -335,7 +335,7 @@ export default function PublicBookingPage() {
 
   if (bizState.loading || svcState.loading) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50">
+      <SafeAreaView className="flex-1 bg-slate-100">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
@@ -345,14 +345,16 @@ export default function PublicBookingPage() {
 
   if (bizState.error || !bizState.data) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50">
+      <SafeAreaView className="flex-1 bg-slate-100">
         <View className="flex-1 items-center justify-center p-6">
-          <Text className="text-slate-900 text-lg font-bold mb-2">
-            Business not found
-          </Text>
-          <Text className="text-slate-500 text-sm text-center">
-            {bizState.error || "This booking link isn't valid."}
-          </Text>
+          <View className="w-full max-w-md">
+            <Text className="text-slate-900 text-lg font-bold mb-2">
+              Business not found
+            </Text>
+            <Text className="text-slate-500 text-sm text-center">
+              {bizState.error || "This booking link isn't valid."}
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -360,14 +362,16 @@ export default function PublicBookingPage() {
 
   if (!bizState.data.public_booking_enabled) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50">
+      <SafeAreaView className="flex-1 bg-slate-100">
         <View className="flex-1 items-center justify-center p-6">
-          <Text className="text-slate-900 text-lg font-bold">
-            Bookings paused
-          </Text>
-          <Text className="text-slate-500 text-sm text-center mt-2">
-            {bizState.data.name}{" isn't accepting online bookings right now."}
-          </Text>
+          <View className="w-full max-w-md items-center">
+            <Text className="text-slate-900 text-lg font-bold">
+              Bookings paused
+            </Text>
+            <Text className="text-slate-500 text-sm text-center mt-2">
+              {bizState.data.name}{" isn't accepting online bookings right now."}
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -375,34 +379,36 @@ export default function PublicBookingPage() {
 
   if (confirm) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50">
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <View
-            className="rounded-2xl p-5 mb-5"
-            style={{ backgroundColor: brand }}
-          >
-            <Text className="text-white text-xl font-bold">
-              Thanks, {fullName || "there"}!
-            </Text>
-            <Text className="text-white/90 text-sm mt-1">
-              {"We've received your booking request."}
+      <SafeAreaView className="flex-1 bg-slate-100">
+        <ScrollView contentContainerStyle={{ padding: 20, alignItems: "center" }}>
+          <View className="w-full max-w-xl">
+            <View
+              className="rounded-2xl p-5 mb-5"
+              style={{ backgroundColor: brand }}
+            >
+              <Text className="text-white text-xl font-bold">
+                Thanks, {fullName || "there"}!
+              </Text>
+              <Text className="text-white/90 text-sm mt-1">
+                {"We've received your booking request."}
+              </Text>
+            </View>
+            <View className="bg-white rounded-2xl border border-slate-200 p-4">
+              <Text className="text-xs text-slate-500">Reference</Text>
+              <Text className="text-lg font-bold text-slate-900 mb-3">
+                #{confirm.booking_id}
+              </Text>
+              <Text className="text-xs text-slate-500">Service</Text>
+              <Text className="text-sm text-slate-900 mb-3">{confirm.service}</Text>
+              <Text className="text-xs text-slate-500">When</Text>
+              <Text className="text-sm text-slate-900">
+                {new Date(confirm.scheduled_at).toLocaleString()}
+              </Text>
+            </View>
+            <Text className="text-xs text-slate-500 text-center mt-6">
+              {bizState.data.name} will confirm shortly.
             </Text>
           </View>
-          <View className="bg-white rounded-2xl border border-slate-200 p-4">
-            <Text className="text-xs text-slate-500">Reference</Text>
-            <Text className="text-lg font-bold text-slate-900 mb-3">
-              #{confirm.booking_id}
-            </Text>
-            <Text className="text-xs text-slate-500">Service</Text>
-            <Text className="text-sm text-slate-900 mb-3">{confirm.service}</Text>
-            <Text className="text-xs text-slate-500">When</Text>
-            <Text className="text-sm text-slate-900">
-              {new Date(confirm.scheduled_at).toLocaleString()}
-            </Text>
-          </View>
-          <Text className="text-xs text-slate-500 text-center mt-6">
-            {bizState.data.name} will confirm shortly.
-          </Text>
         </ScrollView>
       </SafeAreaView>
     );
@@ -411,8 +417,9 @@ export default function PublicBookingPage() {
   const services = svcState.data ?? [];
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 80 }}>
+    <SafeAreaView className="flex-1 bg-slate-100">
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 80, alignItems: "center" }}>
+        <View className="w-full max-w-xl">
         <View
           className="rounded-2xl p-5 mb-5"
           style={{ backgroundColor: brand }}
@@ -439,7 +446,9 @@ export default function PublicBookingPage() {
         {services.length === 0 ? (
           <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
             <Text className="text-xs text-slate-500">
-              No services listed yet. Please check back soon.
+              {svcState.error
+                ? "Couldn't load services — please refresh and try again."
+                : "No services listed yet. Please check back soon."}
             </Text>
           </View>
         ) : (
@@ -674,6 +683,7 @@ export default function PublicBookingPage() {
         <Text className="text-[11px] text-slate-400 text-center mt-3">
           Powered by FieldServe
         </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
