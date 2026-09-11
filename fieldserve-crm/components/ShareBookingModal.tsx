@@ -2,17 +2,12 @@ import { useState } from "react";
 import { Alert, Modal, Platform, Pressable, Share, Text, TextInput, View } from "react-native";
 
 import { useCompany } from "../lib/hooks/useCompany";
+import { getBookingLink } from "../lib/publicBookingUrl";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
-
-function normalizeBaseUrl(raw: string): string {
-  const trimmed = raw.replace(/\/$/, "");
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
 
 async function copyText(text: string, successTitle: string) {
   const nav =
@@ -32,8 +27,7 @@ export default function ShareBookingModal({ visible, onClose }: Props) {
   const { data: companyProfile } = useCompany();
   const [tab, setTab] = useState<"link" | "embed">("link");
 
-  const baseUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_URL || "http://localhost:3000");
-  const bookingLink = companyProfile?.slug ? `${baseUrl}/book/${companyProfile.slug}` : "";
+  const bookingLink = getBookingLink(companyProfile?.slug);
   const embedCode = bookingLink
     ? `<iframe src="${bookingLink}" width="100%" height="800" style="border:0"></iframe>`
     : "";
