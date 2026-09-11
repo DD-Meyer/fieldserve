@@ -91,6 +91,13 @@ class Membership(models.Model):
     invited_at = models.DateTimeField(null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
+    # Services this member is qualified to perform (used for auto-assignment).
+    services = models.ManyToManyField(
+        "Service", related_name="qualified_members", blank=True
+    )
+    # Per-member override for scheduling buffer; falls back to business default when null.
+    buffer_minutes = models.PositiveIntegerField(null=True, blank=True)
+
     class Meta:
         unique_together = ("business", "user")
         ordering = ["business_id", "role"]

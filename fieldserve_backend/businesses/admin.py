@@ -13,9 +13,10 @@ class BusinessAdmin(admin.ModelAdmin):
 
 @admin.register(Membership)
 class MembershipAdmin(admin.ModelAdmin):
-    list_display = ("user", "business", "role", "status", "joined_at")
+    list_display = ("user", "business", "role", "status", "buffer_minutes", "joined_at")
     list_filter = ("role", "status")
     search_fields = ("user__email", "business__name")
+    filter_horizontal = ("services",)
 
 
 @admin.register(Service)

@@ -11,6 +11,7 @@ import {
 
 import ScreenScaffold from "../components/ScreenScaffold";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import { useServices } from "../lib/hooks/useServices";
 import {
   type TeamMember,
   useDeactivateTeamMember,
@@ -41,6 +42,7 @@ export default function TeamScreen() {
   const { data: business } = useCurrentBusiness();
   const isAdmin = business?.role === "admin";
   const members = useTeamMembers(isAdmin ? business?.id ?? null : null);
+  const services = useServices();
   const invite = useInviteTeamMember();
   const update = useUpdateTeamMember();
   const deactivate = useDeactivateTeamMember();
@@ -48,6 +50,9 @@ export default function TeamScreen() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<TeamMember["role"]>("staff");
   const [error, setError] = useState<string | null>(null);
+  const [configMember, setConfigMember] = useState<TeamMember | null>(null);
+  const [configServices, setConfigServices] = useState<number[]>([]);
+  const [configBuffer, setConfigBuffer] = useState("");
 
   const sendInvite = async () => {
     if (!business || !email.trim()) {
@@ -100,6 +105,33 @@ export default function TeamScreen() {
     );
   };
 
+  const openConfig = (member: TeamMember) => {
+    setConfigMember(member);
+    setConfigServices(member.services ?? []);
+    setConfigBuffer(member.buffer_minutes != null ? String(member.buffer_minutes) : "");
+  };
+
+  const toggleConfigService = (serviceId: number) => {
+    setConfigServices((prev) =>
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId],
+    );
+  };
+
+  const saveConfig = async () => {
+    if (!business || !configMember) return;
+    try {
+      await update.mutateAsync({
+        businessId: business.id,
+        memberId: configMember.id,
+        services: configServices,
+        buffer_minutes: configBuffer.trim() ? Number(configBuffer.trim()) : null,
+      });
+      setConfigMember(null);
+    } catch (requestError) {
+      Alert.alert("Not saved", errorMessage(requestError));
+    }
+  };
+
   return (
     <ScreenScaffold
       title="Team Management"
@@ -149,6 +181,11 @@ export default function TeamScreen() {
                   {canManage ? (
                     <View className="flex-row gap-3">
                       {member.status === "active" ? (
+                        <Pressable onPress={() => openConfig(member)}>
+                          <Text className="text-xs font-semibold text-slate-600">Services</Text>
+                        </Pressable>
+                      ) : null}
+                      {member.status === "active" ? (
                         <Pressable onPress={() => changeRole(member)} disabled={update.isPending}>
                           <Text className="text-xs font-semibold text-blue-600">Make {member.role === "admin" ? "Staff" : "Admin"}</Text>
                         </Pressable>
@@ -159,6 +196,14 @@ export default function TeamScreen() {
                     </View>
                   ) : null}
                 </View>
+                {member.status === "active" ? (
+                  <Text className="text-[11px] text-slate-400 mt-1 ml-13">
+                    {member.services?.length
+                      ? `Qualified for ${member.services.length} service${member.services.length === 1 ? "" : "s"}`
+                      : "Not set up for any service yet"}
+                    {member.buffer_minutes != null ? ` · ${member.buffer_minutes}min buffer` : ""}
+                  </Text>
+                ) : null}
               </View>
             );
           })}
@@ -192,6 +237,61 @@ export default function TeamScreen() {
               </Pressable>
               <Pressable onPress={sendInvite} disabled={invite.isPending} className="flex-1 bg-blue-600 rounded-lg py-3 items-center">
                 {invite.isPending ? <ActivityIndicator color="white" /> : <Text className="text-sm font-semibold text-white">Send invite</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!configMember} transparent animationType="fade" onRequestClose={() => setConfigMember(null)}>
+        <View className="flex-1 bg-black/40 justify-end">
+          <View className="bg-white rounded-t-xl p-5">
+            <Text className="text-lg font-bold text-slate-900">
+              {configMember ? displayName(configMember) : ""}
+            </Text>
+            <Text className="text-xs text-slate-500 mt-1 mb-4">
+              Choose which services they can perform. Used to auto-assign bookings and filter their calendar.
+            </Text>
+            {services.isLoading ? (
+              <ActivityIndicator />
+            ) : (
+              <View className="gap-2">
+                {services.data?.results?.map((service) => {
+                  const checked = configServices.includes(service.id);
+                  return (
+                    <Pressable
+                      key={service.id}
+                      onPress={() => toggleConfigService(service.id)}
+                      className="flex-row items-center gap-3 py-1"
+                    >
+                      <View
+                        className={`w-5 h-5 rounded border items-center justify-center ${checked ? "bg-blue-600 border-blue-600" : "border-slate-300"}`}
+                      >
+                        {checked ? <Text className="text-white text-xs font-bold">✓</Text> : null}
+                      </View>
+                      <Text className="text-sm text-slate-800">{service.name}</Text>
+                    </Pressable>
+                  );
+                })}
+                {(services.data?.results?.length ?? 0) === 0 ? (
+                  <Text className="text-xs text-slate-500">No services yet — add one from Services first.</Text>
+                ) : null}
+              </View>
+            )}
+            <Text className="text-xs font-semibold text-slate-700 mt-4 mb-1">Buffer override (minutes)</Text>
+            <TextInput
+              value={configBuffer}
+              onChangeText={setConfigBuffer}
+              keyboardType="number-pad"
+              placeholder={`Business default (${business?.default_travel_buffer_minutes ?? 15})`}
+              className="border border-slate-200 rounded-lg px-3 py-3 text-slate-900"
+            />
+            <View className="flex-row gap-3 mt-5">
+              <Pressable onPress={() => setConfigMember(null)} className="flex-1 border border-slate-200 rounded-lg py-3 items-center">
+                <Text className="text-sm font-semibold text-slate-700">Cancel</Text>
+              </Pressable>
+              <Pressable onPress={saveConfig} disabled={update.isPending} className="flex-1 bg-blue-600 rounded-lg py-3 items-center">
+                {update.isPending ? <ActivityIndicator color="white" /> : <Text className="text-sm font-semibold text-white">Save</Text>}
               </Pressable>
             </View>
           </View>

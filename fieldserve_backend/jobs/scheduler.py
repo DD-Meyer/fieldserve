@@ -9,11 +9,16 @@ ranked list of proposal times. Locking in the best gap at booking-time is
 equivalent (and more honest) to reordering at run-time.
 
 Public API:
-    feasible_windows(business, day, duration_minutes, lat, lng, exclude_job_id)
+    feasible_windows(business, day, duration_minutes, lat, lng, exclude_job_id,
+                     assigned_to=None)
         -> list[Window]
     suggest_slots(business, day, duration_minutes, lat, lng, exclude_job_id,
-                  now=None, top_k=3)
+                  now=None, top_k=3, assigned_to=None)
         -> SuggestionResult
+
+`assigned_to`, when given, scopes the search to that team member's own jobs
+(and their personal buffer override) so different members can be booked at
+overlapping times.
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ from typing import Iterable
 
 from django.utils import timezone
 
-from businesses.models import Business
+from businesses.models import Business, Membership
 from .models import Job
 
 
@@ -105,14 +110,24 @@ def _combine(day: date, t: time, tz) -> datetime:
     return timezone.make_aware(datetime.combine(day, t), tz)
 
 
+def _buffer_floor_minutes(business: Business, assigned_to=None) -> int:
+    """Per-member buffer override, falling back to the business default."""
+    if assigned_to is not None:
+        membership = Membership.objects.filter(
+            business=business, user=assigned_to
+        ).only("buffer_minutes").first()
+        if membership is not None and membership.buffer_minutes is not None:
+            return int(membership.buffer_minutes)
+    return int(business.default_travel_buffer_minutes or 0)
+
+
 def _required_travel(
-    business: Business,
+    floor: int,
     lat_a: float | None,
     lng_a: float | None,
     lat_b: float | None,
     lng_b: float | None,
 ) -> int:
-    floor = int(business.default_travel_buffer_minutes or 0)
     if lat_a is None or lng_a is None or lat_b is None or lng_b is None:
         return floor
     return max(floor, travel_minutes(haversine_km(lat_a, lng_a, lat_b, lng_b)))
@@ -123,12 +138,15 @@ def _day_anchors(
     day: date,
     tz,
     exclude_job_id: int | None,
+    assigned_to=None,
 ) -> list[Anchor]:
     """Return anchors in chronological order: day-open, jobs..., day-close.
 
     Day-open and day-close use the business depot location if set, otherwise
     they have no coordinates and only the buffer floor applies between them
-    and the new job.
+    and the new job. When `assigned_to` is given, only that member's own jobs
+    are considered — each team member effectively has their own calendar, so
+    different members can be booked at the same time.
     """
     open_dt = _combine(day, business.working_hours_start, tz)
     close_dt = _combine(day, business.working_hours_end, tz)
@@ -146,6 +164,8 @@ def _day_anchors(
         business=business,
         scheduled_at__date=day,
     ).exclude(status=Job.Status.CANCELLED).order_by("scheduled_at")
+    if assigned_to is not None:
+        qs = qs.filter(assigned_to=assigned_to)
     if exclude_job_id is not None:
         qs = qs.exclude(pk=exclude_job_id)
 
@@ -176,16 +196,18 @@ def feasible_windows(
     lat: float | None = None,
     lng: float | None = None,
     exclude_job_id: int | None = None,
+    assigned_to=None,
 ) -> list[Window]:
     tz = timezone.get_current_timezone()
     duration_minutes = int(duration_minutes or 30)
     dur = timedelta(minutes=duration_minutes)
 
-    anchors = _day_anchors(business, day, tz, exclude_job_id)
+    anchors = _day_anchors(business, day, tz, exclude_job_id, assigned_to=assigned_to)
+    buffer_floor = _buffer_floor_minutes(business, assigned_to)
     windows: list[Window] = []
     for prev, nxt in zip(anchors, anchors[1:]):
-        travel_before = _required_travel(business, prev.lat, prev.lng, lat, lng)
-        travel_after = _required_travel(business, lat, lng, nxt.lat, nxt.lng)
+        travel_before = _required_travel(buffer_floor, prev.lat, prev.lng, lat, lng)
+        travel_after = _required_travel(buffer_floor, lat, lng, nxt.lat, nxt.lng)
         earliest = prev.end + timedelta(minutes=travel_before)
         latest = nxt.start - timedelta(minutes=travel_after) - dur
         if earliest > latest:
@@ -244,6 +266,7 @@ def suggest_slots(
     exclude_job_id: int | None = None,
     now: datetime | None = None,
     top_k: int = DEFAULT_TOP_K,
+    assigned_to=None,
 ) -> SuggestionResult:
     tz = timezone.get_current_timezone()
     duration_minutes = int(duration_minutes or 30)
@@ -251,7 +274,7 @@ def suggest_slots(
     now = now or timezone.now()
 
     windows = feasible_windows(
-        business, day, duration_minutes, lat, lng, exclude_job_id
+        business, day, duration_minutes, lat, lng, exclude_job_id, assigned_to=assigned_to
     )
 
     # Pick the earliest slot in each window as the recommendation candidate,

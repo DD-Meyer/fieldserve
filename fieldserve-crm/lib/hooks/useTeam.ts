@@ -15,6 +15,8 @@ export type TeamMember = {
   status: "active" | "invited" | "inactive";
   invited_at: string | null;
   joined_at: string;
+  services: number[];
+  buffer_minutes: number | null;
 };
 
 function teamKey(businessId: number | null) {
@@ -45,8 +47,24 @@ export function useUpdateTeamMember() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ businessId, memberId, role }: { businessId: number; memberId: number; role: TeamMember["role"] }) =>
-      api.patch<TeamMember>(`/api/businesses/${businessId}/members/${memberId}/`, { role }),
+    mutationFn: ({
+      businessId,
+      memberId,
+      role,
+      services,
+      buffer_minutes,
+    }: {
+      businessId: number;
+      memberId: number;
+      role?: TeamMember["role"];
+      services?: number[];
+      buffer_minutes?: number | null;
+    }) =>
+      api.patch<TeamMember>(`/api/businesses/${businessId}/members/${memberId}/`, {
+        ...(role !== undefined ? { role } : {}),
+        ...(services !== undefined ? { services } : {}),
+        ...(buffer_minutes !== undefined ? { buffer_minutes } : {}),
+      }),
     onSuccess: (_, variables) => queryClient.invalidateQueries({ queryKey: teamKey(variables.businessId) }),
   });
 }
