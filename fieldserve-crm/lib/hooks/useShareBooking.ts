@@ -1,21 +1,11 @@
 import { Alert, Platform, Share } from "react-native";
 import { useCompany } from "@/lib/hooks/useCompany";
-
-function normalizeBaseUrl(raw: string): string {
-  const trimmed = raw.replace(/\/$/, "");
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
+import { getBookingLink } from "@/lib/publicBookingUrl";
 
 export function useShareBooking() {
   const { data: companyProfile } = useCompany();
 
-  const baseUrl = normalizeBaseUrl(
-    process.env.EXPO_PUBLIC_URL || "http://localhost:3000",
-  );
-  const bookingLink = companyProfile?.slug
-    ? `${baseUrl}/book/${companyProfile.slug}`
-    : "";
+  const bookingLink = getBookingLink(companyProfile?.slug);
 
   const handleShare = async () => {
     if (!companyProfile?.slug) {
