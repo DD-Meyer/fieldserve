@@ -2,6 +2,22 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Environment setup
+
+Create a local `.env.local` file in this folder and populate the app configuration values such as:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.0.10:8000
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=your_key_here
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_js_key_here
+```
+
+For Google Maps, create a key in Google Cloud Console and restrict it to the following APIs only:
+- Maps JavaScript API
+- Places API (New)
+
+Do not enable Directions API, Distance Matrix API, or Roads API for this project. The app is intentionally using Google Maps only for display and markers, while route geometry remains on the self-hosted OSRM backend.
+
 ## Get started
 
 1. Install dependencies

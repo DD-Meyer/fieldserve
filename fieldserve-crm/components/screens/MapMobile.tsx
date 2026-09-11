@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
-import DemandZoneRow, { type DemandZone } from "../DemandZoneRow";
+import DemandZoneRow from "../DemandZoneRow";
+import DemandZoneModal from "../DemandZoneModal";
 import FilterPills from "../FilterPills";
 import HeatmapPlaceholder from "../HeatmapPlaceholder";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
-import { useHeatmap } from "../../lib/hooks/usePredictions";
+import { useHeatmap, type DemandZone } from "../../lib/hooks/usePredictions";
+import { useServices } from "../../lib/hooks/useServices";
 
 const RANGES = [
   { key: "all", label: "All Time" },
@@ -13,18 +15,13 @@ const RANGES = [
   { key: "weekends", label: "Weekends" },
 ];
 
-const ZONES: DemandZone[] = [
-  { id: 1, name: "Riverside / Downtown", bookings: 42, density: "high", deltaPct: 18 },
-  { id: 2, name: "Pine St Corridor", bookings: 28, density: "high", deltaPct: 9 },
-  { id: 3, name: "Oak Lane", bookings: 19, density: "medium", deltaPct: -4 },
-  { id: 4, name: "Market Square", bookings: 14, density: "medium", deltaPct: 6 },
-  { id: 5, name: "Lakeside North", bookings: 7, density: "low", deltaPct: 22 },
-];
-
 export default function MapMobile() {
   const [range, setRange] = useState("30d");
+  const [selectedZone, setSelectedZone] = useState<DemandZone | null>(null);
   const tabBarSpace = useTabBarSpace();
-  const heatmap = useHeatmap({ weight_by: "count" });
+  const heatmap = useHeatmap({ weight_by: "count", range: range as "all" | "30d" | "weekends" });
+  const services = useServices();
+  const zones = heatmap.data?.zones ?? [];
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
@@ -54,9 +51,13 @@ export default function MapMobile() {
         </Text>
       </View>
       <View className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        {ZONES.map((z) => (
-          <DemandZoneRow key={z.id} zone={z} />
-        ))}
+        {zones.length ? zones.map((zone) => (
+          <DemandZoneRow key={zone.id} zone={zone} onPress={() => setSelectedZone(zone)} />
+        )) : (
+          <Text className="px-4 py-4 text-xs text-slate-500">
+            {heatmap.isLoading ? "Calculating demand zones…" : "Not enough recorded locations to rank demand zones."}
+          </Text>
+        )}
       </View>
 
       <View className="mt-4 bg-blue-50 border border-blue-100 rounded-2xl p-4 flex-row">
@@ -68,12 +69,17 @@ export default function MapMobile() {
             Opportunity Detected
           </Text>
           <Text className="text-xs text-blue-800 mt-1 leading-4">
-            Lakeside North shows a +22% demand spike with low active coverage.
-            Consider scheduling a promotional run or assigning a worker to that
-            area this weekend.
+            {zones[0]
+              ? `${zones[0].name} has the strongest recorded demand signal. Review its popular services and consider a local promotion or trial run.`
+              : "Record more customer locations to identify the strongest local business opportunity."}
           </Text>
         </View>
       </View>
+      <DemandZoneModal
+        zone={selectedZone}
+        services={services.data?.results ?? []}
+        onClose={() => setSelectedZone(null)}
+      />
     </ScrollView>
   );
 }
