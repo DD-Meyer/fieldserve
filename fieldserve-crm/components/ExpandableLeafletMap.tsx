@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 
-import LeafletMap from "./LeafletMap";
+import RouteMap from "./RouteMap";
 import type { LeafletMapProps } from "./leafletHtml";
 
 type Props = LeafletMapProps & {
@@ -30,7 +30,7 @@ export default function ExpandableLeafletMap({
   return (
     <>
       <View style={{ height, borderRadius: 8, overflow: "hidden", position: "relative" }}>
-        <LeafletMap {...mapProps} height={height} interactive={false} />
+        <RouteMap {...mapProps} height={height} interactive={false} />
         <Pressable
           onPress={() => setOpen(true)}
           style={{ position: "absolute", inset: 0 }}
@@ -75,7 +75,7 @@ export default function ExpandableLeafletMap({
             <View style={{ width: 42 }} />
           </View>
 
-          <LeafletMap
+          <RouteMap
             {...mapProps}
             height={Math.max(300, window.height - (googleMapsUrl ? 132 : 58))}
             interactive

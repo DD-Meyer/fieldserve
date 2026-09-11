@@ -58,6 +58,7 @@ export default function HeatmapPlaceholder({
   }, [cells]);
 
   const hasRealData = normalizedCells.length > 0;
+  const suggestions = useMemo(() => buildBusinessSuggestions(normalizedCells, pointCount), [normalizedCells, pointCount]);
 
   // Calculate center from bounds OR dynamically compute average coordinates from cells
   const center = useMemo(() => {
@@ -131,8 +132,53 @@ export default function HeatmapPlaceholder({
           <Text className="text-[10px] text-slate-500">High</Text>
         </View>
       </View>
+
+      {hasRealData ? (
+        <View className="border-t border-slate-100 px-4 py-3">
+          <Text className="text-sm font-semibold text-slate-900">Why these areas are promising</Text>
+          {suggestions.map((suggestion) => (
+            <View key={suggestion.title} className="mt-3 flex-row">
+              <View className="mt-1 h-2 w-2 rounded-full bg-orange-500 mr-3" />
+              <View className="flex-1">
+                <Text className="text-xs font-semibold text-slate-800">{suggestion.title}</Text>
+                <Text className="text-xs leading-4 text-slate-500 mt-0.5">{suggestion.detail}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
+}
+
+function buildBusinessSuggestions(cells: LeafletHeatCell[], pointCount?: number) {
+  const ranked = [...cells].sort((a, b) => b.intensity - a.intensity);
+  const strongest = ranked[0];
+  if (!strongest) return [];
+
+  const average = cells.reduce((sum, cell) => sum + cell.intensity, 0) / cells.length;
+  const hotspots = cells.filter((cell) => cell.intensity >= Math.max(0.6, average)).length;
+  const suggestions = [
+    {
+      title: "Prioritise the strongest hotspot",
+      detail: `The hottest cell has ${Math.round(strongest.intensity * 100)}% relative demand density, making it the clearest area to test a new service run.`,
+    },
+    {
+      title: hotspots > 1 ? "Demand is spread across several areas" : "Test before committing resources",
+      detail: hotspots > 1
+        ? `${hotspots} cells are at or above the current average, suggesting a wider catchment rather than one isolated pocket.`
+        : "Use a small local promotion or trial route first, then compare bookings with this demand pattern.",
+    },
+  ];
+
+  if (pointCount) {
+    suggestions.push({
+      title: "There is a measurable customer signal",
+      detail: `${pointCount} customer location${pointCount === 1 ? "" : "s"} contributed to this model, so the opportunity is grounded in your recorded demand.`,
+    });
+  }
+
+  return suggestions;
 }
 
 function FauxBlobs() {

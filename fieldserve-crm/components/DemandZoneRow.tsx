@@ -1,12 +1,7 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import type { DemandZone } from "../lib/hooks/usePredictions";
 
-export type DemandZone = {
-  id: string | number;
-  name: string;
-  bookings: number;
-  density: "high" | "medium" | "low";
-  deltaPct: number;
-};
+export type DemandZoneRowData = DemandZone;
 
 const densityTone: Record<DemandZone["density"], { bg: string; text: string; label: string }> = {
   high: { bg: "bg-red-100", text: "text-red-700", label: "High density" },
@@ -14,16 +9,16 @@ const densityTone: Record<DemandZone["density"], { bg: string; text: string; lab
   low: { bg: "bg-green-100", text: "text-green-700", label: "Low density" },
 };
 
-export default function DemandZoneRow({ zone }: { zone: DemandZone }) {
+export default function DemandZoneRow({ zone, onPress }: { zone: DemandZone; onPress: () => void }) {
   const t = densityTone[zone.density];
-  const positive = zone.deltaPct >= 0;
+  const positive = zone.delta_pct >= 0;
   return (
-    <View className="px-4 py-3 border-b border-slate-100 flex-row items-center">
+    <Pressable onPress={onPress} className="px-4 py-3 border-b border-slate-100 flex-row items-center">
       <View className="flex-1">
         <Text className="text-sm font-semibold text-slate-900">{zone.name}</Text>
         <View className="flex-row items-center mt-1">
           <Text className="text-xs text-slate-500 mr-2">
-            {zone.bookings} bookings
+            {zone.booking_count} bookings · {zone.customer_count} customers
           </Text>
           <View className={`px-2 py-0.5 rounded-full ${t.bg}`}>
             <Text className={`text-[10px] font-semibold ${t.text}`}>{t.label}</Text>
@@ -36,8 +31,8 @@ export default function DemandZoneRow({ zone }: { zone: DemandZone }) {
         }
       >
         {positive ? "+" : ""}
-        {zone.deltaPct}%
+        {zone.delta_pct}%
       </Text>
-    </View>
+    </Pressable>
   );
 }

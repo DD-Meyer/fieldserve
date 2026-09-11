@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 
-import CatchmentZoneRow, { type CatchmentZone } from "../CatchmentZoneRow";
+import DemandZoneRow from "../DemandZoneRow";
+import DemandZoneModal from "../DemandZoneModal";
 import FilterPills from "../FilterPills";
 import HeatmapPlaceholder from "../HeatmapPlaceholder";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
-import { useHeatmap } from "../../lib/hooks/usePredictions";
+import { useHeatmap, type DemandZone } from "../../lib/hooks/usePredictions";
+import { useServices } from "../../lib/hooks/useServices";
 
 const RANGES = [
   { key: "all", label: "All Time" },
@@ -13,19 +15,13 @@ const RANGES = [
   { key: "new", label: "New Customers" },
 ];
 
-const ZONES: CatchmentZone[] = [
-  { id: 1, name: "EC1 · City Centre", customers: 84, sharePct: 28, tag: "stable" },
-  { id: 2, name: "N1 · Islington", customers: 61, sharePct: 20, tag: "growing" },
-  { id: 3, name: "E2 · Hackney", customers: 47, sharePct: 16, tag: "growing" },
-  { id: 4, name: "SE1 · Southwark", customers: 34, sharePct: 11, tag: "stable" },
-  { id: 5, name: "NW1 · Camden", customers: 22, sharePct: 7, tag: "declining" },
-  { id: 6, name: "E14 · Canary Wharf", customers: 12, sharePct: 4, tag: "opportunity" },
-];
-
 export default function MapFixed() {
   const [range, setRange] = useState("90d");
+  const [selectedZone, setSelectedZone] = useState<DemandZone | null>(null);
   const tabBarSpace = useTabBarSpace();
-  const heatmap = useHeatmap({ weight_by: "count" });
+  const heatmap = useHeatmap({ weight_by: "count", range: range as "all" | "90d" | "new" });
+  const services = useServices();
+  const zones = heatmap.data?.zones ?? [];
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
@@ -55,9 +51,13 @@ export default function MapFixed() {
         </Text>
       </View>
       <View className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        {ZONES.map((z) => (
-          <CatchmentZoneRow key={z.id} zone={z} />
-        ))}
+        {zones.length ? zones.map((zone) => (
+          <DemandZoneRow key={zone.id} zone={zone} onPress={() => setSelectedZone(zone)} />
+        )) : (
+          <Text className="px-4 py-4 text-xs text-slate-500">
+            {heatmap.isLoading ? "Calculating customer areas…" : "Not enough recorded locations to rank customer areas."}
+          </Text>
+        )}
       </View>
 
       <View className="mt-4 bg-blue-50 border border-blue-100 rounded-2xl p-4 flex-row">
@@ -69,12 +69,17 @@ export default function MapFixed() {
             Marketing Opportunity
           </Text>
           <Text className="text-xs text-blue-800 mt-1 leading-4">
-            E14 has only 4% of your bookings but a high concentration of your
-            target demographic. A localised promotion could grow this catchment
-            without diluting your existing core.
+            {zones[0]
+              ? `${zones[0].name} contains the strongest recorded customer concentration. Compare its service mix with your catalogue before targeting the area.`
+              : "Record more customer locations to identify the strongest customer catchment."}
           </Text>
         </View>
       </View>
+      <DemandZoneModal
+        zone={selectedZone}
+        services={services.data?.results ?? []}
+        onClose={() => setSelectedZone(null)}
+      />
     </ScrollView>
   );
 }

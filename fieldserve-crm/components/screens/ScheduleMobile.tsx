@@ -199,7 +199,6 @@ export default function ScheduleMobile() {
 
   const mapPath = roadRoute.data?.path ?? [];
   const googleMapsUrl = useMemo(() => buildGoogleMapsUrl(routePoints), [routePoints]);
-
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
       <Text className="text-xl font-bold text-slate-900">Today&apos;s Route</Text>

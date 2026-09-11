@@ -38,6 +38,21 @@ services:
       - ./ml_service:/app
     restart: unless-stopped
 
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    profiles: ["routing"]
+    volumes:
+      - ./osrm-data:/data
+    command: >
+      sh -c "
+      if [ ! -f /data/planet.osrm ]; then
+        echo 'Missing /data/planet.osrm. Download an OSM extract and place it at /data/planet.osm.pbf before starting OSRM.';
+        exit 1;
+      fi;
+      osrm-routed --algorithm mld --port 5000 /data/planet.osrm"
+    restart: unless-stopped
+    stop_grace_period: 30s
+
   scheduler:
     build: ./fieldserve_backend
     env_file: .env
