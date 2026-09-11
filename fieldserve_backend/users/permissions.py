@@ -2,7 +2,7 @@
 
 from rest_framework.permissions import BasePermission
 
-from businesses.models import Membership
+from businesses.models import Business, Membership
 
 
 def active_membership(user, business_id: int) -> Membership | None:
@@ -52,6 +52,24 @@ def active_business_ids(user) -> list[int]:
             user=user, status=Membership.Status.ACTIVE
         ).values_list("business_id", flat=True)
     )
+
+
+def default_business_for(user) -> Business | None:
+    """The business the rest of the app treats as "current" for this user.
+
+    Mirrors `BusinessViewSet.current()`: the oldest business they own, else
+    the most recently joined business they're an active member of. Used
+    anywhere a create endpoint needs to pick a business when none is given
+    explicitly, so new records land on the same business the UI is showing.
+    """
+    biz_ids = active_business_ids(user)
+    if not biz_ids:
+        return None
+    qs = Business.objects.filter(id__in=biz_ids)
+    biz = qs.filter(owner=user).order_by("created_at", "id").first()
+    if biz is None:
+        biz = qs.order_by("-created_at", "-id").first()
+    return biz
 
 
 class IsBusinessMember(BasePermission):
