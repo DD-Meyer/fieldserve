@@ -9,6 +9,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import SlideToConfirmButton from "../components/SlideToConfirmButton";
 import ScreenScaffold from "../components/ScreenScaffold";
 import {
   useCreateService,
@@ -27,13 +29,14 @@ type EditorState =
 export default function ServicesScreen() {
   const { data, isLoading, error } = useServices();
   const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
+  const insets = useSafeAreaInsets();
   const services = data?.results ?? [];
 
   return (
+    <View style={{ flex: 1 }}>
     <ScreenScaffold
       title="Services"
       subtitle="Bookable services shown on your public booking page"
-      rightAction={{ label: "+ Add", onPress: () => setEditor({ mode: "new" }) }}
     >
       {isLoading ? (
         <View className="bg-white rounded-2xl p-6 items-center border border-slate-200">
@@ -97,6 +100,13 @@ export default function ServicesScreen() {
         onClose={() => setEditor({ mode: "closed" })}
       />
     </ScreenScaffold>
+
+    <SlideToConfirmButton
+      label="Slide to add service"
+      onComplete={() => setEditor({ mode: "new" })}
+      bottomOffset={insets.bottom + 16}
+    />
+    </View>
   );
 }
 

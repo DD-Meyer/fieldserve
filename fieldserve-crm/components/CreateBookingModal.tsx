@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import BottomSheetModal from "./BottomSheetModal";
 import {
   useCreateJob,
   useCheckSlot,
@@ -137,6 +139,8 @@ const EMPTY_SERVICE: ServiceFormState = {
 
 
 export default function CreateBookingModal({ visible, onClose, onCreated }: Props) {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { data: custPage } = useCustomers();
   const { data: svcPage } = useServices();
   const create = useCreateJob();
@@ -505,20 +509,24 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     }
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/40">
-        <View className="bg-white rounded-t-3xl p-5" style={{ maxHeight: "90%" }}>
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-bold text-slate-900">New booking</Text>
+    <BottomSheetModal visible={visible} onClose={onClose}>
+      <View
+        className="bg-white rounded-t-3xl p-5"
+        style={{ paddingBottom: insets.bottom + 20 }}
+      >
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-lg font-bold text-slate-900">New booking</Text>
             <Pressable onPress={onClose}>
               <Text className="text-slate-500 text-base">Close</Text>
             </Pressable>
           </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled">
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: windowHeight * 0.7 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
             <Text className="text-xs font-semibold text-slate-600 mb-1">
               Customer
             </Text>
@@ -686,6 +694,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                           flex: 0,
                           width: "100%",
                           zIndex: 1000,
+                          flexDirection: "column-reverse",
                         },
                         textInput: {
                           borderWidth: 1,
@@ -698,7 +707,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                         },
                         listView: {
                           position: "absolute",
-                          top: 44,
+                          bottom: 46,
                           left: 0,
                           right: 0,
                           borderWidth: 1,
@@ -1183,7 +1192,6 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             </Pressable>
           </ScrollView>
         </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }

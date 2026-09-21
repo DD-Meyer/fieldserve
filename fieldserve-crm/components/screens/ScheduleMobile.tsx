@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import ExpandableLeafletMap from "../ExpandableLeafletMap";
 import type { LeafletMarker } from "../leafletHtml";
 import RouteStopRow, { type RouteStop } from "../RouteStopRow";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useRefresh } from "@/hooks/useRefresh";
 import {
   useJobs,
   useRoadRoute,
@@ -102,7 +103,7 @@ export default function ScheduleMobile() {
   const isAdmin = business.data?.role === "admin";
   const effectiveScope = isAdmin ? scope : "mine";
 
-  const { data, isLoading, error } = useJobs({
+  const { data, isLoading, error, refetch } = useJobs({
     date: selectedDate,
     ordering: "scheduled_at",
     assigned_to: effectiveScope === "mine" ? "me" : undefined,
@@ -199,10 +200,15 @@ export default function ScheduleMobile() {
 
   const mapPath = roadRoute.data?.path ?? [];
   const googleMapsUrl = useMemo(() => buildGoogleMapsUrl(routePoints), [routePoints]);
+  const { refreshing, onRefresh } = useRefresh([refetch, roadRoute.refetch]);
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-      <Text className="text-xl font-bold text-slate-900">Today&apos;s Route</Text>
-      <Text className="text-xs text-slate-500 mt-1 mb-4">
+    <ScrollView
+      contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <Text className="text-xs text-slate-500 mb-4">
         Ordered by scheduled time. Travel follows the fastest available road route.
       </Text>
 

@@ -16,7 +16,7 @@ export default function Map() {
   const { mode } = useIndustry();
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title="Map" />
+      <AppHeader title={mode === "fixed" ? "Customer Catchment" : "Demand Heat Map"} />
       <View style={{ flex: 1, paddingTop: FLOATING_HEADER_CONTENT_OFFSET }}>
         {mode === "fixed" ? <MapFixed /> : <MapMobile />}
       </View>

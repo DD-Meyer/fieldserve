@@ -18,11 +18,8 @@ type Props = {
 export default function RiskBadge({ level, probability }: Props) {
   const t = tones[level];
   return (
-    <View className={`px-2.5 py-1 rounded-full items-center ${t.bg}`}>
-      <Text className={`text-[11px] font-bold ${t.text}`}>
-        {Math.round(probability * 100)}%
-      </Text>
-      <Text className={`text-[10px] font-medium ${t.text}`}>{t.label}</Text>
+    <View className={`px-3 py-1 rounded-full items-center ${t.bg}`}>
+      <Text className={`text-[8px] font-medium ${t.text}`}>{Math.round(probability * 100)}% {t.label}</Text>
     </View>
   );
 }
