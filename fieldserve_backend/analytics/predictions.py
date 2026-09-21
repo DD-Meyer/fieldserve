@@ -117,14 +117,39 @@ class HeatmapView(APIView):
     def post(self, request: Request) -> Response:
         biz_ids = active_business_ids(request.user)
         if not biz_ids:
-            return Response({"cells": [], "bounds": {}})
+            return Response(
+                {
+                    "cells": [],
+                    "bounds": {},
+                    "computation_mode": "live_request_kde",
+                    "point_count": 0,
+                    "source_as_of": timezone.now().isoformat(),
+                }
+            )
 
         grid_size = int(request.data.get("grid_size", 40))
         bandwidth = request.data.get("bandwidth")
         weight_by = request.data.get("weight_by", "count")
         range_key = request.data.get("range", "all")
+        mode = request.data.get("mode", "live")
+        forecast_horizon_days = int(request.data.get("forecast_horizon_days", 30))
         if range_key not in {"all", "30d", "90d", "weekends", "new"}:
             range_key = "all"
+
+        if mode == "forecast":
+            try:
+                body = MLClient().heatmap_forecast(
+                    grid_size=grid_size,
+                    forecast_horizon_days=forecast_horizon_days,
+                )
+            except MLServiceError as exc:
+                log.warning("Heatmap forecast ML call failed: %s", exc)
+                return Response(
+                    {"detail": "ML service unavailable."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            body["source_as_of"] = timezone.now().isoformat()
+            return Response(body)
 
         qs = Customer.objects.filter(
             business_id__in=biz_ids, location__isnull=False
@@ -155,8 +180,18 @@ class HeatmapView(APIView):
                 weight = max(total, 0.01)
             points.append({"latitude": lat, "longitude": lng, "weight": weight})
 
+        source_as_of = timezone.now().isoformat()
         if len(points) < 2:
-            return Response({"cells": [], "bounds": {}, "point_count": len(points), "zones": []})
+            return Response(
+                {
+                    "cells": [],
+                    "bounds": {},
+                    "computation_mode": "live_request_kde",
+                    "point_count": len(points),
+                    "source_as_of": source_as_of,
+                    "zones": [],
+                }
+            )
 
         try:
             body = MLClient().heatmap(
@@ -169,6 +204,7 @@ class HeatmapView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         body["point_count"] = len(points)
+        body["source_as_of"] = source_as_of
         body["zones"] = _build_demand_zones(customers, biz_ids, range_key)
         return Response(body)
 

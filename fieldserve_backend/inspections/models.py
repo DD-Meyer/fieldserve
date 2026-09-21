@@ -29,6 +29,21 @@ REQUIRED_WALKAROUND_ANGLES = (
     "front_right",
 )
 
+DAMAGE_LABEL_CHOICES = [
+    ("dent", "Dent"),
+    ("scratch", "Scratch"),
+    ("crack", "Crack"),
+    ("glass_shatter", "Glass shatter"),
+    ("lamp_broken", "Lamp broken"),
+    ("tire_flat", "Tire flat"),
+]
+
+YOLO_SPLIT_CHOICES = [
+    ("train", "Train"),
+    ("val", "Validation"),
+    ("test", "Test"),
+]
+
 
 def walkaround_progress(
     job, phase: str = "before"
@@ -100,3 +115,36 @@ class Inspection(models.Model):
             return len(self.analysis.get("damages") or [])
         except (AttributeError, TypeError):
             return 0
+
+
+class DamageAnnotation(models.Model):
+    """Human-reviewed ground truth for YOLO vehicle-damage retraining."""
+
+    inspection = models.OneToOneField(
+        Inspection, on_delete=models.CASCADE, related_name="damage_annotation"
+    )
+    boxes = models.JSONField(default=list)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_damage_annotations",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    split = models.CharField(max_length=8, choices=YOLO_SPLIT_CHOICES, default="train")
+    approved = models.BooleanField(default=False)
+    exported_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-reviewed_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["approved", "split"]),
+            models.Index(fields=["exported_at"]),
+        ]
+
+    def __str__(self) -> str:
+        state = "approved" if self.approved else "draft"
+        return f"DamageAnnotation inspection={self.inspection_id} {state}"

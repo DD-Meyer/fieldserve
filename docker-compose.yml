@@ -27,6 +27,7 @@ services:
         condition: service_healthy
     volumes:
       - ./fieldserve_backend:/app
+      - ./fieldserve_backend/exports:/exports
     restart: unless-stopped
 
   ml:
@@ -36,6 +37,7 @@ services:
       - "8001:8001"
     volumes:
       - ./ml_service:/app
+      - ./fieldserve_backend/exports:/exports
     restart: unless-stopped
 
   osrm:
@@ -63,6 +65,7 @@ services:
         condition: service_started
     volumes:
       - ./fieldserve_backend:/app
+      - ./fieldserve_backend/exports:/exports
     command: ["python", "manage.py", "run_scheduler"]
     restart: unless-stopped
 

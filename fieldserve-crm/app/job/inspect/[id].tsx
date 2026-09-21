@@ -16,7 +16,6 @@ import GuidedWalkaroundCamera from "@/components/GuidedWalkaroundCamera";
 import InspectionDamageReport from "@/components/InspectionDamageReport";
 import ScreenScaffold from "@/components/ScreenScaffold";
 import SegmentedToggle from "@/components/SegmentedToggle";
-import InspectionReport from "@/components/InspectionBreakdownReport";
 import {
   WALKAROUND_STEPS,
   Inspection,
@@ -26,6 +25,7 @@ import {
   useCreateInspection,
   useJobInspections,
   useReanalyseInspection,
+  useDeleteInspection,
 } from "@/lib/hooks/useInspections";
 import { Button } from "@react-navigation/elements";
 import InspectionBreakdownReport from "@/components/InspectionBreakdownReport";
@@ -49,6 +49,7 @@ export default function InspectScreen() {
   const create = useCreateInspection();
   const frameCheck = useCheckVehicleFrame();
   const reanalyse = useReanalyseInspection();
+  const deleteInspection = useDeleteInspection();
 
   const byAngle = useMemo(() => {
     const m = new Map<InspectionAngle, Inspection>();
@@ -100,6 +101,28 @@ export default function InspectScreen() {
     } catch (err: any) {
       Alert.alert("Retry failed", err?.message ?? String(err));
     }
+  }
+
+  async function handleDelete(row: Inspection) {
+    Alert.alert(
+      "Delete inspection",
+      "Are you sure you want to delete this inspection?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteInspection.mutateAsync(row.id);
+            } catch (err: any) {
+              Alert.alert("Delete failed", err?.message ?? String(err));
+            }
+          },
+        },
+      ],
+    );
+    return;
   }
 
   const phaseInspection = useMemo(() => {
@@ -159,6 +182,7 @@ export default function InspectScreen() {
                   busy={busy}
                   onCapture={() => setCameraAngle(key)}
                   onReanalyse={row ? () => handleReanalyse(row) : undefined}
+                  onDelete={row ? () => handleDelete(row) : undefined}
                 />
               );
             })}
@@ -186,12 +210,14 @@ function AngleCard({
   busy,
   onCapture,
   onReanalyse,
+  onDelete,
 }: {
   label: string;
   row?: Inspection;
   busy: boolean;
   onCapture: () => void;
   onReanalyse?: () => void;
+  onDelete?: () => void;
 }) {
   const status = row?.analysis_status;
   const damages = row?.damage_count ?? 0;
@@ -271,6 +297,22 @@ function AngleCard({
         </Pressable>
       </View>
       {row ? <InspectionDamageReport inspection={row} /> : null}
+      {row && onDelete ? (
+          <Pressable
+            onPress={onDelete}
+            hitSlop={8}
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+              backgroundColor: "#f1f5f9",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#dc2626", fontSize: 12 }}>Delete</Text>
+          </Pressable>
+        ) : null}
     </View>
   );
 }

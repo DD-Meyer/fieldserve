@@ -79,10 +79,28 @@ class IsBusinessMember(BasePermission):
     message = "You are not a member of this business."
 
     def has_object_permission(self, request, view, obj) -> bool:
-        business_id = getattr(obj, "business_id", None) or getattr(obj, "id", None)
-        if business_id is None:
+        if obj is None:
             return False
-        # For Business itself, obj.id is the business id
+
+        # For Business itself, obj.id is the business id.
         if obj.__class__.__name__ == "Business":
             return obj.id in active_business_ids(request.user)
-        return obj.business_id in active_business_ids(request.user)
+
+        business_id = getattr(obj, "business_id", None)
+        if business_id is None:
+            # Inspection records are linked via `job`, not directly on the row.
+            job = getattr(obj, "job", None)
+            if job is not None:
+                business_id = getattr(job, "business_id", None)
+            elif hasattr(obj, "job_id"):
+                from jobs.models import Job
+
+                business_id = (
+                    Job.objects.filter(pk=obj.job_id)
+                    .values_list("business_id", flat=True)
+                    .first()
+                )
+
+        if business_id is None:
+            return False
+        return business_id in active_business_ids(request.user)

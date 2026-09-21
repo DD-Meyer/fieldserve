@@ -18,8 +18,26 @@ export type HeatmapBounds = {
 export type HeatmapResponse = {
   cells: HeatmapCell[];
   bounds: HeatmapBounds | Record<string, never>;
+  computation_mode?: "live_request_kde" | "forecast_kde_bundle";
+  input_point_count?: number;
   point_count?: number;
+  computed_at?: string;
+  source_as_of?: string;
   zones?: DemandZone[];
+  forecast_horizon_days?: number;
+  model_version?: string;
+  metrics?: Record<string, number>;
+  opportunity_zones?: OpportunityZone[];
+};
+
+export type OpportunityZone = {
+  id: string | number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  opportunity_score: number;
+  estimated_demand_share: number;
+  confidence_band: "high" | "medium" | "low";
 };
 
 export type DemandZoneService = {
@@ -46,6 +64,8 @@ export type HeatmapInput = {
   bandwidth?: number | null;
   weight_by?: "count" | "spend";
   range?: "all" | "30d" | "90d" | "weekends" | "new";
+  mode?: "live" | "forecast";
+  forecast_horizon_days?: number;
 };
 
 export function useHeatmap(input: HeatmapInput = {}) {

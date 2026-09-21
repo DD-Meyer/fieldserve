@@ -4,7 +4,7 @@ import logging
 
 from rest_framework import serializers
 
-from .models import Inspection
+from .models import DAMAGE_LABEL_CHOICES, DamageAnnotation, Inspection
 from .ml_client import DamageServiceError, detect_damage
 
 log = logging.getLogger(__name__)
@@ -64,6 +64,53 @@ class InspectionSerializer(serializers.ModelSerializer):
 
     def validate_photo(self, photo):
         return validate_inspection_image(photo)
+
+
+class DamageAnnotationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DamageAnnotation
+        fields = [
+            "id",
+            "inspection",
+            "boxes",
+            "reviewed_by",
+            "reviewed_at",
+            "split",
+            "approved",
+            "exported_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "inspection",
+            "reviewed_by",
+            "reviewed_at",
+            "exported_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_boxes(self, boxes):
+        if not isinstance(boxes, list):
+            raise serializers.ValidationError("Boxes must be a list.")
+        allowed_labels = {value for value, _ in DAMAGE_LABEL_CHOICES}
+        for index, box in enumerate(boxes):
+            if not isinstance(box, dict):
+                raise serializers.ValidationError(f"Box {index} must be an object.")
+            label = box.get("label")
+            if label not in allowed_labels:
+                raise serializers.ValidationError(f"Box {index} has an unsupported label.")
+            bbox = box.get("bbox")
+            if not isinstance(bbox, list) or len(bbox) != 4:
+                raise serializers.ValidationError(f"Box {index} bbox must contain four values.")
+            try:
+                x1, y1, x2, y2 = [float(value) for value in bbox]
+            except (TypeError, ValueError) as exc:
+                raise serializers.ValidationError(f"Box {index} bbox must be numeric.") from exc
+            if x2 <= x1 or y2 <= y1:
+                raise serializers.ValidationError(f"Box {index} bbox must have positive area.")
+        return boxes
 
 
 def run_analysis(inspection: Inspection) -> None:
