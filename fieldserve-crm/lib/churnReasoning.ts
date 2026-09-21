@@ -184,14 +184,16 @@ export const CHURN_FEATURES: FeatureMeta[] = [
 export function buildChurnFeatureRows(
   snapshot: ChurnFeatureSnapshot | undefined,
 ): ChurnFeatureRow[] {
-  return CHURN_FEATURES.map((feature) => {
+  return CHURN_FEATURES.map((feature): ChurnFeatureRow => {
     const rawValue = snapshot?.[feature.key];
+    const numericValue: number | null | undefined =
+      typeof rawValue === "number" ? rawValue : rawValue == null ? rawValue : undefined;
     return {
       key: feature.key,
       label: feature.label,
       description: feature.description,
-      rawValue,
-      value: feature.format(rawValue),
+      rawValue: numericValue,
+      value: feature.format(numericValue),
     };
   });
 }
