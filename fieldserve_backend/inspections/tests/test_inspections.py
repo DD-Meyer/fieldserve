@@ -94,6 +94,25 @@ def test_ml_failure_still_persists_inspection(mock_detect, api_client_auth, job)
 
 
 @patch("inspections.serializers.detect_damage")
+def test_reanalyse_and_delete_inspection_work_for_members(mock_detect, api_client_auth, job):
+    mock_detect.return_value = {"damages": [], "model_version": "stub"}
+    photo = SimpleUploadedFile("front.jpg", _tiny_jpeg(), content_type="image/jpeg")
+    resp = api_client_auth.post(
+        "/api/inspections/",
+        {"job": job.id, "phase": "before", "angle": "front", "photo": photo},
+        format="multipart",
+    )
+    inspection_id = resp.data["id"]
+
+    reanalyse = api_client_auth.post(f"/api/inspections/{inspection_id}/reanalyse/")
+    assert reanalyse.status_code == 200, reanalyse.data
+
+    delete_resp = api_client_auth.delete(f"/api/inspections/{inspection_id}/")
+    assert delete_resp.status_code == 204, delete_resp.data
+    assert not Inspection.objects.filter(pk=inspection_id).exists()
+
+
+@patch("inspections.serializers.detect_damage")
 def test_cannot_attach_inspection_to_other_business_job(
     mock_detect, api_client_auth, business, job
 ):

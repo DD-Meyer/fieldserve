@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import parsers, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -10,9 +11,14 @@ from rest_framework.throttling import UserRateThrottle
 from jobs.models import Job
 from users.permissions import IsBusinessMember, active_business_ids
 
-from .models import Inspection
+from .models import DamageAnnotation, Inspection
 from .ml_client import DamageServiceError, check_vehicle_frame
-from .serializers import InspectionSerializer, run_analysis, validate_inspection_image
+from .serializers import (
+    DamageAnnotationSerializer,
+    InspectionSerializer,
+    run_analysis,
+    validate_inspection_image,
+)
 
 
 class InspectionThrottle(UserRateThrottle):
@@ -71,6 +77,28 @@ class InspectionViewSet(viewsets.ModelViewSet):
         inspection = self.get_object()
         run_analysis(inspection)
         return Response(InspectionSerializer(inspection, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="approve-damage")
+    def approve_damage(self, request, pk=None):
+        inspection = self.get_object()
+        boxes = request.data.get("boxes")
+        if boxes is None:
+            boxes = inspection.analysis.get("damages") if isinstance(inspection.analysis, dict) else []
+        payload = {
+            "boxes": boxes or [],
+            "split": request.data.get("split", "train"),
+            "approved": True,
+        }
+        annotation = getattr(inspection, "damage_annotation", None)
+        serializer = DamageAnnotationSerializer(annotation, data=payload)
+        serializer.is_valid(raise_exception=True)
+        saved = serializer.save(
+            inspection=inspection,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+            approved=True,
+        )
+        return Response(DamageAnnotationSerializer(saved).data)
 
     @action(detail=False, methods=["post"], url_path="check-frame")
     def check_frame(self, request):

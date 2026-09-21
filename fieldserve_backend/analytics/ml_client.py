@@ -64,6 +64,18 @@ class MLClient:
             payload["bandwidth"] = bandwidth
         return self._post("/predict/heatmap", payload)
 
+    def heatmap_forecast(
+        self,
+        *,
+        grid_size: int = 40,
+        forecast_horizon_days: int = 30,
+    ) -> dict[str, Any]:
+        """POST /predict/heatmap/forecast — forecast demand opportunity zones."""
+        return self._post(
+            "/predict/heatmap/forecast",
+            {"grid_size": grid_size, "forecast_horizon_days": forecast_horizon_days},
+        )
+
     def optimise_schedule(
         self,
         depot: tuple[float, float],
@@ -98,6 +110,54 @@ class MLClient:
     def reload_model(self) -> dict[str, Any]:
         """POST /admin/reload — hot-swap the in-memory model on the ML service."""
         return self._post("/admin/reload", {}, admin=True)
+
+    def train_heatmap(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        data_source: str = "django-analytics",
+        min_samples: int = 20,
+        min_log_likelihood_delta: float = 0.0,
+    ) -> dict[str, Any]:
+        """POST /admin/train/heatmap — metric-gated forecast heatmap training."""
+        return self._post(
+            "/admin/train/heatmap",
+            {
+                "data_source": data_source,
+                "rows": rows,
+                "min_samples": min_samples,
+                "min_log_likelihood_delta": min_log_likelihood_delta,
+            },
+            admin=True,
+        )
+
+    def train_vehicle_damage(
+        self,
+        *,
+        data_yaml: str,
+        epochs: int = 50,
+        imgsz: int = 640,
+        batch: int = 16,
+        model: str = "yolov8n.pt",
+        min_map_delta: float = 0.0,
+        promote: bool = True,
+        timeout_seconds: int = 7200,
+    ) -> dict[str, Any]:
+        """POST /admin/train/vision — gated YOLO candidate train/promote."""
+        return self._post(
+            "/admin/train/vision",
+            {
+                "data_yaml": data_yaml,
+                "epochs": epochs,
+                "imgsz": imgsz,
+                "batch": batch,
+                "model": model,
+                "min_map_delta": min_map_delta,
+                "promote": promote,
+                "timeout_seconds": timeout_seconds,
+            },
+            admin=True,
+        )
 
     # ---- internals -------------------------------------------------------
 

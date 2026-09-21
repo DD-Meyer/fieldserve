@@ -50,6 +50,7 @@ FRAME_WEIGHTS_PATH = Path(os.environ.get(
     / "yolov8n.pt",
 ))
 VEHICLE_LABELS = {"car", "truck", "bus", "motorcycle"}
+ALLOW_VISION_STUB = os.environ.get("ML_ALLOW_VISION_STUB", "0") == "1"
 
 
 class _Model:
@@ -91,6 +92,8 @@ class _Model:
     def predict(self, image: Image.Image) -> list[dict[str, Any]]:
         self._ensure_loaded()
         if self.impl is None:
+            if not ALLOW_VISION_STUB:
+                raise RuntimeError("Vehicle damage model is unavailable.")
             return self._stub(image)
         try:
             results = self.impl.predict(
@@ -122,6 +125,13 @@ class _Model:
                 )
         del results
         return damages
+
+    @property
+    def mode(self) -> str:
+        self._ensure_loaded()
+        if self.impl is not None:
+            return "model"
+        return "development_stub" if ALLOW_VISION_STUB else "unavailable"
 
     def _stub(self, image: Image.Image) -> list[dict[str, Any]]:
         """Deterministic pseudo-detection based on image hash.
@@ -280,11 +290,15 @@ async def detect_damage(image: UploadFile = File(...)) -> dict[str, Any]:
         img = Image.open(io.BytesIO(raw)).convert("RGB")
     except Exception:  # noqa: BLE001
         raise HTTPException(400, "Could not decode image.")
-    damages = _MODEL.predict(img)
+    try:
+        damages = _MODEL.predict(img)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
     return {
         "damages": damages,
         "summary": _damage_report(damages, img.width, img.height),
         "model_version": _MODEL.version,
+        "mode": _MODEL.mode,
         "image_size": {"width": img.width, "height": img.height},
     }
 
@@ -303,8 +317,10 @@ async def check_frame(image: UploadFile = File(...)) -> dict[str, Any]:
 
 @router.get("/status")
 def status() -> dict[str, Any]:
+    mode = _MODEL.mode
     return {
-        "loaded": _MODEL.impl is not None,
+        "loaded": mode == "model",
+        "mode": mode,
         "model_version": _MODEL.version,
         "weights_path": str(WEIGHTS_PATH),
         "weights_present": WEIGHTS_PATH.exists(),

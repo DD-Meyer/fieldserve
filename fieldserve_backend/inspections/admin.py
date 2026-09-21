@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Inspection
+from .models import DamageAnnotation, Inspection
 
 
 @admin.register(Inspection)
@@ -20,3 +20,11 @@ class InspectionAdmin(admin.ModelAdmin):
 
     def damage_count(self, obj: Inspection) -> int:  # type: ignore[override]
         return obj.damage_count
+
+
+@admin.register(DamageAnnotation)
+class DamageAnnotationAdmin(admin.ModelAdmin):
+    list_display = ("id", "inspection", "approved", "split", "reviewed_by", "reviewed_at", "exported_at")
+    list_filter = ("approved", "split", "exported_at")
+    readonly_fields = ("created_at", "updated_at", "exported_at")
+    search_fields = ("inspection__id", "inspection__job__id")

@@ -194,3 +194,16 @@ export function useReanalyseInspection() {
     },
   });
 }
+
+export function useDeleteInspection() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`/api/inspections/${id}/`),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["inspections"] });
+      qc.invalidateQueries({ queryKey: ["job"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
