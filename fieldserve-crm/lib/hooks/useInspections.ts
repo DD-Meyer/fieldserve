@@ -60,6 +60,20 @@ export type Damage = {
   confidence_band?: "high" | "medium" | "low";
 };
 
+export type DamageAnnotation = {
+  id: number;
+  inspection: number;
+  boxes: Damage[];
+  note: string;
+  reviewed_by: number | null;
+  reviewed_at: string | null;
+  split: "train" | "val" | "test";
+  approved: boolean;
+  exported_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type InspectionAnalysis = {
   damages?: Damage[];
   summary?: {
@@ -97,6 +111,7 @@ export type Inspection = {
   analysis_status: AnalysisStatus;
   analysis_error: string;
   damage_count: number;
+  damage_annotation?: DamageAnnotation | null;
   created_at: string;
   updated_at: string;
 };
@@ -107,6 +122,30 @@ export type InspectionPage = {
   previous: string | null;
   results: Inspection[];
 };
+
+export type InspectionQuery = {
+  job?: number | null;
+  phase?: InspectionPhase;
+  angle?: InspectionAngle;
+  analysis_status?: AnalysisStatus;
+};
+
+export function useInspections(query: InspectionQuery = {}) {
+  const api = useApi();
+  const { isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: ["inspections", query],
+    queryFn: () =>
+      api.get<InspectionPage>("/api/inspections/", {
+        job: query.job ?? undefined,
+        phase: query.phase,
+        angle: query.angle,
+        analysis_status: query.analysis_status,
+      }),
+    enabled: !!isSignedIn,
+    staleTime: 30_000,
+  });
+}
 
 export function useJobInspections(jobId: number | null) {
   const api = useApi();
@@ -191,6 +230,33 @@ export function useReanalyseInspection() {
       api.post<Inspection>(`/api/inspections/${id}/reanalyse/`),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ["inspections", row.job] });
+    },
+  });
+}
+
+export function useReviewDamage() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      inspectionId,
+      boxes,
+      note,
+      split = "train",
+    }: {
+      inspectionId: number;
+      boxes: Damage[];
+      note: string;
+      split?: DamageAnnotation["split"];
+    }) =>
+      api.post<DamageAnnotation>(`/api/inspections/${inspectionId}/approve-damage/`, {
+        boxes,
+        note,
+        split,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inspections"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }

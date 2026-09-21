@@ -18,6 +18,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from django.db import models
 from django.utils import timezone
 
 from jobs.models import Job
@@ -25,9 +26,17 @@ from users.models import Customer
 
 from .feature_builder import EXT_FEATURES, build_features_for_customer
 from .ml_client import MLClient, MLServiceError
-from .models import ChurnScore
+from .models import ChurnScore, CustomerRetentionSignal
 
 log = logging.getLogger(__name__)
+
+HIGH_RISK_THRESHOLD = 0.65
+MEDIUM_RISK_THRESHOLD = 0.35
+
+RETENTION_CAPS = {
+    CustomerRetentionSignal.Status.RETAINED: 0.20,
+    CustomerRetentionSignal.Status.REASSURED: 0.30,
+}
 
 
 def _json_safe(value: Any) -> Any:
@@ -76,6 +85,76 @@ def score_customer(
         feature_set=resp.get("feature_set", "unknown"),
         feature_snapshot=snapshot,
     )
+
+
+def risk_bucket_for_probability(probability: float) -> str:
+    if probability >= HIGH_RISK_THRESHOLD:
+        return ChurnScore.RiskBucket.HIGH
+    if probability >= MEDIUM_RISK_THRESHOLD:
+        return ChurnScore.RiskBucket.MEDIUM
+    return ChurnScore.RiskBucket.LOW
+
+
+def active_retention_signal(customer: Customer) -> CustomerRetentionSignal | None:
+    now = timezone.now()
+    return (
+        CustomerRetentionSignal.objects.filter(customer=customer)
+        .filter(models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=now))
+        .order_by("-created_at")
+        .first()
+    )
+
+
+def adjusted_score_for_retention(
+    customer: Customer,
+    signal: CustomerRetentionSignal,
+    *,
+    source_score: ChurnScore | None = None,
+) -> ChurnScore | None:
+    """Append a ChurnScore row adjusted by a manual retention signal.
+
+    The raw model probability is kept in feature_snapshot so this remains an
+    auditable business override rather than hidden model retraining.
+    """
+    source_score = source_score or (
+        ChurnScore.objects.filter(customer=customer).order_by("-scored_at").first()
+    )
+    if source_score is None:
+        source_score = score_customer(customer)
+    if source_score is None:
+        return None
+
+    raw_probability = float(source_score.probability)
+    cap = RETENTION_CAPS.get(signal.status)
+    adjusted_probability = raw_probability if cap is None else min(raw_probability, cap)
+    snapshot = dict(source_score.feature_snapshot or {})
+    snapshot.update(
+        {
+            "manual_retention_signal_id": signal.pk,
+            "manual_retention_status": signal.status,
+            "manual_retention_note": signal.note,
+            "manual_retention_created_at": signal.created_at.isoformat(),
+            "raw_model_probability": raw_probability,
+            "manual_adjusted_probability": adjusted_probability,
+            "manual_adjustment_reason": (
+                "Customer contact recorded in CRM; displayed churn risk was manually adjusted."
+            ),
+        }
+    )
+    adjusted = ChurnScore.objects.create(
+        customer=customer,
+        scored_at=timezone.now(),
+        probability=Decimal(str(round(adjusted_probability, 4))),
+        risk_bucket=risk_bucket_for_probability(adjusted_probability),
+        model_version=source_score.model_version,
+        model_name=source_score.model_name,
+        feature_set=source_score.feature_set,
+        feature_snapshot=snapshot,
+    )
+    if signal.source_score_id is None:
+        signal.source_score = source_score
+        signal.save(update_fields=["source_score"])
+    return adjusted
 
 
 def safe_score_customer(customer: Customer) -> ChurnScore | None:

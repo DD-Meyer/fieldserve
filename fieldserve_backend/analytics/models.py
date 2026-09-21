@@ -50,6 +50,47 @@ class ChurnScore(models.Model):
         return f"{self.customer_id} {self.risk_bucket} {self.probability:.3f} @ {self.scored_at:%Y-%m-%d}"
 
 
+class CustomerRetentionSignal(models.Model):
+    """Manual customer-contact signal used to explain churn-risk overrides."""
+
+    class Status(models.TextChoices):
+        RETAINED = "retained", "Retained"
+        REASSURED = "reassured", "Reassured"
+        WATCHLIST = "watchlist", "Still at risk"
+
+    customer = models.ForeignKey(
+        "users.Customer", on_delete=models.CASCADE, related_name="retention_signals"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="customer_retention_signals",
+    )
+    source_score = models.ForeignKey(
+        ChurnScore,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="retention_signals",
+    )
+    status = models.CharField(max_length=16, choices=Status.choices)
+    note = models.TextField()
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["customer", "-created_at"]),
+            models.Index(fields=["expires_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.customer_id} {self.status} @ {self.created_at:%Y-%m-%d}"
+
+
 class ChurnLabel(models.Model):
     """Ground-truth label computed after the churn window has fully elapsed.
 

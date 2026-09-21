@@ -7,17 +7,25 @@ of model lifecycle events.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
+from django.db import transaction
 from django.db.models import OuterRef, Subquery
+from django.utils import timezone
 from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
+from users.models import Customer
 from users.permissions import active_business_ids
 
-from .models import ChurnLabel, ChurnScore, RetrainRun
+from .models import ChurnLabel, ChurnScore, CustomerRetentionSignal, RetrainRun
+from .scoring import adjusted_score_for_retention
 from .serializers import (
     ChurnLabelSerializer,
     ChurnScoreSerializer,
+    CustomerRetentionSignalSerializer,
     RetrainRunSerializer,
 )
 
@@ -57,6 +65,52 @@ class ChurnScoreViewSet(
             .order_by("-scored_at")
         )
         return Response(ChurnScoreSerializer(qs, many=True).data)
+
+    @action(detail=False, methods=["post"], url_path=r"retain/(?P<customer_pk>\d+)")
+    def retain(self, request, customer_pk: str):
+        biz_ids = active_business_ids(request.user)
+        customer = Customer.objects.filter(
+            pk=customer_pk, business_id__in=biz_ids
+        ).first()
+        if customer is None:
+            raise NotFound("Customer not found.")
+
+        status_value = request.data.get("status") or CustomerRetentionSignal.Status.REASSURED
+        valid_statuses = {choice[0] for choice in CustomerRetentionSignal.Status.choices}
+        if status_value not in valid_statuses:
+            raise ValidationError({"status": "Unknown retention status."})
+        note = str(request.data.get("note") or "").strip()
+        if not note:
+            raise ValidationError({"note": "A retention note is required."})
+        try:
+            expires_days = int(request.data.get("expires_days") or 90)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"expires_days": "Use a whole number of days."}) from exc
+        if expires_days < 1:
+            raise ValidationError({"expires_days": "Use at least 1 day."})
+
+        with transaction.atomic():
+            signal = CustomerRetentionSignal.objects.create(
+                customer=customer,
+                created_by=request.user,
+                status=status_value,
+                note=note,
+                expires_at=timezone.now() + timedelta(days=expires_days),
+            )
+            stamped_note = (
+                f"[{timezone.now():%Y-%m-%d %H:%M}] "
+                f"Retention signal ({signal.get_status_display()}): {note}"
+            )
+            customer.notes = "\n".join(part for part in [customer.notes, stamped_note] if part)
+            customer.save(update_fields=["notes", "updated_at"])
+            adjusted = adjusted_score_for_retention(customer, signal)
+
+        return Response(
+            {
+                "signal": CustomerRetentionSignalSerializer(signal).data,
+                "score": ChurnScoreSerializer(adjusted).data if adjusted else None,
+            }
+        )
 
 
 class ChurnLabelViewSet(

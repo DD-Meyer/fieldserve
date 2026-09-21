@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from .models import DAMAGE_LABEL_CHOICES, DamageAnnotation, Inspection
@@ -24,6 +25,7 @@ def validate_inspection_image(image):
 class InspectionSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
     damage_count = serializers.IntegerField(read_only=True)
+    damage_annotation = serializers.SerializerMethodField()
 
     class Meta:
         model = Inspection
@@ -38,6 +40,7 @@ class InspectionSerializer(serializers.ModelSerializer):
             "analysis_status",
             "analysis_error",
             "damage_count",
+            "damage_annotation",
             "created_at",
             "updated_at",
         ]
@@ -48,6 +51,7 @@ class InspectionSerializer(serializers.ModelSerializer):
             "analysis_error",
             "photo_url",
             "damage_count",
+            "damage_annotation",
             "created_at",
             "updated_at",
         ]
@@ -62,6 +66,13 @@ class InspectionSerializer(serializers.ModelSerializer):
         url = obj.photo.url
         return request.build_absolute_uri(url) if request else url
 
+    def get_damage_annotation(self, obj: Inspection):
+        try:
+            annotation = obj.damage_annotation
+        except ObjectDoesNotExist:
+            return None
+        return DamageAnnotationSerializer(annotation).data
+
     def validate_photo(self, photo):
         return validate_inspection_image(photo)
 
@@ -73,6 +84,7 @@ class DamageAnnotationSerializer(serializers.ModelSerializer):
             "id",
             "inspection",
             "boxes",
+            "note",
             "reviewed_by",
             "reviewed_at",
             "split",
