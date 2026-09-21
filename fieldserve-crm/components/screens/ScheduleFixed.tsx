@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 
 import AppointmentRow, { type Appointment } from "../AppointmentRow";
 import SegmentedToggle from "../SegmentedToggle";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useRefresh } from "@/hooks/useRefresh";
 
 const STAFF_COLORS = {
   Mia: "#2563eb",
@@ -44,11 +45,17 @@ export default function ScheduleFixed() {
 
   const highRiskCount = appointments.filter((a) => a.noShowRisk === "high").length;
   const utilisationPct = 78;
+  // Demo data has nothing to refetch; the gesture still gives consistent feedback.
+  const { refreshing, onRefresh } = useRefresh([]);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-      <Text className="text-xl font-bold text-slate-900">{"Today's Schedule"}</Text>
-      <Text className="text-xs text-slate-500 mt-1 mb-4">
+    <ScrollView
+      contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <Text className="text-xs text-slate-500 mb-4">
         Appointment slots, staff allocation, and no-show risk
       </Text>
 

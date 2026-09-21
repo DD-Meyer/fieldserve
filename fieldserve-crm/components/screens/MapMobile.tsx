@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 
 import DemandZoneRow from "../DemandZoneRow";
 import DemandZoneModal from "../DemandZoneModal";
 import FilterPills from "../FilterPills";
 import HeatmapPlaceholder from "../HeatmapPlaceholder";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useRefresh } from "@/hooks/useRefresh";
 import { useHeatmap, type DemandZone } from "../../lib/hooks/usePredictions";
 import { useServices } from "../../lib/hooks/useServices";
 
@@ -22,11 +23,16 @@ export default function MapMobile() {
   const heatmap = useHeatmap({ weight_by: "count", range: range as "all" | "30d" | "weekends" });
   const services = useServices();
   const zones = heatmap.data?.zones ?? [];
+  const { refreshing, onRefresh } = useRefresh([heatmap.refetch, services.refetch]);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}>
-      <Text className="text-xl font-bold text-slate-900">Demand Heat Map</Text>
-      <Text className="text-xs text-slate-500 mt-1 mb-4">
+    <ScrollView
+      contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <Text className="text-xs text-slate-500 mb-4">
         Geographic demand analysis using KDE
       </Text>
 

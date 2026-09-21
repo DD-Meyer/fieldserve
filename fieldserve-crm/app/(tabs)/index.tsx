@@ -1,4 +1,4 @@
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import "../../global.css";
 import AppHeader, {
@@ -9,11 +9,10 @@ import StatCard from "../../components/StatCard";
 import HomeBackground from "../../components/HomeBackground";
 import UpcomingJobRow, { type UpcomingJob } from "../../components/UpcomingJobRow";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useRefresh } from "@/hooks/useRefresh";
 import { useJobs, type Job } from "../../lib/hooks/useJobs";
 import { styled } from "nativewind";
 import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
-import { isLoading } from "expo-font";
-import { Background } from "@react-navigation/elements";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
@@ -41,7 +40,8 @@ export default function HomeScreen() {
   const {
     data: todayData,
     isLoading: todayLoading,
-    error: todayError
+    error: todayError,
+    refetch: refetchToday,
   } = useJobs({
     date: "today",
     ordering: "scheduled_at"
@@ -51,7 +51,8 @@ export default function HomeScreen() {
   const {
     data: lastWeekData,
     isLoading: lastWeekLoading,
-    error: lastWeekError
+    error: lastWeekError,
+    refetch: refetchLastWeek,
   } = useJobs({
     date: (() => {
       const d = new Date();
@@ -67,9 +68,11 @@ export default function HomeScreen() {
   const todayRevenue = moneyTotal(todayJobs);
   const totalRevenue = moneyTotal(lastWeekJobs);
 
+  const { refreshing, onRefresh } = useRefresh([refetchToday, refetchLastWeek]);
+
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title="FieldServe CRM" />
+      <AppHeader title="FieldServe CRM" home />
 
       
       {/* <HomeBackground /> */}
@@ -79,6 +82,9 @@ export default function HomeScreen() {
           paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
           paddingBottom: tabBarSpace,
         }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
 
         <Text className="mb-3 text-base font-semibold text-slate-900">

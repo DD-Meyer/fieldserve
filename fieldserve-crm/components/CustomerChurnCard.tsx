@@ -2,7 +2,6 @@ import { Image, Text, View } from "react-native";
 
 import RiskBadge, { levelFromProb, type RiskLevel } from "./RiskBadge";
 
-const AVATAR = require("../assets/images/avatar.png");
 
 export type ChurnCustomer = {
   id: string | number;
@@ -42,7 +41,7 @@ export default function CustomerChurnCard({ customer }: { customer: ChurnCustome
     <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-3">
       <View className="flex-row items-center">
         <Image
-          source={AVATAR}
+          source={{ uri: `https://ui-avatars.com/api/?name=${customer.name.split(" ").join("+")}` }}
           style={{ width: 44, height: 44, borderRadius: 22 }}
         />
         <View className="flex-1 pl-3">

@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
-  Share,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -14,12 +13,12 @@ import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
 
-import AppHeader, {
-  FLOATING_HEADER_CONTENT_OFFSET,
-} from "../../components/AppHeader";
+import AppHeader from "../../components/AppHeader";
 import CreateBookingModal from "../../components/CreateBookingModal";
+import SlideToConfirmButton from "../../components/SlideToConfirmButton";
 import ShareBookingModal from "../../components/ShareBookingModal";
-import FilterPills from "../../components/FilterPills";
+import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useRefresh } from "@/hooks/useRefresh";
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 import { useJobs, type Job, type JobStatus } from "../../lib/hooks/useJobs";
 
@@ -76,15 +75,18 @@ export default function BookingsPage() {
   const [ordering, setOrdering] = useState<string>("-scheduled_at");
   const [showCreate, setShowCreate] = useState(false);
   const [scope, setScope] = useState<BookingScope>("company");
+  const tabBarSpace = useTabBarSpace();
   const { data: business } = useCurrentBusiness();
   const isAdmin = business?.role === "admin";
   const effectiveScope = isAdmin ? scope : "mine";
 
-  const { data, isLoading, error, refetch, isFetching } = useJobs({
+  const { data, isLoading, error, refetch } = useJobs({
     status: status === "all" ? undefined : status,
     ordering,
     assigned_to: effectiveScope === "mine" ? "me" : undefined,
   });
+
+  const { refreshing, onRefresh } = useRefresh([refetch]);
 
   const jobs = useMemo(() => {
     const list = data?.results ?? [];
@@ -117,138 +119,183 @@ export default function BookingsPage() {
   // Handle sharing the booking form link
   const [showShare, setShowShare] = useState(false);
 
+  // Maintain a persistent reference to the master counts
+  const masterCountsRef = useRef(counts);
+
+  // Update master counts whenever full counts are available (e.g. on mount or when 'all' is selected)
+  useEffect(() => {
+    if (counts && (status === "all" || !masterCountsRef.current)) {
+      masterCountsRef.current = counts;
+    }
+  }, [counts, status]);
+
+  // Use persistent counts if available, otherwise fall back to current counts
+  const persistentCounts = masterCountsRef.current || counts;
+  const activeStatusLabel = PILLS.find((pill) => pill.key === status)?.label ?? "All";
+  const activeSortLabel = SORTS.find((sort) => sort.key === ordering)?.label ?? "Newest first";
+  const scopeLabel = effectiveScope === "mine" ? "Assigned to me" : "Company-wide";
+  const filterSummary = isAdmin
+    ? `${scopeLabel} · ${activeStatusLabel} · ${activeSortLabel}`
+    : `${activeStatusLabel} · ${activeSortLabel}`;
+
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title="Bookings" />
+      <AppHeader
+        title={effectiveScope === "mine" ? "My Bookings" : "All Bookings"}
+        search={{
+          value: searchQuery,
+          onChange: setSearchQuery,
+          placeholder: "Search bookings...",
+        }}
+        onShare={() => setShowShare(true)}
+        filter={{
+          summary: filterSummary,
+          children: (
+            <>
+            {isAdmin ? (
+              <View className="flex-row rounded-lg border border-slate-200 bg-slate-100 p-1 mb-4">
+                {([
+                  ["company", "Company-wide"],
+                  ["mine", "Assigned to me"],
+                ] as const).map(([key, label]) => {
+                  const selected = scope === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => setScope(key)}
+                      className={`flex-1 items-center rounded-md py-2 ${
+                        selected ? "bg-white" : ""
+                      }`}
+                    >
+                      <Text className={`text-xs font-semibold ${selected ? "text-slate-900" : "text-slate-500"}`}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {/* Horizontal Scrollable Filter Cards */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mb-4"
+              contentContainerStyle={{
+                flexDirection: "row",
+                alignItems: "stretch",
+                gap: 8,
+                paddingRight: 4,
+              }}
+            >
+              {PILLS.map((pill) => {
+                const isActive = status === pill.key;
+
+                let numColor = "text-slate-700";
+                let rippleColor = "rgba(51, 65, 85, 0.1)";
+
+                if (pill.key === "scheduled") {
+                  numColor = "text-blue-700";
+                  rippleColor = "rgba(29, 78, 216, 0.1)";
+                } else if (pill.key === "in_progress") {
+                  numColor = "text-amber-700";
+                  rippleColor = "rgba(180, 83, 9, 0.1)";
+                } else if (pill.key === "completed") {
+                  numColor = "text-green-700";
+                  rippleColor = "rgba(21, 128, 61, 0.1)";
+                } else if (pill.key === "cancelled") {
+                  numColor = "text-red-700";
+                  rippleColor = "rgba(185, 28, 28, 0.1)";
+                }
+
+                // Read from persistentCounts so counts stay constant during filtering
+                const displayCount =
+                  pill.key === "all"
+                    ? (persistentCounts.pending || 0) +
+                        (persistentCounts.scheduled || 0) +
+                        (persistentCounts.in_progress || 0) +
+                        (persistentCounts.completed || 0) +
+                        (persistentCounts.cancelled || 0)
+                    : persistentCounts[pill.key] || 0;
+
+                return (
+                  <Pressable
+                    key={pill.key}
+                    style={{ width: 104 }}
+                    className={`px-3 py-2.5 rounded-xl border items-center justify-center ${
+                      isActive
+                        ? "border-slate-900 bg-slate-900"
+                        : "border-slate-200 bg-white"
+                    }`}
+                    android_ripple={{ color: rippleColor }}
+                    onPress={() => setStatus(pill.key as StatusFilter)}
+                  >
+                    <Text
+                      className={`text-lg font-bold ${
+                        isActive ? "text-white" : numColor
+                      }`}
+                    >
+                      {displayCount}
+                    </Text>
+                    <Text
+                      className={`text-[10px] font-semibold text-center uppercase tracking-wider mt-0.5 ${
+                        isActive ? "text-slate-200" : "text-slate-500"
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {pill.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <View>
+              <Text className="text-[11px] font-semibold text-slate-500 mb-1">
+                Sort
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {SORTS.map((s) => {
+                  const active = ordering === s.key;
+                  return (
+                    <Pressable
+                      key={s.key}
+                      onPress={() => setOrdering(s.key)}
+                      className={`px-3 py-1.5 rounded-full border ${
+                        active
+                          ? "bg-blue-600 border-blue-600"
+                          : "bg-white border-slate-200"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${
+                          active ? "text-white" : "text-slate-700"
+                        }`}
+                      >
+                        {s.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            </>
+          ),
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={{
           padding: 16,
-          paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
-          paddingBottom: 80,
+          paddingBottom: tabBarSpace,
         }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        <View className="flex-row items-center justify-between mb-1">
-          <Text className="text-xl font-bold text-slate-900">
-            {effectiveScope === "mine" ? "My Bookings" : "All Bookings"}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <Pressable
-              onPress={() => setShowCreate(true)}
-              className="px-3 py-1.5 rounded-full bg-blue-600"
-            >
-              <Text className="text-xs font-semibold text-white">+ New</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setShowShare(true)}
-              className="px-3 py-1.5 rounded-full bg-slate-900"
-            >
-              <Text className="text-xs font-semibold text-white">Share</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => refetch()}
-              className="px-3 py-1.5 rounded-full bg-slate-100"
-            >
-              <Text className="text-xs font-semibold text-slate-700">
-                {isFetching ? "…" : "Refresh"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-        <Text className="text-xs text-slate-500 mb-4">
+        <Text className="text-xs text-slate-500 mb-3">
           {data?.count ?? 0} total in this view
         </Text>
-
-        {isAdmin ? (
-          <View className="flex-row rounded-lg border border-slate-200 bg-slate-100 p-1 mb-4">
-            {([
-              ["company", "Company-wide"],
-              ["mine", "Assigned to me"],
-            ] as const).map(([key, label]) => {
-              const selected = scope === key;
-              return (
-                <Pressable
-                  key={key}
-                  onPress={() => setScope(key)}
-                  className={`flex-1 items-center rounded-md py-2 ${
-                    selected ? "bg-white" : ""
-                  }`}
-                >
-                  <Text className={`text-xs font-semibold ${selected ? "text-slate-900" : "text-slate-500"}`}>
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
-
-        <View className="mb-4">
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search bookings..."
-            autoCapitalize="none"
-            returnKeyType="search"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900"
-          />
-        </View>
-
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {(["pending", "scheduled", "in_progress", "completed", "cancelled"] as JobStatus[]).map(
-            (s) => (
-              <View
-                key={s}
-                className="flex-1 bg-white rounded-xl border border-slate-200 p-2 items-center"
-              >
-                <Text className="text-xl font-bold text-slate-900">
-                  {counts[s]}
-                </Text>
-                <Text className="text-[8px] text-slate-500 capitalize">
-                  {s.replace("_", " ")}
-                </Text>
-              </View>
-            ),
-          )}
-        </View>
-
-        <View className="mb-3">
-          <FilterPills
-            pills={PILLS}
-            active={status}
-            onChange={(k) => setStatus(k as StatusFilter)}
-          />
-        </View>
-
-        <View className="mb-4">
-          <Text className="text-[11px] font-semibold text-slate-500 mb-1">
-            Sort
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {SORTS.map((s) => {
-              const active = ordering === s.key;
-              return (
-                <Pressable
-                  key={s.key}
-                  onPress={() => setOrdering(s.key)}
-                  className={`px-3 py-1.5 rounded-full border ${
-                    active
-                      ? "bg-blue-600 border-blue-600"
-                      : "bg-white border-slate-200"
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${
-                      active ? "text-white" : "text-slate-700"
-                    }`}
-                  >
-                    {s.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
 
         {isLoading ? (
           <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
@@ -298,12 +345,20 @@ export default function BookingsPage() {
         )}
       </ScrollView>
 
+      <SlideToConfirmButton
+        label="Slide to add booking"
+        onComplete={() => setShowCreate(true)}
+        bottomOffset={tabBarSpace}
+      />
+
       <CreateBookingModal
         visible={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={() => refetch()}
       />
-      <ShareBookingModal visible={showShare} onClose={() => setShowShare(false)} />
+      {showShare ? (
+        <ShareBookingModal visible onClose={() => setShowShare(false)} />
+      ) : null}
     </SafeAreaView>
   );
 }

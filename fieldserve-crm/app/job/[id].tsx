@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   View,
@@ -16,6 +17,7 @@ import AppHeader from "../../components/AppHeader";
 import { useApi } from "../../lib/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRefresh } from "@/hooks/useRefresh";
 import {
   type Job,
   type JobStatus,
@@ -102,8 +104,9 @@ export default function JobDetail() {
   const router = useRouter();
   const jobId = id ? Number(id) : null;
 
-  const { data: job, isLoading, error } = useJob(jobId);
+  const { data: job, isLoading, error, refetch } = useJob(jobId);
   const transition = useTransition();
+  const { refreshing, onRefresh } = useRefresh([refetch]);
 
   const price = useMemo(() => {
     if (!job?.price) return "$0.00";
@@ -143,7 +146,7 @@ export default function JobDetail() {
   if (!jobId) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-        <AppHeader title="Booking" />
+        <AppHeader title="Booking" back={true} />
         <View className="p-6">
           <Text className="text-slate-500">Missing job id.</Text>
         </View>
@@ -154,7 +157,7 @@ export default function JobDetail() {
   if (isLoading || !job) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-        <AppHeader title="Booking" />
+        <AppHeader title="Booking" back={true} />
         <View className="p-6 items-center">
           {error ? (
             <Text className="text-xs text-red-600">Could not load booking.</Text>
@@ -170,15 +173,13 @@ export default function JobDetail() {
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title={`Booking #${job.id}`} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
-        <Pressable
-          onPress={() => router.back()}
-          className="self-start mb-3 px-2 py-1"
-        >
-          <Text className="text-xs text-blue-600">← Back</Text>
-        </Pressable>
-
+      <AppHeader title={`Booking #${job.id}`} back={true} />
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-4">
           <View className="flex-row items-center justify-between mb-1">
             <Text className="text-xs text-slate-500">Status</Text>

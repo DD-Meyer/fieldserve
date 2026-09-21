@@ -4,6 +4,7 @@ import {
   Linking,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -20,6 +21,7 @@ import RiskBadge, { levelFromProb, type RiskLevel } from "../../components/RiskB
 import { useCustomer, useJobs } from "../../lib/hooks/useJobs";
 import { useUpdateCustomer } from "../../lib/hooks/useCustomers";
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
+import { useRefresh } from "@/hooks/useRefresh";
 import {
   useChurnHistory,
   useChurnScores,
@@ -81,14 +83,22 @@ export default function CustomerProfile() {
   const { data: business } = useCurrentBusiness();
   const isMobileBusiness = business?.industry_mode === "mobile";
 
-  const { data: customer, isLoading: custLoading } = useCustomer(customerId);
-  const { data: jobsPage } = useJobs(
+  const { data: customer, isLoading: custLoading, refetch: refetchCustomer } =
+    useCustomer(customerId);
+  const { data: jobsPage, refetch: refetchJobs } = useJobs(
     customerId
       ? { customer: customerId, ordering: "-scheduled_at" }
       : {},
   );
-  const { data: churnList } = useChurnScores();
-  const { data: history } = useChurnHistory(customerId);
+  const { data: churnList, refetch: refetchChurn } = useChurnScores();
+  const { data: history, refetch: refetchHistory } = useChurnHistory(customerId);
+
+  const { refreshing, onRefresh } = useRefresh([
+    refetchCustomer,
+    refetchJobs,
+    refetchChurn,
+    refetchHistory,
+  ]);
 
   const latestScore = useMemo<ChurnScore | undefined>(() => {
     if (!customerId) return undefined;
@@ -165,7 +175,12 @@ export default function CustomerProfile() {
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title={customer.full_name} back={true} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         
         {/* Score card */}
         <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-4">

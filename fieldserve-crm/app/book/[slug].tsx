@@ -13,6 +13,7 @@ import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplet
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
+import AppHeader from "@/components/AppHeader";
 
 import DateTimePickerField from "../../components/DateTimePickerField";
 
@@ -364,6 +365,7 @@ export default function PublicBookingPage() {
   if (!bizState.data.public_booking_enabled) {
     return (
       <SafeAreaView className="flex-1 bg-slate-100">
+
         <View className="flex-1 items-center justify-center p-6">
           <View className="w-full max-w-md items-center">
             <Text className="text-slate-900 text-lg font-bold">

@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -12,15 +12,15 @@ import { useRouter } from "expo-router";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import "../../global.css";
 
-import AppHeader, {
-  FLOATING_HEADER_CONTENT_OFFSET,
-} from "../../components/AppHeader";
+import AppHeader from "../../components/AppHeader";
+import BottomSheetModal from "../../components/BottomSheetModal";
 import CustomerChurnCard, {
   type ChurnCustomer,
 } from "../../components/CustomerChurnCard";
-import FilterPills from "../../components/FilterPills";
-import { levelFromProb, type RiskLevel } from "../../components/RiskBadge";
+import SlideToConfirmButton from "../../components/SlideToConfirmButton";
+import { type RiskLevel } from "../../components/RiskBadge";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
+import { useRefresh } from "@/hooks/useRefresh";
 import {
   useChurnScores,
   type ChurnScore,
@@ -32,12 +32,17 @@ import {
 } from "../../lib/hooks/useCustomers";
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 import { styled } from "nativewind";
-import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
+import {
+  SafeAreaView as RNSafeAreaVIew,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import CustomerBackground from "../../components/CustomerBackground";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
-const PILLS = [
+type CustomerRiskFilter = "all" | RiskLevel;
+
+const PILLS: { key: CustomerRiskFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "high", label: "High Risk" },
   { key: "medium", label: "Medium Risk" },
@@ -116,7 +121,13 @@ export default function Customers() {
     error: customersError,
     refetch,
   } = useCustomers();
-  const { data: churnData, isLoading: churnLoading } = useChurnScores();
+  const {
+    data: churnData,
+    isLoading: churnLoading,
+    refetch: refetchChurn,
+  } = useChurnScores();
+
+  const { refreshing, onRefresh } = useRefresh([refetch, refetchChurn]);
 
   const scoreByCustomer = useMemo(() => {
     const map = new Map<number, ChurnScore>();
@@ -166,77 +177,84 @@ export default function Customers() {
   }, [churnData]);
 
   const isLoading = customersLoading || churnLoading;
+  const totalCustomers = counts.high + counts.medium + counts.low + counts.unscored;
+  const activePillLabel = PILLS.find((pill) => pill.key === active)?.label ?? "All";
+  const filterSummary = `${activePillLabel} · ${filtered.length}/${totalCustomers}`;
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title="Customers" />
+      <AppHeader
+        title="Customer Churn Analysis"
+        search={{
+          value: searchQuery,
+          onChange: setSearchQuery,
+          placeholder: "Search customers...",
+        }}
+        filter={{
+          summary: filterSummary,
+          children: (
+          <View className="flex-row gap-2">
+            {PILLS.map((pill) => {
+              const isActive = active === pill.key;
+              let numColor = "text-slate-500";
+              let rippleColor = "rgba(100, 116, 139, 0.1)";
+
+              if (pill.key === "high") {
+                numColor = "text-red-600";
+                rippleColor = "rgba(239, 68, 68, 0.1)";
+              } else if (pill.key === "medium") {
+                numColor = "text-amber-600";
+                rippleColor = "rgba(245, 158, 11, 0.1)";
+              } else if (pill.key === "low") {
+                numColor = "text-green-600";
+                rippleColor = "rgba(22, 163, 74, 0.1)";
+              }
+
+              const displayCount =
+                pill.key === "all" ? totalCustomers : counts[pill.key] || 0;
+
+              return (
+                <Pressable
+                  key={pill.key}
+                  className={`flex-1 rounded-xl border p-3 items-center justify-center ${
+                    isActive ? "border-slate-800 bg-slate-50" : "border-slate-200 bg-white"
+                  }`}
+                  android_ripple={{ color: rippleColor }}
+                  onPress={() => setActive(pill.key)}
+                >
+                  <Text className={`text-lg font-bold ${numColor}`}>
+                    {displayCount}
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 text-center" numberOfLines={1}>
+                    {pill.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          ),
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={{
           padding: 16,
-          paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
           paddingBottom: tabBarSpace,
         }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Background banner */}
         <View className="mb-6">
           <CustomerBackground />
         </View>
 
-        <View className="flex-row items-center justify-between">
-          <Text className="text-xl font-bold text-slate-900">
-            Customer Churn Analysis
-          </Text>
-          <Pressable
-            onPress={() => setShowAdd(true)}
-            className="bg-blue-600 rounded-full px-3 py-1.5"
-          >
-            <Text className="text-white text-xs font-semibold">+ Add</Text>
-          </Pressable>
-        </View>
-        <Text className="text-xs text-slate-500 mt-1 mb-4">
+        <Text className="text-xs text-slate-500 mb-4">
           {modelMeta
             ? `${modelMeta.name} · ${modelMeta.featureSet} · trained ${modelMeta.trainedAt}`
             : "No churn scores yet — run `score_churn` on the backend."}
         </Text>
-
-        <View className="mb-4">
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search customers..."
-            autoCapitalize="none"
-            returnKeyType="search"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900"
-          />
-        </View>
-
-        <View className="flex-row gap-2 mb-4">
-          <View className="flex-1 bg-white rounded-xl border border-slate-200 p-3 items-center">
-            <Text className="text-lg font-bold text-red-600">{counts.high}</Text>
-            <Text className="text-[11px] text-slate-500">High</Text>
-          </View>
-          <View className="flex-1 bg-white rounded-xl border border-slate-200 p-3 items-center">
-            <Text className="text-lg font-bold text-amber-600">
-              {counts.medium}
-            </Text>
-            <Text className="text-[11px] text-slate-500">Medium</Text>
-          </View>
-          <View className="flex-1 bg-white rounded-xl border border-slate-200 p-3 items-center">
-            <Text className="text-lg font-bold text-green-600">{counts.low}</Text>
-            <Text className="text-[11px] text-slate-500">Low</Text>
-          </View>
-          <View className="flex-1 bg-white rounded-xl border border-slate-200 p-3 items-center">
-            <Text className="text-lg font-bold text-slate-500">
-              {counts.unscored}
-            </Text>
-            <Text className="text-[11px] text-slate-500">Unscored</Text>
-          </View>
-        </View>
-
-        <View className="mb-4">
-          <FilterPills pills={PILLS} active={active} onChange={setActive} />
-        </View>
 
         {isLoading ? (
           <View className="bg-white rounded-2xl border border-slate-200 p-6 items-center">
@@ -263,6 +281,12 @@ export default function Customers() {
           ))
         )}
       </ScrollView>
+
+      <SlideToConfirmButton
+        label="Slide to add customer"
+        onComplete={() => setShowAdd(true)}
+        bottomOffset={tabBarSpace}
+      />
 
       <AddCustomerModal
         visible={showAdd}
@@ -295,6 +319,7 @@ function AddCustomerModal({
   const create = useCreateCustomer();
   const { data: business } = useCurrentBusiness();
   const isMobileBusiness = business?.industry_mode === "mobile";
+  const insets = useSafeAreaInsets();
 
   const submit = async () => {
     setErr(null);
@@ -324,21 +349,19 @@ function AddCustomerModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 justify-end bg-black/40">
-        <View className="bg-white rounded-t-3xl p-5">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-bold text-slate-900">New Customer</Text>
-            <Pressable onPress={onClose}>
-              <Text className="text-slate-500 text-base">Close</Text>
-            </Pressable>
-          </View>
+    <BottomSheetModal visible={visible} onClose={onClose}>
+      <View
+        className="bg-white rounded-t-3xl p-5"
+        style={{ paddingBottom: insets.bottom + 20 }}
+      >
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-lg font-bold text-slate-900">New Customer</Text>
+          <Pressable onPress={onClose}>
+            <Text className="text-slate-500 text-base">Close</Text>
+          </Pressable>
+        </View>
 
+        <ScrollView keyboardShouldPersistTaps="handled">
           <Text className="text-xs text-slate-500 mb-1">Full name *</Text>
           <TextInput
             value={fullName}
@@ -393,6 +416,7 @@ function AddCustomerModal({
                     flex: 0,
                     width: "100%",
                     zIndex: 1000,
+                    flexDirection: "column-reverse",
                   },
                   textInput: {
                     borderWidth: 1,
@@ -405,7 +429,7 @@ function AddCustomerModal({
                   },
                   listView: {
                     position: "absolute",
-                    top: 50,
+                    bottom: 52,
                     left: 0,
                     right: 0,
                     borderWidth: 1,
@@ -445,8 +469,8 @@ function AddCustomerModal({
               <Text className="text-white font-semibold">Create customer</Text>
             )}
           </Pressable>
-        </View>
+        </ScrollView>
       </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }
