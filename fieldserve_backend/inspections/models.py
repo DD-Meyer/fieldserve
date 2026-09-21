@@ -124,6 +124,7 @@ class DamageAnnotation(models.Model):
         Inspection, on_delete=models.CASCADE, related_name="damage_annotation"
     )
     boxes = models.JSONField(default=list)
+    note = models.TextField(blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

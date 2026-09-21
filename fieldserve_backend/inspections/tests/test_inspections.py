@@ -18,7 +18,7 @@ from django.utils import timezone
 from PIL import Image
 
 from businesses.models import Business, Membership
-from inspections.models import Inspection
+from inspections.models import DamageAnnotation, Inspection
 from jobs.models import Job
 from users.models import Customer
 
@@ -175,6 +175,60 @@ def test_unauthenticated_inspection_access_is_denied(db):
     response = APIClient().get("/api/inspections/")
 
     assert response.status_code in {401, 403}
+
+
+@patch("inspections.serializers.detect_damage")
+def test_approve_damage_accepts_corrected_boxes_and_note(mock_detect, api_client_auth, job):
+    mock_detect.return_value = {
+        "damages": [
+            {"label": "dent", "confidence": 0.87, "bbox": [10, 20, 40, 50]}
+        ],
+        "model_version": "stub",
+    }
+    photo = SimpleUploadedFile("front.jpg", _tiny_jpeg(), content_type="image/jpeg")
+    created = api_client_auth.post(
+        "/api/inspections/",
+        {"job": job.id, "phase": "before", "angle": "front", "photo": photo},
+        format="multipart",
+    )
+
+    response = api_client_auth.post(
+        f"/api/inspections/{created.data['id']}/approve-damage/",
+        {
+            "boxes": [
+                {"label": "scratch", "confidence": 0.87, "bbox": [10, 20, 40, 50]}
+            ],
+            "note": "Dent looked like a scratch after review.",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    annotation = DamageAnnotation.objects.get(inspection_id=created.data["id"])
+    assert annotation.approved is True
+    assert annotation.note == "Dent looked like a scratch after review."
+    assert annotation.boxes[0]["label"] == "scratch"
+    assert response.data["note"] == annotation.note
+
+
+@patch("inspections.serializers.detect_damage")
+def test_approve_damage_rejects_invalid_box_label(mock_detect, api_client_auth, job):
+    mock_detect.return_value = {"damages": [], "model_version": "stub"}
+    photo = SimpleUploadedFile("front.jpg", _tiny_jpeg(), content_type="image/jpeg")
+    created = api_client_auth.post(
+        "/api/inspections/",
+        {"job": job.id, "phase": "before", "angle": "front", "photo": photo},
+        format="multipart",
+    )
+
+    response = api_client_auth.post(
+        f"/api/inspections/{created.data['id']}/approve-damage/",
+        {"boxes": [{"label": "not_a_damage", "bbox": [10, 20, 40, 50]}]},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not DamageAnnotation.objects.filter(inspection_id=created.data["id"]).exists()
 
 
 @patch("inspections.serializers.detect_damage")

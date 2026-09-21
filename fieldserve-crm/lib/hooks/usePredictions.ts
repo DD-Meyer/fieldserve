@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useApi } from "../api";
+import type { RoutePoint } from "./useJobs";
 
 export type HeatmapCell = {
   latitude: number;
@@ -75,5 +76,45 @@ export function useHeatmap(input: HeatmapInput = {}) {
     queryFn: () =>
       api.post<HeatmapResponse>("/api/analytics/predictions/heatmap/", input),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export type OptimizedScheduleStop = {
+  job_id?: number;
+  id?: number;
+  latitude?: number;
+  longitude?: number;
+  service_type?: string;
+  order?: number;
+  distance_km?: number;
+  travel_minutes?: number;
+};
+
+export type OptimizedScheduleResponse = {
+  stops: OptimizedScheduleStop[];
+  total_distance_km: number;
+  total_travel_minutes: number;
+};
+
+export type OptimizedScheduleInput = {
+  depot: RoutePoint | null;
+  job_ids?: number[];
+  average_speed_kmh?: number;
+};
+
+export function useOptimizedSchedule(input: OptimizedScheduleInput) {
+  const api = useApi();
+  const jobIds = input.job_ids ?? [];
+  return useQuery<OptimizedScheduleResponse>({
+    queryKey: ["predictions", "schedule", input.depot, jobIds, input.average_speed_kmh],
+    queryFn: () =>
+      api.post<OptimizedScheduleResponse>("/api/analytics/predictions/schedule/", {
+        depot: input.depot,
+        job_ids: jobIds,
+        average_speed_kmh: input.average_speed_kmh ?? 40,
+      }),
+    enabled: !!input.depot && jobIds.length >= 2,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 }

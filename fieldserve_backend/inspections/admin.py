@@ -27,4 +27,4 @@ class DamageAnnotationAdmin(admin.ModelAdmin):
     list_display = ("id", "inspection", "approved", "split", "reviewed_by", "reviewed_at", "exported_at")
     list_filter = ("approved", "split", "exported_at")
     readonly_fields = ("created_at", "updated_at", "exported_at")
-    search_fields = ("inspection__id", "inspection__job__id")
+    search_fields = ("inspection__id", "inspection__job__id", "note")

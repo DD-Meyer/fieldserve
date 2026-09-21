@@ -86,6 +86,7 @@ class InspectionViewSet(viewsets.ModelViewSet):
             boxes = inspection.analysis.get("damages") if isinstance(inspection.analysis, dict) else []
         payload = {
             "boxes": boxes or [],
+            "note": request.data.get("note", ""),
             "split": request.data.get("split", "train"),
             "approved": True,
         }

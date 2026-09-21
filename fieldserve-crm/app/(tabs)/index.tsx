@@ -6,7 +6,6 @@ import AppHeader, {
 } from "../../components/AppHeader";
 import FeatureCard from "../../components/FeatureCard";
 import StatCard from "../../components/StatCard";
-import HomeBackground from "../../components/HomeBackground";
 import UpcomingJobRow, { type UpcomingJob } from "../../components/UpcomingJobRow";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useRefresh } from "@/hooks/useRefresh";
@@ -51,7 +50,6 @@ export default function HomeScreen() {
   const {
     data: lastWeekData,
     isLoading: lastWeekLoading,
-    error: lastWeekError,
     refetch: refetchLastWeek,
   } = useJobs({
     date: (() => {
@@ -122,27 +120,11 @@ export default function HomeScreen() {
         <View className="gap-3">
           <FeatureCard
             tone="purple"
-            glyph="⚡"
-            title="AI Job Insights"
-            description="Get AI-generated insights on your jobs and customers."
-            cta="View insights"
-            onPress={() => router.push("/(tabs)/customers")}
-          />
-          <FeatureCard
-            tone="blue"
-            glyph="◷"
-            title="Smart Scheduler"
-            description="Reorder today's route to save ~1.2 hours of travel time."
-            cta="Optimise schedule"
-            onPress={() => router.push("/(tabs)/schedule")}
-          />
-          <FeatureCard
-            tone="green"
-            glyph="◉"
-            title="Demand Heat Map"
-            description="Two new opportunity zones detected this week."
-            cta="View map"
-            onPress={() => router.push("/(tabs)/map")}
+            glyph="◈"
+            title="AI Performance Insights"
+            description="Live churn, demand heatmap, service opportunity, vehicle inspection, and smart scheduler analytics in one dashboard."
+            cta="Open dashboard"
+            onPress={() => router.push("/ai-insights")}
           />
         </View>
 

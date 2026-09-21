@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import ChurnLabel, ChurnScore, RetrainRun
+from .models import ChurnLabel, ChurnScore, CustomerRetentionSignal, RetrainRun
 
 
 class ChurnScoreSerializer(serializers.ModelSerializer):
@@ -24,6 +24,36 @@ class ChurnScoreSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
+
+class CustomerRetentionSignalSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.full_name", read_only=True)
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+
+    class Meta:
+        model = CustomerRetentionSignal
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "created_by",
+            "created_by_email",
+            "source_score",
+            "status",
+            "note",
+            "expires_at",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "created_by",
+            "created_by_email",
+            "source_score",
+            "expires_at",
+            "created_at",
+        ]
 
 
 class ChurnLabelSerializer(serializers.ModelSerializer):

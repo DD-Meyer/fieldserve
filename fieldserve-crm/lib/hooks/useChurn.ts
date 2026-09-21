@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useApi } from "../api";
 
@@ -21,9 +21,17 @@ export type ChurnFeatureSnapshot = Partial<{
   weekend_share: number | null;
   evening_share: number | null;
   is_uk: number | null;
+  manual_retention_signal_id: number | null;
+  manual_retention_status: CustomerRetentionStatus | null;
+  manual_retention_note: string | null;
+  manual_retention_created_at: string | null;
+  raw_model_probability: number | null;
+  manual_adjusted_probability: number | null;
+  manual_adjustment_reason: string | null;
 }>;
 
 export type ChurnRiskBucket = "Low" | "Medium" | "High";
+export type CustomerRetentionStatus = "retained" | "reassured" | "watchlist";
 
 export type ChurnScore = {
   id: number;
@@ -46,6 +54,31 @@ export type ChurnScorePage = {
   results: ChurnScore[];
 };
 
+export type CustomerRetentionSignal = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  created_by: number | null;
+  created_by_email: string | null;
+  source_score: number | null;
+  status: CustomerRetentionStatus;
+  note: string;
+  expires_at: string | null;
+  created_at: string;
+};
+
+export type MarkCustomerRetainedInput = {
+  customerId: number;
+  status: CustomerRetentionStatus;
+  note: string;
+  expires_days?: number;
+};
+
+export type MarkCustomerRetainedResponse = {
+  signal: CustomerRetentionSignal;
+  score: ChurnScore | null;
+};
+
 export function useChurnScores() {
   const api = useApi();
   const { isSignedIn } = useAuth();
@@ -60,6 +93,21 @@ export function useChurnScores() {
   });
 }
 
+export function useLatestChurnScore(customerId: number | null) {
+  const api = useApi();
+  const { isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: ["churn-score", customerId],
+    queryFn: () =>
+      api.get<ChurnScorePage>("/api/analytics/churn/scores/", {
+        customer: customerId ?? undefined,
+        ordering: "-scored_at",
+      }),
+    staleTime: 30_000,
+    enabled: !!isSignedIn && customerId != null,
+  });
+}
+
 export function useChurnHistory(customerId: number | null) {
   const api = useApi();
   const { isSignedIn } = useAuth();
@@ -71,5 +119,24 @@ export function useChurnHistory(customerId: number | null) {
       ),
     staleTime: 30_000,
     enabled: !!isSignedIn && customerId != null,
+  });
+}
+
+export function useMarkCustomerRetained() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, status, note, expires_days }: MarkCustomerRetainedInput) =>
+      api.post<MarkCustomerRetainedResponse>(
+        `/api/analytics/churn/scores/retain/${customerId}/`,
+        { status, note, expires_days },
+      ),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ["churn-scores"] });
+      qc.invalidateQueries({ queryKey: ["churn-score", variables.customerId] });
+      qc.invalidateQueries({ queryKey: ["churn-history", variables.customerId] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer", variables.customerId] });
+    },
   });
 }

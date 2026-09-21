@@ -17,7 +17,7 @@ import { styled } from "nativewind";
 import "../../global.css";
 
 import AppHeader from "../../components/AppHeader";
-import RiskBadge, { levelFromProb, type RiskLevel } from "../../components/RiskBadge";
+import RiskBadge, { type RiskLevel } from "../../components/RiskBadge";
 import { useCustomer, useJobs } from "../../lib/hooks/useJobs";
 import { useUpdateCustomer } from "../../lib/hooks/useCustomers";
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
@@ -25,9 +25,10 @@ import { useRefresh } from "@/hooks/useRefresh";
 import {
   useChurnHistory,
   useChurnScores,
+  useMarkCustomerRetained,
+  type CustomerRetentionStatus,
   type ChurnScore,
 } from "../../lib/hooks/useChurn";
-import ScreenScaffold from "@/components/ScreenScaffold";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -79,7 +80,12 @@ export default function CustomerProfile() {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [retentionOpen, setRetentionOpen] = useState(false);
+  const [retentionStatus, setRetentionStatus] = useState<CustomerRetentionStatus>("reassured");
+  const [retentionNote, setRetentionNote] = useState("");
+  const [retentionError, setRetentionError] = useState<string | null>(null);
   const updateCustomer = useUpdateCustomer();
+  const markRetained = useMarkCustomerRetained();
   const { data: business } = useCurrentBusiness();
   const isMobileBusiness = business?.industry_mode === "mobile";
 
@@ -172,6 +178,30 @@ export default function CustomerProfile() {
     }
   };
 
+  const openRetentionEditor = () => {
+    setRetentionStatus("reassured");
+    setRetentionNote("");
+    setRetentionError(null);
+    setRetentionOpen(true);
+  };
+
+  const saveRetentionSignal = async () => {
+    if (!retentionNote.trim()) {
+      setRetentionError("Add a short note from the customer conversation.");
+      return;
+    }
+    try {
+      await markRetained.mutateAsync({
+        customerId: customer.id,
+        status: retentionStatus,
+        note: retentionNote.trim(),
+      });
+      setRetentionOpen(false);
+    } catch (error: any) {
+      setRetentionError(error?.message || "Could not record retention note.");
+    }
+  };
+
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title={customer.full_name} back={true} />
@@ -211,6 +241,56 @@ export default function CustomerProfile() {
               {latestScore.model_name} · scored{" "}
               {new Date(latestScore.scored_at).toLocaleString()}
             </Text>
+          )}
+          {latestScore?.feature_snapshot?.manual_retention_status ? (
+            <View className="mt-3 rounded-xl bg-green-50 border border-green-100 p-3">
+              <Text className="text-xs font-bold text-green-800">
+                Manual retention adjustment
+              </Text>
+              <Text className="text-[11px] text-green-700 mt-1 leading-4">
+                {latestScore.feature_snapshot.manual_retention_note ||
+                  "Customer contact recorded as a retention signal."}
+              </Text>
+              {latestScore.feature_snapshot.raw_model_probability != null &&
+              latestScore.feature_snapshot.manual_adjusted_probability != null ? (
+                <Text className="text-[11px] text-green-800 mt-1 font-semibold">
+                  Raw {Math.round(latestScore.feature_snapshot.raw_model_probability * 100)}% → adjusted {Math.round(latestScore.feature_snapshot.manual_adjusted_probability * 100)}%
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+          {latestScore ? (
+            <>
+              <Pressable
+                onPress={openRetentionEditor}
+                className="mt-3 bg-green-700 rounded-full py-2 items-center"
+                accessibilityRole="button"
+              >
+                <Text className="text-white text-xs font-semibold">
+                  Record retention call
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/customer-churn/[id]",
+                    params: { id: String(customer.id) },
+                  })
+                }
+                className="mt-3 bg-slate-900 rounded-full py-2 items-center"
+                accessibilityRole="button"
+              >
+                <Text className="text-white text-xs font-semibold">
+                  View churn analysis
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <View className="mt-3 border border-slate-200 rounded-full py-2 items-center">
+              <Text className="text-slate-500 text-xs font-semibold">
+                Analysis available after first booking
+              </Text>
+            </View>
           )}
         </View>
 
@@ -417,6 +497,73 @@ export default function CustomerProfile() {
                 <ActivityIndicator color="white" />
               ) : (
                 <Text className="text-white text-sm font-semibold">Save changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={retentionOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRetentionOpen(false)}
+      >
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="bg-white rounded-t-3xl p-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-bold text-slate-900">Record retention call</Text>
+              <Pressable onPress={() => setRetentionOpen(false)}>
+                <Text className="text-slate-500">Close</Text>
+              </Pressable>
+            </View>
+
+            <Text className="text-xs font-semibold text-slate-600 mb-2">Outcome</Text>
+            <View className="flex-row gap-2 mb-4">
+              {([
+                ["retained", "Retained"],
+                ["reassured", "Reassured"],
+                ["watchlist", "Still at risk"],
+              ] as const).map(([value, label]) => {
+                const active = retentionStatus === value;
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setRetentionStatus(value)}
+                    className={`flex-1 rounded-xl border px-2 py-3 items-center ${
+                      active ? "border-green-700 bg-green-50" : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <Text className={`text-[11px] font-semibold ${active ? "text-green-800" : "text-slate-600"}`}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text className="text-xs font-semibold text-slate-600 mb-1">Conversation note</Text>
+            <TextInput
+              value={retentionNote}
+              onChangeText={setRetentionNote}
+              placeholder="e.g. Customer is happy after call and plans to book again next month."
+              multiline
+              className="border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900"
+              style={{ minHeight: 96, textAlignVertical: "top" }}
+            />
+            <Text className="text-[11px] text-slate-500 mt-2 leading-4">
+              This records an auditable retention signal and updates the displayed churn risk while preserving the raw model probability.
+            </Text>
+            {retentionError ? <Text className="text-xs text-red-600 mt-2">{retentionError}</Text> : null}
+            <Pressable
+              onPress={saveRetentionSignal}
+              disabled={markRetained.isPending}
+              className="bg-green-700 rounded-full py-3 items-center mt-4 disabled:opacity-50"
+            >
+              {markRetained.isPending ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text className="text-white text-sm font-semibold">Save retention note</Text>
               )}
             </Pressable>
           </View>
