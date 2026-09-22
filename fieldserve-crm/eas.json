@@ -12,7 +12,7 @@
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmFuY3ktZ2hvc3QtMzMuY2xlcmsuYWNjb3VudHMuZGV2JA",
         "EXPO_PUBLIC_API_URL": "http://192.168.0.10:8000",
         "EXPO_PUBLIC_URL": "http://192.168.0.10:8000",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_GOOGLE_MAPS_JS_KEY"
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyC88sMTDF6xAAc_RMrD96aAmt3sRvpOPYA"
       }
     },
     "preview": {
@@ -22,7 +22,7 @@
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmFuY3ktZ2hvc3QtMzMuY2xlcmsuYWNjb3VudHMuZGV2JA",
         "EXPO_PUBLIC_API_URL": "https://fieldserve-backend.onrender.com",
         "EXPO_PUBLIC_URL": "https://fieldserve.vercel.app",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_GOOGLE_MAPS_JS_KEY"
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyC88sMTDF6xAAc_RMrD96aAmt3sRvpOPYA"
       }
     },
     "production": {
@@ -32,7 +32,7 @@
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmFuY3ktZ2hvc3QtMzMuY2xlcmsuYWNjb3VudHMuZGV2JA",
         "EXPO_PUBLIC_API_URL": "https://fieldserve-backend.onrender.com",
         "EXPO_PUBLIC_URL": "https://fieldserve.vercel.app",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "REPLACE_WITH_GOOGLE_MAPS_JS_KEY"
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyC88sMTDF6xAAc_RMrD96aAmt3sRvpOPYA"
       }
     }
   },
