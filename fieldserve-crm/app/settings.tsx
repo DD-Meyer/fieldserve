@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SettingsGroup from "../components/SettingsGroup";
 import SettingsRow from "../components/SettingsRow";
+import { ApiError } from "../lib/api";
 import { useCurrentBusiness, useDeleteBusiness } from "../lib/hooks/useBusiness";
 import { useMe } from "../lib/hooks/useMe";
 
@@ -27,15 +28,17 @@ export default function SettingsScreen() {
 
     Alert.alert(
       "Delete business account?",
-      "This is irreversible. It permanently deletes this business, all bookings, customers, services, team memberships, inspections, and associated data. Your Clerk login remains available for other businesses.",
+      "This is irreversible. It permanently deletes this business, all bookings, customers, services, team memberships, inspections, and associated data. Any future pending bookings are cancelled automatically. Deletion is blocked while any booking is in progress or confirmed. Your Clerk login remains available for other businesses.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete permanently",
           style: "destructive",
           onPress: () => {
-            void deleteBusiness.mutateAsync(currentBusiness.id).then(() => signOut()).catch(() => {
-              Alert.alert("Business was not deleted", "Please try again when you have a connection.");
+            void deleteBusiness.mutateAsync(currentBusiness.id).then(() => signOut()).catch((e: unknown) => {
+              const message =
+                e instanceof ApiError ? e.message : "Please try again when you have a connection.";
+              Alert.alert("Business was not deleted", message);
             });
           },
         },
