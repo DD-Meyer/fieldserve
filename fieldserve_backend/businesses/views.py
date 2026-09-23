@@ -438,7 +438,12 @@ class ServiceViewSet(viewsets.ModelViewSet):
         elif biz.id not in biz_ids:
             raise PermissionDenied("Not a member of that business.")
         slug = self._resolve_slug(biz, serializer.validated_data["name"])
-        serializer.save(business=biz, slug=slug)
+        service = serializer.save(business=biz, slug=slug)
+        # A service nobody's qualified for can never be scheduled — default to
+        # every active member being qualified; admins can narrow it down later.
+        service.qualified_members.set(
+            biz.memberships.filter(status=Membership.Status.ACTIVE)
+        )
 
     def perform_update(self, serializer):
         instance = serializer.instance
