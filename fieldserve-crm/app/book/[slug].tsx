@@ -508,7 +508,10 @@ export default function PublicBookingPage() {
         <Text className="text-sm font-bold text-slate-900 mb-2">
           2. Your details
         </Text>
-        <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
+        <View
+          className="bg-white rounded-2xl border border-slate-200 p-4 mb-5"
+          style={{ position: "relative", zIndex: 20 }}
+        >
           {knownCustomer ? (
             <View className="mb-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
               <Text className="text-[11px] font-semibold text-green-800">
@@ -613,7 +616,10 @@ export default function PublicBookingPage() {
         <Text className="text-sm font-bold text-slate-900 mb-2">
           3. When?
         </Text>
-        <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
+        <View
+          className="bg-white rounded-2xl border border-slate-200 p-4 mb-5"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           {suggestions.length > 0 ? (
             <View className="mb-3">
               <Text className="text-[11px] font-semibold text-slate-700 mb-2">
