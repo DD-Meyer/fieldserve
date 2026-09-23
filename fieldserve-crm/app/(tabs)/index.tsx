@@ -1,155 +1,140 @@
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, RefreshControl, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from "react-native-reanimated";
 import "../../global.css";
 import AppHeader, {
-  FLOATING_HEADER_CONTENT_OFFSET,
+  HOME_HEADER_EXTRA_HEIGHT,
 } from "../../components/AppHeader";
-import FeatureCard from "../../components/FeatureCard";
-import StatCard from "../../components/StatCard";
-import UpcomingJobRow, { type UpcomingJob } from "../../components/UpcomingJobRow";
+import BookingCalendarCard from "../../components/home/BookingCalendarCard";
+import WeeklyRevenueCard from "../../components/home/WeeklyRevenueCard";
+import { addDays, dateKey, monthBounds, startOfWeek, weeklyRevenue } from "../../components/home/dashboardData";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useRefresh } from "@/hooks/useRefresh";
-import { useJobs, type Job } from "../../lib/hooks/useJobs";
+import { useJobs } from "../../lib/hooks/useJobs";
+import {
+  useNotificationSocket,
+  useUnreadNotificationCount,
+} from "../../lib/hooks/useNotifications";
 import { styled } from "nativewind";
 import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
 
-function toUpcoming(j: Job): UpcomingJob {
-  const d = new Date(j.scheduled_at);
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return {
-    id: j.id,
-    time,
-    customer: j.customer_name || `Customer #${j.customer}`,
-    service: j.service_type,
-    location: j.address || j.customer_address || "",
-  };
-}
-
-function moneyTotal(jobs: Job[]): number {
+function moneyTotal(jobs: { price: string | number | null }[]): number {
   return jobs.reduce((sum, j) => sum + (Number(j.price) || 0), 0);
 }
 
 export default function HomeScreen() {
   const router = useRouter();
+  useNotificationSocket();
+  const { data: unreadNotificationCount = 0 } = useUnreadNotificationCount();
   const tabBarSpace = useTabBarSpace();
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
 
   // Load today's jobs
   const {
     data: todayData,
     isLoading: todayLoading,
-    error: todayError,
     refetch: refetchToday,
   } = useJobs({
     date: "today",
     ordering: "scheduled_at"
   });
 
-  // Load all jobs for total count
+  const { from: monthStart, to: monthEnd } = useMemo(
+    () => monthBounds(calendarMonth),
+    [calendarMonth],
+  );
+  const weekStart = useMemo(() => startOfWeek(new Date()), []);
+
   const {
-    data: lastWeekData,
-    isLoading: lastWeekLoading,
-    refetch: refetchLastWeek,
+    data: monthData,
+    refetch: refetchMonth,
   } = useJobs({
-    date: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 7);
-      return d.toISOString().split("T")[0];
-    })(), // 7 days ago in the format "YYYY-MM-DD"
+    date_from: dateKey(monthStart),
+    date_to: dateKey(monthEnd),
     ordering: "scheduled_at"
   });
 
-  const todayJobs = todayData?.results ?? [];
-  const lastWeekJobs = lastWeekData?.results ?? [];
+  const { data: revenueData, refetch: refetchRevenue } = useJobs({
+    date_from: dateKey(addDays(weekStart, -7)),
+    date_to: dateKey(addDays(weekStart, 6)),
+    ordering: "scheduled_at",
+  });
 
+  const todayJobs = useMemo(() => todayData?.results ?? [], [todayData?.results]);
   const todayRevenue = moneyTotal(todayJobs);
-  const totalRevenue = moneyTotal(lastWeekJobs);
+  const monthJobs = useMemo(() => monthData?.results ?? [], [monthData?.results]);
+  const revenueJobs = useMemo(() => revenueData?.results ?? [], [revenueData?.results]);
+  const currentWeekRevenue = useMemo(
+    () => weeklyRevenue(revenueJobs, weekStart),
+    [revenueJobs, weekStart],
+  );
+  const previousWeekTotal = useMemo(
+    () => weeklyRevenue(revenueJobs, addDays(weekStart, -7)).reduce((sum, point) => sum + point.value, 0),
+    [revenueJobs, weekStart],
+  );
 
-  const { refreshing, onRefresh } = useRefresh([refetchToday, refetchLastWeek]);
+  const { refreshing, onRefresh } = useRefresh([refetchToday, refetchMonth, refetchRevenue]);
+
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title="FieldServe CRM" home />
+      <AppHeader
+        home
+        title=""
+        scrollY={scrollY}
+        stats={[
+          { label: "Jobs Today", value: todayLoading ? "—" : String(todayJobs.length) },
+          { label: "Today's Revenue", value: todayLoading ? "—" : `$${todayRevenue.toFixed(0)}` },
+          { label: "Pending", value: todayLoading ? "—" : String(todayJobs.filter(job => job.status === "pending").length) },
+        ]}
+        notificationCount={unreadNotificationCount}
+        onNotificationPress={() => router.push("/notifications" as any)}
+      />
 
-      
-      {/* <HomeBackground /> */}
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         contentContainerStyle={{
-          padding: 16,
-          paddingTop: 16 + FLOATING_HEADER_CONTENT_OFFSET,
+          paddingTop: HOME_HEADER_EXTRA_HEIGHT + 16,
+          paddingHorizontal: 16,
           paddingBottom: tabBarSpace,
         }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            progressViewOffset={HOME_HEADER_EXTRA_HEIGHT}
+          />
         }
       >
+        <WeeklyRevenueCard points={currentWeekRevenue} previousTotal={previousWeekTotal} />
 
-        <Text className="mb-3 text-base font-semibold text-slate-900">
-          Key Metrics
-        </Text>
-        
-        <View className="flex-row gap-3 justify-between">
-          <StatCard
-            label="Jobs Today"
-            value={todayLoading ? "—" : String(todayJobs.length)}
-            delta={todayLoading ? "Loading…" : "Live"}
-          />
-          <StatCard
-            label="Revenue this week"
-            value={todayLoading ? "—" : `$${todayRevenue.toFixed(0)}`}
-            delta={todayLoading ? "Loading…" : "Sum of today's revenue"}
-          />
+        <View className="mt-6 mb-3 flex-row items-center justify-between">
+          <Text className="text-base font-semibold text-slate-900">Booking Calendar</Text>
+          <Pressable onPress={() => router.push("/schedule")} accessibilityLabel="View schedule">
+            <Text className="text-xs font-semibold text-blue-600">View schedule</Text>
+          </Pressable>
         </View>
-        <View className="flex-row gap-3 mt-3 justify-between">
-          <StatCard
-            label="Last Week's Jobs"
-            value={lastWeekLoading ? "—" : String(lastWeekJobs.length)}
-            delta={lastWeekLoading ? "Loading…" : "Live"}
-          />
-          <StatCard
-            label="Last week's Revenue"
-            value={lastWeekLoading ? "—" : `$${totalRevenue.toFixed(0)}`}
-            delta={lastWeekLoading ? "Loading…" : "Sum of total revenue"}
-          />
-        </View>
-
-        <Text className="mt-6 mb-3 text-base font-semibold text-slate-900">
-          AI Insights
-        </Text>
-        <View className="gap-3">
-          <FeatureCard
-            tone="purple"
-            glyph="◈"
-            title="AI Performance Insights"
-            description="Live churn, demand heatmap, service opportunity, vehicle inspection, and smart scheduler analytics in one dashboard."
-            cta="Open dashboard"
-            onPress={() => router.push("/ai-insights")}
-          />
-        </View>
-
-        <View className="mt-6 mb-2 flex-row items-center justify-between">
-          <Text className="text-base font-semibold text-slate-900">Upcoming Jobs</Text>
-          <Text className="text-xs text-slate-500">Today</Text>
-        </View>
-        <View className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          {todayLoading ? (
-            <View className="p-6 items-center">
-              <ActivityIndicator />
-            </View>
-          ) : todayError ? (
-            <View className="p-6 items-center">
-              <Text className="text-xs text-red-600">Could not load jobs.</Text>
-            </View>
-          ) : todayJobs.length === 0 ? (
-            <View className="p-6 items-center">
-              <Text className="text-xs text-slate-500">No jobs scheduled today.</Text>
-            </View>
-          ) : (
-            todayJobs.map((j: Job) => <UpcomingJobRow key={j.id} job={toUpcoming(j)} />)
-          )}
-        </View>
-      </ScrollView>
+        <BookingCalendarCard
+          month={calendarMonth}
+          jobs={monthJobs}
+          selectedDate={selectedDate}
+          onMonthChange={setCalendarMonth}
+          onSelectDate={setSelectedDate}
+        />
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

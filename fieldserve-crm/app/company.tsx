@@ -138,8 +138,16 @@ export default function CompanyScreen() {
       </SettingsGroup>
 
       <SettingsGroup title="Branding">
-        <SettingsRow label="Logo" value="Default" onPress={() => {}} />
-        <SettingsRow label="Brand colour" value="#2563EB" onPress={() => {}} />
+        <SettingsRow
+          label="Logo"
+          value={b?.logo_url || "Not configured"}
+          chevron={false}
+        />
+        <SettingsRow
+          label="Brand colour"
+          value={b?.brand_color || "Not configured"}
+          chevron={false}
+        />
       </SettingsGroup>
 
       <SettingsGroup title="Scheduling">

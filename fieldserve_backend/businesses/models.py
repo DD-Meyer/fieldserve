@@ -45,6 +45,7 @@ class Business(models.Model):
     logo_url = models.URLField(blank=True)
 
     public_booking_enabled = models.BooleanField(default=True)
+    deletion_requested_at = models.DateTimeField(null=True, blank=True)
 
     # Scheduling settings
     working_hours_start = models.TimeField(default=time(8, 0))

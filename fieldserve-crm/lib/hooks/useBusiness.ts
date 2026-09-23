@@ -70,3 +70,15 @@ export function useUpdateBusiness() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["business"] }),
   });
 }
+
+export function useDeleteBusiness() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`/api/businesses/${id}/`),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ["business"] });
+      qc.removeQueries({ queryKey: ["me"] });
+    },
+  });
+}

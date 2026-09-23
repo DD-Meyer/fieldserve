@@ -1,20 +1,13 @@
 // Page where users can share the booking link with others. This component uses the Web Share API if available, otherwise it falls back to copying the link to the clipboard.
-import { useState } from "react";
-import { Image, Pressable, Text, View, Alert } from "react-native";
-import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Alert, Pressable, Text, View } from "react-native";
 
-import { icons } from "../constants/icons";
-import NavDrawer from "./NavDrawer";
-import { Background } from "@react-navigation/elements";
-import { colors } from "@/constants/theme";
-import { CompanyProfile, useCompany } from "@/lib/hooks/useCompany";
+import { useCompany } from "@/lib/hooks/useCompany";
+import { getBookingLink } from "@/lib/publicBookingUrl";
 
 // Show options to embed or share a link for booking a service with FieldServe. Uses the Web Share API if available, otherwise falls back to copying the link to the clipboard.
 export default function ShareBookingLink() {
     const { data: companyProfile } = useCompany();
-    const expoUrl = process.env.EXPO_PUBLIC_URL || "http://localhost:3000"; // Fallback to localhost if EXPO_PUBLIC_URL is not set
-    const bookingLink = `http://${expoUrl}/book/${companyProfile?.slug}`; // Replace with your actual booking link
+    const bookingLink = getBookingLink(companyProfile?.slug);
 
 
     return (
@@ -26,6 +19,10 @@ export default function ShareBookingLink() {
             </Text>
             <Pressable
                 onPress={async () => {
+                    if (!bookingLink) {
+                        Alert.alert("Booking link unavailable", "Configure the production public URL before sharing bookings.");
+                        return;
+                    }
                     if (navigator.share) {
                         try {
                             await navigator.share({

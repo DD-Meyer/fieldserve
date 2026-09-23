@@ -192,6 +192,7 @@ export function buildGoogleMapsHtml(props: RouteMapProps): string {
       bounds.extend({ lat: Number(point.latitude), lng: Number(point.longitude) });
     });
 
+    var infoWindow = new google.maps.InfoWindow();
     (D.markers || []).forEach(function(marker) {
       bounds.extend({ lat: Number(marker.latitude), lng: Number(marker.longitude) });
     });
@@ -214,7 +215,14 @@ export function buildGoogleMapsHtml(props: RouteMapProps): string {
     (D.markers || []).forEach(function(marker) {
       var labelText = marker.order === 0 ? 'D' : (marker.order != null ? String(marker.order) : '•');
       var fillColor = marker.order === 0 ? '#0f172a' : '#2563eb';
-      new google.maps.Marker({
+        if (marker.jobStatus === 'completed') fillColor = '#16a34a';
+        if (marker.jobStatus === 'in_progress') fillColor = '#f59e0b';
+        if (marker.jobStatus === 'cancelled') fillColor = '#dc2626';
+      if (marker.kind === 'staff') {
+        fillColor = marker.status === 'live' ? '#16a34a' : (marker.status === 'stale' ? '#f59e0b' : '#64748b');
+        labelText = '●';
+      }
+      var mapMarker = new google.maps.Marker({
         position: { lat: Number(marker.latitude), lng: Number(marker.longitude) },
         map: map,
         label: {
@@ -234,6 +242,38 @@ export function buildGoogleMapsHtml(props: RouteMapProps): string {
         },
         title: marker.label || 'Route stop',
       });
+      if (marker.kind === 'staff') {
+        mapMarker.addListener('click', function() {
+          infoWindow.setContent(
+            '<div style="font: 12px system-ui,sans-serif; padding: 4px 6px;">' +
+            '<strong>' + (marker.label || 'Staff location') + '</strong><br />' +
+            (marker.detail || marker.status || 'Location available') +
+            '</div>'
+          );
+          infoWindow.open({ map: map, anchor: mapMarker });
+        });
+      }
+      if (marker.jobId) {
+        mapMarker.addListener('click', function() {
+          var buttonId = 'job-marker-' + marker.jobId;
+          infoWindow.setContent(
+            '<div style="font: 12px system-ui,sans-serif; padding: 4px 6px;">' +
+            '<strong>' + (marker.customerName || marker.label || 'Customer') + '</strong><br />' +
+            (marker.serviceType || 'Job') + '<br />' + (marker.jobStatus || '') +
+            '<br /><button id="' + buttonId + '" style="margin-top:8px;padding:6px 9px;border:0;border-radius:6px;background:#2563eb;color:#fff;font-weight:700;">View job</button>' +
+            '</div>'
+          );
+          infoWindow.open({ map: map, anchor: mapMarker });
+          google.maps.event.addListenerOnce(infoWindow, 'domready', function() {
+            var button = document.getElementById(buttonId);
+            if (button) {
+              button.onclick = function() {
+                window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'job-marker-press', jobId: Number(marker.jobId) }));
+              };
+            }
+          });
+        });
+      }
     });
 
     if (bounds.isEmpty()) {

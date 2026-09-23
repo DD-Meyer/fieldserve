@@ -57,8 +57,12 @@ export default function OnboardingScreen() {
       if (!token) {
         throw new Error("Failed to obtain authentication token.");
       }
+      const apiBase = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/$/, "");
+      if (!apiBase) {
+        throw new Error("EXPO_PUBLIC_API_URL is not configured.");
+      }
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/onboard/`,
+        `${apiBase}/api/v1/users/onboard/`,
         {
           method: "POST",
           headers: {

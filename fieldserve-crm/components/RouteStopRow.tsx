@@ -6,6 +6,8 @@ export type RouteStop = {
   customer: string;
   location: string;
   durationMin: number;
+  jobId: number;
+  status: string;
   distanceKm: number;
   travelMin?: number;
 };
@@ -19,7 +21,7 @@ export default function RouteStopRow({ stop, isLast }: Props) {
   return (
     <View className="flex-row">
       <View className="w-10 items-center">
-        <View className="h-8 w-8 rounded-full bg-blue-600 items-center justify-center">
+        <View className={`h-8 w-8 rounded-full ${stop.status === "completed" ? "bg-green-600" : stop.status === "in_progress" ? "bg-amber-500" : stop.status === "cancelled" ? "bg-red-500" : "bg-blue-600"} items-center justify-center`}>
           <Text className="text-white text-xs font-bold">{stop.order}</Text>
         </View>
         {!isLast ? <View className="flex-1 w-px bg-slate-200 mt-1" /> : null}

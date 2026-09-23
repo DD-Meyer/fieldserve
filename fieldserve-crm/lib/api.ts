@@ -1,17 +1,33 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { useCallback, useMemo } from "react";
 
-const RAW_BASE = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000";
-const API_BASE = RAW_BASE.replace(/\/$/, "");
+const API_BASE = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
 
 export class ApiError extends Error {
   status: number;
   body: unknown;
   constructor(status: number, body: unknown, message?: string) {
-    super(message || `Request failed with ${status}`);
+    super(message || formatApiError(status, body));
     this.status = status;
     this.body = body;
   }
+}
+
+function formatApiError(status: number, body: unknown): string {
+  if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    const detail = record.detail ?? record.status;
+    if (typeof detail === "string") {
+      const missing = record.missing_angles;
+      if (Array.isArray(missing) && missing.length > 0) {
+        return `${detail} Missing: ${missing.join(", ")}.`;
+      }
+      return detail;
+    }
+    const firstError = Object.values(record).find((value) => typeof value === "string");
+    if (typeof firstError === "string") return firstError;
+  }
+  return `Request failed with ${status}`;
 }
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null;
@@ -36,6 +52,9 @@ export function useApi() {
       body?: Json,
       query?: Record<string, string | number | boolean | undefined>,
     ): Promise<T> => {
+      if (!path.startsWith("http") && !API_BASE) {
+        throw new Error("EXPO_PUBLIC_API_URL is not configured.");
+      }
       const url = new URL(
         path.startsWith("http") ? path : `${API_BASE}${path}`,
       );
@@ -54,11 +73,13 @@ export function useApi() {
         const token = await getToken();
         if (token) headers["Authorization"] = `Bearer ${token}`;
       }
-      console.log(
-        `[FieldServe API] -> ${method} ${url.toString()} (auth: ${
-          isSignedIn ? "yes" : "no"
-        })`,
-      );
+      if (__DEV__) {
+        console.log(
+          `[FieldServe API] -> ${method} ${url.toString()} (auth: ${
+            isSignedIn ? "yes" : "no"
+          })`,
+        );
+      }
       let res: Response;
       try {
         res = await fetch(url.toString(), {
@@ -67,16 +88,20 @@ export function useApi() {
           body: body === undefined ? undefined : JSON.stringify(body),
         });
       } catch (e: any) {
-        console.log(
-          `[FieldServe API] xx ${method} ${url.toString()} network error:`,
-          e?.message ?? e,
-        );
+        if (__DEV__) {
+          console.log(
+            `[FieldServe API] xx ${method} ${url.toString()} network error:`,
+            e?.message ?? e,
+          );
+        }
         throw e;
       }
       const parsed = await parseBody(res);
-      console.log(
-        `[FieldServe API] <- ${method} ${url.toString()} ${res.status}`,
-      );
+      if (__DEV__) {
+        console.log(
+          `[FieldServe API] <- ${method} ${url.toString()} ${res.status}`,
+        );
+      }
       if (!res.ok) {
         throw new ApiError(res.status, parsed);
       }
@@ -102,6 +127,9 @@ export function useApi() {
         path: string,
         form: FormData,
       ): Promise<T> => {
+        if (!path.startsWith("http") && !API_BASE) {
+          throw new Error("EXPO_PUBLIC_API_URL is not configured.");
+        }
         const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
         const headers: Record<string, string> = { Accept: "application/json" };
         if (isSignedIn) {

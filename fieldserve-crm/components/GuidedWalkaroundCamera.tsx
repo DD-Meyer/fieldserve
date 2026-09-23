@@ -57,6 +57,7 @@ export default function GuidedWalkaroundCamera({
   const [capturing, setCapturing] = useState(false);
   const [autoCapture, setAutoCapture] = useState(true);
   const [frameCheck, setFrameCheck] = useState<FrameCheck | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const checkingRef = useRef(false);
   const captureInFlightRef = useRef(false);
@@ -67,9 +68,15 @@ export default function GuidedWalkaroundCamera({
   const cameraOpen = angle != null;
 
   // Compute maximum available overlay size without bleeding off-screen
+  const baseGuideWidth = Math.min(
+    window.width * 0.7,
+    (window.height - 120) * WALKAROUND_OVERLAY.aspectRatio,
+  );
+  const coverage = frameCheck?.vehicle?.coverage ?? 0.45;
+  const guideScale = Math.max(0.82, Math.min(1.18, Math.sqrt(0.45 / Math.max(coverage, 0.12))));
   const guideWidth = Math.min(
-    window.width * 0.55,
-    (window.height - 80) * WALKAROUND_OVERLAY.aspectRatio
+    baseGuideWidth * guideScale,
+    (window.height - 100) * WALKAROUND_OVERLAY.aspectRatio,
   );
 
   const shutterSize = window.height < 360 ? 48 : 56;
@@ -89,12 +96,20 @@ export default function GuidedWalkaroundCamera({
   }, [cameraOpen]);
 
   const capture = useCallback(async () => {
-    if (!ready || captureInFlightRef.current || uploading || !cameraRef.current) return;
+    if (!ready) {
+      setCameraError("Camera is still starting. Hold on for a moment and try again.");
+      return;
+    }
+    if (captureInFlightRef.current || uploading || !cameraRef.current) return;
     captureInFlightRef.current = true;
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.75 });
-      if (photo?.uri) await onCaptured(photo.uri);
+      if (!photo?.uri) throw new Error("The camera did not return an image.");
+      await onCaptured(photo.uri);
+      setCameraError(null);
+    } catch (error) {
+      setCameraError(error instanceof Error ? error.message : "Image capture failed. Try again.");
     } finally {
       captureInFlightRef.current = false;
       setCapturing(false);
@@ -105,6 +120,7 @@ export default function GuidedWalkaroundCamera({
     stableFramesRef.current = 0;
     autoTriggeredRef.current = false;
     setFrameCheck(null);
+    setCameraError(null);
   }, [angle]);
 
   useEffect(() => {
@@ -125,13 +141,22 @@ export default function GuidedWalkaroundCamera({
           autoTriggeredRef.current = true;
           await capture();
         }
-      } catch {
+      } catch (error: any) {
         stableFramesRef.current = 0;
-        setFrameCheck({ ready: false, reason: "check_failed", guidance: "Auto check unavailable — use manual capture" });
+        const isRateLimited = error?.status === 429;
+        setFrameCheck({
+          ready: false,
+          reason: isRateLimited ? "rate_limited" : "check_failed",
+          guidance: isRateLimited
+            ? "Auto check is busy — adjusting and retrying"
+            : error instanceof Error
+              ? error.message
+              : "Auto check unavailable — use manual capture",
+        });
       } finally {
         checkingRef.current = false;
       }
-    }, 1400);
+    }, 4000);
     return () => clearInterval(timer);
   }, [angle, autoCapture, capture, capturing, onCheckFrame, permission?.granted, ready, uploading]);
 
@@ -154,14 +179,24 @@ export default function GuidedWalkaroundCamera({
             ratio="16:9"
             responsiveOrientationWhenOrientationLocked
             animateShutter={false}
-            onCameraReady={() => setReady(true)}
+            onCameraReady={() => {
+              setReady(true);
+              setCameraError(null);
+            }}
+            onMountError={(error) => {
+              setReady(false);
+              setCameraError(error.message || "Camera could not start.");
+            }}
           />
         ) : null}
 
         {/* 1. CENTERED VEHICLE GUIDE LAYER */}
         {permission?.granted && (
           <View style={styles.centerOverlay} pointerEvents="none">
-            <Text style={styles.guidance} numberOfLines={1}>{step?.guidance}</Text>
+            <Text style={styles.guidance} numberOfLines={2}>
+              {frameCheck?.guidance ?? step?.guidance}
+            </Text>
+            {cameraError ? <Text style={styles.errorText}>{cameraError}</Text> : null}
 
             <View style={[styles.readinessBadge, frameCheck?.ready && styles.readinessBadgeReady]}>
               <Ionicons
@@ -170,7 +205,7 @@ export default function GuidedWalkaroundCamera({
                 color={frameCheck?.ready ? "#14532d" : "white"}
               />
               <Text style={[styles.readinessText, frameCheck?.ready && styles.readinessTextReady]} numberOfLines={1}>
-                {frameCheck?.ready ? "Position locked — hold steady" : frameCheck?.guidance ?? "Fit vehicle inside outline"}
+                {frameCheck?.ready ? "Position locked — hold steady" : frameCheck?.guidance ?? "Centre the vehicle and fit all edges inside the outline"}
               </Text>
             </View>
 
@@ -271,6 +306,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   guidance: { color: "white", fontSize: 13, fontWeight: "700", textAlign: "center", textShadowColor: "black", textShadowRadius: 4 },
+  errorText: { color: "#fecaca", fontSize: 11, fontWeight: "600", textAlign: "center", marginTop: 6, maxWidth: 300 },
   readinessBadge: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: "rgba(2,6,23,0.72)" },
   readinessBadgeReady: { backgroundColor: "#dcfce7" },
   readinessText: { color: "white", fontSize: 11, fontWeight: "600" },

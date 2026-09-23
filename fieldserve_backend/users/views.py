@@ -2,7 +2,7 @@ import uuid
 
 from django.db import transaction
 from django.utils.text import slugify
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,7 +12,9 @@ from businesses.models import Business, Membership
 
 from .models import Customer
 from .permissions import IsBusinessMember, active_business_ids, default_business_for
-from .serializers import CustomerSerializer, UserSerializer
+from .serializers import CustomerSerializer, UserSerializer, NotificationSerializer
+from .models import Notification
+from .notifications import notify_business_members
 
 
 class MeView(generics.RetrieveUpdateAPIView):
@@ -110,12 +112,18 @@ class CustomerViewSet(viewsets.ModelViewSet):
             if business is None:
                 raise PermissionDenied("User has no active business.")
             serializer.validate_location_for_business(serializer.validated_data, business)
-            serializer.save(business=business)
+            customer = serializer.save(business=business)
         else:
             if requested.id not in biz_ids:
                 raise PermissionDenied("Not a member of that business.")
             serializer.validate_location_for_business(serializer.validated_data, requested)
-            serializer.save()
+            customer = serializer.save()
+
+        notify_business_members(
+            customer.business,
+            title="New customer added",
+            message=f"{customer.full_name} was added to your customer list.",
+        )
 
 
 class OnboardUserView(APIView):
@@ -184,3 +192,23 @@ class OnboardUserView(APIView):
             {"message": "Business created successfully", "slug": unique_slug},
             status=status.HTTP_201_CREATED
         )
+
+class NotificationViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = NotificationSerializer
+    filterset_fields = ["read", "archived"]
+    ordering_fields = ["created_at"]
+
+    def get_queryset(self):
+        queryset = Notification.objects.filter(user=self.request.user)
+        if (
+            self.action == "list"
+            and self.request.query_params.get("archived") != "true"
+        ):
+            queryset = queryset.filter(archived=False)
+        return queryset

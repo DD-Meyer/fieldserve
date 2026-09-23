@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Constants from "expo-constants";
 
 type MenuItem = {
   label: string;
@@ -120,7 +121,9 @@ export default function NavDrawer({ visible, onClose }: Props) {
           </ScrollView>
 
           <View className="px-5 pt-3 border-t border-slate-200">
-            <Text className="text-xs text-slate-400">v0.1.0</Text>
+            <Text className="text-xs text-slate-400">
+              v{Constants.expoConfig?.version ?? "unknown"}
+            </Text>
           </View>
         </Animated.View>
       </View>

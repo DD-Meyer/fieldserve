@@ -22,8 +22,20 @@ export type Me = {
   phone: string;
   avatar_url: string;
   clerk_user_id: string | null;
+  push_notifications_enabled: boolean;
+  email_notifications_enabled: boolean;
+  dark_mode_enabled: boolean;
   memberships: Membership[];
 };
+
+export type UserPreferencesUpdate = Partial<
+  Pick<
+    Me,
+    | "push_notifications_enabled"
+    | "email_notifications_enabled"
+    | "dark_mode_enabled"
+  >
+>;
 
 export function useMe() {
   const api = useApi();
@@ -41,7 +53,9 @@ export function useUpdateMe() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (patch: Partial<Pick<Me, "first_name" | "last_name" | "phone">>) =>
+    mutationFn: (
+      patch: Partial<Pick<Me, "first_name" | "last_name" | "phone">> & UserPreferencesUpdate,
+    ) =>
       api.patch<Me>("/api/auth/me/", patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["me"] });

@@ -4,6 +4,14 @@ export type LeafletMarker = {
   label?: string;
   order?: number;
   color?: string;
+  kind?: "stop" | "staff";
+  status?: "live" | "stale" | "offline";
+  detail?: string;
+  jobId?: number;
+  customerName?: string;
+  serviceType?: string;
+  scheduledAt?: string;
+  jobStatus?: string;
 };
 
 export type LeafletHeatCell = {
@@ -51,6 +59,11 @@ export function buildLeafletHtml(props: LeafletMapProps): string {
     border:2px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.25); cursor:pointer;
   }
   .depot-pin { background:#0f172a; }
+  .staff-pin {
+    color:#fff; border-radius:9999px; width:30px; height:30px;
+    display:flex; align-items:center; justify-content:center; font: 800 11px system-ui,sans-serif;
+    border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); cursor:pointer;
+  }
 
   .heat-badge {
     color:#fff; border-radius:9999px; width:26px; height:26px;
@@ -201,12 +214,40 @@ export function buildLeafletHtml(props: LeafletMapProps): string {
 
   // Render route stop markers if present
   (D.markers || []).forEach(function(m){
+    if (m.kind === 'staff') {
+      var staffColor = m.status === 'live' ? '#16a34a' : (m.status === 'stale' ? '#f59e0b' : '#64748b');
+      var staffIcon = L.divIcon({ className: '', html: '<div class="staff-pin" style="background:' + staffColor + '">●</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
+      var staffMarker = L.marker([m.latitude, m.longitude], { icon: staffIcon }).addTo(map);
+      if (m.label || m.detail) staffMarker.bindPopup('<div class="stat-popup"><div class="stat-title">' + (m.label || 'Staff location') + '</div><div class="stat-value">' + (m.detail || '') + '</div></div>');
+      bounds.push([m.latitude, m.longitude]);
+      return;
+    }
     var isDepot = m.order === 0;
+    var stopColor = m.jobStatus === 'completed' ? '#16a34a' : (m.jobStatus === 'in_progress' ? '#f59e0b' : (m.jobStatus === 'cancelled' ? '#dc2626' : '#2563eb'));
     var html = '<div class="stop-pin' + (isDepot ? ' depot-pin' : '') + '">' +
       (isDepot ? 'D' : (m.order != null ? m.order : '·')) + '</div>';
+    html = isDepot ? html : '<div class="stop-pin" style="background:' + stopColor + '">' + (m.order != null ? m.order : '·') + '</div>';
     var icon = L.divIcon({ className: '', html: html, iconSize: [26, 26], iconAnchor: [13, 13] });
     var mk = L.marker([m.latitude, m.longitude], { icon: icon }).addTo(map);
-    if (m.label) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -10] });
+    if (m.jobId) {
+      var buttonId = 'leaflet-job-marker-' + m.jobId;
+      var details = '<div class="stat-popup">' +
+        '<div class="stat-title">' + (m.customerName || m.label || 'Customer') + '</div>' +
+        '<div class="stat-value">' + (m.serviceType || 'Job') + '<br />' + (m.jobStatus || '') + '</div>' +
+        '<button id="' + buttonId + '" style="margin-top:8px;padding:6px 9px;border:0;border-radius:6px;background:#2563eb;color:#fff;font-weight:700;">View job</button>' +
+        '</div>';
+      mk.bindPopup(details, { offset: [0, -10] });
+      mk.on('popupopen', function() {
+        var button = document.getElementById(buttonId);
+        if (button) {
+          button.onclick = function() {
+            window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'job-marker-press', jobId: Number(m.jobId) }));
+          };
+        }
+      });
+    } else if (m.label) {
+      mk.bindTooltip(m.label, { direction: 'top', offset: [0, -10] });
+    }
     bounds.push([m.latitude, m.longitude]);
   });
 

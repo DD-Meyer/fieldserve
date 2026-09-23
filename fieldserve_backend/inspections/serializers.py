@@ -5,6 +5,8 @@ import logging
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
+from users.notifications import notify_business_members
+
 from .models import DAMAGE_LABEL_CHOICES, DamageAnnotation, Inspection
 from .ml_client import DamageServiceError, detect_damage
 
@@ -156,4 +158,13 @@ def run_analysis(inspection: Inspection) -> None:
             "analysis_error",
             "updated_at",
         ]
+    )
+    status_label = inspection.get_analysis_status_display()
+    notify_business_members(
+        inspection.job.business,
+        title=f"Inspection analysis {status_label.lower()}",
+        message=(
+            f"The {inspection.phase} inspection for "
+            f"{inspection.job.customer.full_name} is {status_label.lower()}."
+        ),
     )

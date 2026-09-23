@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 from businesses.views import BusinessViewSet, IndemnityDocumentViewSet, ServiceViewSet
 from inspections.views import InspectionViewSet
 from jobs.views import JobViewSet
-from users.views import CustomerViewSet, MeView, OnboardUserView
+from users.views import CustomerViewSet, MeView, NotificationViewSet, OnboardUserView
 from users.webhooks import ClerkWebhookView
 
 # Helper to enforce CORS on static media files
@@ -23,6 +23,7 @@ router.register(r"indemnities", IndemnityDocumentViewSet, basename="indemnity")
 router.register(r"services", ServiceViewSet, basename="service")
 router.register(r"customers", CustomerViewSet, basename="customer")
 router.register(r"inspections", InspectionViewSet, basename="inspection")
+router.register(r"notifications", NotificationViewSet, basename="notification")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

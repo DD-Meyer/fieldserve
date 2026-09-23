@@ -19,8 +19,7 @@ import DateTimePickerField from "../../components/DateTimePickerField";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
-const RAW_BASE = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000";
-const API_BASE = RAW_BASE.replace(/\/$/, "");
+const API_BASE = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
 
 type PublicBusiness = {
   name: string;
@@ -82,6 +81,7 @@ function isoToTimeSlot(iso: string): string | null {
 }
 
 async function apiGet<T>(path: string): Promise<T> {
+  if (!API_BASE) throw new Error("EXPO_PUBLIC_API_URL is not configured.");
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Accept: "application/json" },
   });
@@ -90,6 +90,7 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  if (!API_BASE) throw new Error("EXPO_PUBLIC_API_URL is not configured.");
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -509,7 +510,7 @@ export default function PublicBookingPage() {
                 keyboardType="email-address"
               />
               <Text className="text-[11px] text-slate-500 mb-3">
-                We'll check if you've booked with us before and fill in your details.
+                We&apos;ll check if you&apos;ve booked with us before and fill in your details.
               </Text>
               <Pressable
                 onPress={proceedFromEmail}
