@@ -12,6 +12,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from svix.webhooks import Webhook, WebhookVerificationError
 
+from businesses.deletion import DeletionBlocked, request_business_deletion
 from businesses.models import Business, Membership
 
 from .models import User
@@ -60,6 +61,7 @@ class ClerkWebhookView(View):
             "organizationMembership.created": self._membership_created_or_updated,
             "organizationMembership.updated": self._membership_created_or_updated,
             "organizationMembership.deleted": self._membership_deleted,
+            "organization.deleted": self._organization_deleted,
         }.get(event_type)
 
         if handler is None:
@@ -162,3 +164,18 @@ class ClerkWebhookView(View):
         ).exclude(user_id=Business.objects.filter(clerk_organization_id=organization_id).values("owner_id")).update(
             status=Membership.Status.INACTIVE
         )
+
+    def _organization_deleted(self, data: dict) -> None:
+        organization_id = data.get("id")
+        if not organization_id:
+            return
+        business = Business.objects.filter(clerk_organization_id=organization_id).first()
+        if business is None:
+            return
+        try:
+            request_business_deletion(business)
+        except DeletionBlocked:
+            log.warning(
+                "organization.deleted for business %s ignored: has in-progress/confirmed bookings",
+                business.id,
+            )

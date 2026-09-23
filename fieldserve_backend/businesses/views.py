@@ -18,6 +18,7 @@ from .clerk import (
     revoke_organization_invitation,
     update_organization_membership,
 )
+from .deletion import DeletionBlocked, request_business_deletion
 from .models import Business, IndemnityDocument, Membership, Service
 
 
@@ -316,31 +317,13 @@ class BusinessViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(biz).data)
 
     def destroy(self, request, *args, **kwargs):
-        from jobs.models import Job
-
         business = self.get_object()
         if business.owner_id != request.user.id:
             raise PermissionDenied("Only the business owner can delete this business.")
-        if business.deletion_requested_at is not None:
-            return Response(status=204)
-
-        blocking = business.jobs.filter(
-            status__in=[Job.Status.SCHEDULED, Job.Status.IN_PROGRESS]
-        ).count()
-        if blocking:
-            raise serializers.ValidationError(
-                "Cannot delete this business while it has in-progress or confirmed "
-                f"bookings ({blocking}). Complete or cancel them first."
-            )
-
-        with transaction.atomic():
-            business.jobs.filter(
-                status=Job.Status.PENDING, scheduled_at__gte=timezone.now()
-            ).update(status=Job.Status.CANCELLED, updated_at=timezone.now())
-            business.deletion_requested_at = timezone.now()
-            business.public_booking_enabled = False
-            business.save(update_fields=["deletion_requested_at", "public_booking_enabled", "updated_at"])
-            business.memberships.update(status=Membership.Status.INACTIVE)
+        try:
+            request_business_deletion(business)
+        except DeletionBlocked as exc:
+            raise serializers.ValidationError(str(exc)) from exc
         return Response(status=202)
 
 
