@@ -5,6 +5,8 @@ from .public_views import (
     public_business_detail,
     public_check_slot,
     public_lookup_customer,
+    public_places_autocomplete,
+    public_places_details,
     public_service_list,
     public_suggest_slots,
 )
@@ -39,5 +41,15 @@ urlpatterns = [
         "businesses/<slug:slug>/lookup-customer/",
         public_lookup_customer,
         name="public-lookup-customer",
+    ),
+    path(
+        "places/autocomplete/",
+        public_places_autocomplete,
+        name="public-places-autocomplete",
+    ),
+    path(
+        "places/details/",
+        public_places_details,
+        name="public-places-details",
     ),
 ]

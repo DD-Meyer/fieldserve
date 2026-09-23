@@ -93,6 +93,8 @@ services:
         sync: false
       - key: CLERK_WEBHOOK_SECRET
         sync: false
+      - key: GOOGLE_PLACES_SERVER_KEY
+        sync: false
       # S3-compatible persistent media storage for inspection photos.
       - key: AWS_STORAGE_BUCKET_NAME
         sync: false
