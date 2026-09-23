@@ -39,11 +39,6 @@ class MeView(generics.RetrieveUpdateAPIView):
         except ClerkAPIError:
             return
 
-        role = (
-            Membership.Role.ADMIN
-            if organization_claim.get("role") in {"admin", "org:admin"}
-            else Membership.Role.STAFF
-        )
         business = Business.objects.filter(clerk_organization_id=organization_id).first()
         if business is None:
             if organization.get("created_by") != request.user.clerk_user_id:
@@ -56,6 +51,14 @@ class MeView(generics.RetrieveUpdateAPIView):
                 slug=f"{base_slug}-{uuid.uuid4().hex[:6]}",
                 clerk_organization_id=organization_id,
             )
+
+        # Match loosely ("org:admin", "admin", etc.) — Clerk's claim key is the
+        # abbreviated "rol" (not "role"), and the exact role string has
+        # drifted between API versions. The business owner is never demoted,
+        # regardless of what the claim says, since they must stay an admin.
+        raw_role = str(organization_claim.get("rol") or organization_claim.get("role") or "").lower()
+        is_admin = "admin" in raw_role or business.owner_id == request.user.id
+        role = Membership.Role.ADMIN if is_admin else Membership.Role.STAFF
 
         membership, _ = Membership.objects.get_or_create(
             business=business,
