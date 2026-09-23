@@ -123,7 +123,13 @@ class ClerkWebhookView(View):
             clerk_user_id=clerk_user_id,
             defaults={"username": clerk_user_id, "email": email},
         )
-        role = Membership.Role.ADMIN if data.get("role") == "org:admin" else Membership.Role.STAFF
+        # Match loosely ("org:admin", "admin", etc.) — Clerk's exact role
+        # string has drifted between API versions; a strict match silently
+        # demoted admins to staff. The business owner is never demoted,
+        # regardless of what Clerk reports, since they must stay an admin.
+        raw_role = (data.get("role") or "").lower()
+        is_admin = "admin" in raw_role or user.id == business.owner_id
+        role = Membership.Role.ADMIN if is_admin else Membership.Role.STAFF
         membership = Membership.objects.filter(business=business, user=user).first()
         if membership is None and email:
             membership = business.memberships.filter(

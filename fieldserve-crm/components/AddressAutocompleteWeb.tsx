@@ -70,7 +70,7 @@ export default function AddressAutocompleteWeb({ value, onChangeText, onSelect, 
   };
 
   return (
-    <View>
+    <View style={{ position: "relative", zIndex: 30 }}>
       <TextInput
         value={value}
         onChangeText={(text) => {
@@ -80,6 +80,7 @@ export default function AddressAutocompleteWeb({ value, onChangeText, onSelect, 
         onFocus={() => setOpen(predictions.length > 0)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder={placeholder}
+        autoComplete="off"
         className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
       />
       {loading ? (
