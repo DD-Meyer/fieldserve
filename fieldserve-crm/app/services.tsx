@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import SlideToConfirmButton from "../components/SlideToConfirmButton";
 import ScreenScaffold from "../components/ScreenScaffold";
+import { useCurrentBusiness } from "../lib/hooks/useBusiness";
 import {
   useCreateService,
   useDeleteService,
@@ -120,6 +121,7 @@ function ServiceEditor({
   const create = useCreateService();
   const update = useUpdateService();
   const del = useDeleteService();
+  const business = useCurrentBusiness();
 
   const service = state.mode === "edit" ? state.service : null;
   const [name, setName] = useState(service?.name ?? "");
@@ -165,7 +167,7 @@ function ServiceEditor({
       if (state.mode === "edit") {
         await update.mutateAsync({ id: state.service.id, payload });
       } else {
-        await create.mutateAsync(payload);
+        await create.mutateAsync({ ...payload, business: business.data?.id });
       }
       onClose();
     } catch (e: any) {
