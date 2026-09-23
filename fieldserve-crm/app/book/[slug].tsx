@@ -40,6 +40,7 @@ type PublicBusiness = {
   address_city: string;
   address_country: string;
   public_booking_enabled: boolean;
+  has_published_indemnity: boolean;
 };
 
 type PublicService = {
@@ -229,32 +230,37 @@ export default function PublicBookingPage() {
     }
     let cancelled = false;
     setLoadingSlots(true);
-    apiPost<SuggestSlotsResponse>(
-      `/api/public/businesses/${slug}/suggest-slots/`,
-      {
-        date: targetDate,
-        service_id: serviceId,
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-      },
-    )
-      .then((res) => {
-        if (!cancelled) {
-          setSuggestions(res.recommendations);
-          setOtherAvailable(res.other_available);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSuggestions([]);
-          setOtherAvailable([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSlots(false);
-      });
+    // Debounced — email/phone are typed character-by-character, and every
+    // keystroke would otherwise fire its own suggest-slots request.
+    const timer = setTimeout(() => {
+      apiPost<SuggestSlotsResponse>(
+        `/api/public/businesses/${slug}/suggest-slots/`,
+        {
+          date: targetDate,
+          service_id: serviceId,
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+        },
+      )
+        .then((res) => {
+          if (!cancelled) {
+            setSuggestions(res.recommendations);
+            setOtherAvailable(res.other_available);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSuggestions([]);
+            setOtherAvailable([]);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingSlots(false);
+        });
+    }, 500);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, serviceId, targetDate, email, phone]);
@@ -381,6 +387,23 @@ export default function PublicBookingPage() {
             </Text>
             <Text className="text-slate-500 text-sm text-center mt-2">
               {bizState.data.name}{" isn't accepting online bookings right now."}
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!bizState.data.has_published_indemnity) {
+    return (
+      <SafeAreaView className="flex-1 bg-slate-100">
+        <View className="flex-1 items-center justify-center p-6">
+          <View className="w-full max-w-md items-center">
+            <Text className="text-slate-900 text-lg font-bold">
+              Not ready to take bookings yet
+            </Text>
+            <Text className="text-slate-500 text-sm text-center mt-2">
+              {bizState.data.name} hasn't finished setting up online bookings. Please check back soon.
             </Text>
           </View>
         </View>
