@@ -34,11 +34,36 @@ from .models import Business, Membership, Service
 
 
 class _BookingThrottle(AnonRateThrottle):
+    scope = "public_booking"
     rate = "20/hour"
 
 
 class _PlacesThrottle(AnonRateThrottle):
+    scope = "public_places"
     rate = "60/minute"
+
+
+def _geocode_address(address: str) -> tuple[float, float] | None:
+    """Best-effort server-side geocode fallback for typed (unselected) addresses."""
+    api_key = getattr(settings, "GOOGLE_PLACES_SERVER_KEY", "")
+    if not api_key or not address.strip():
+        return None
+    try:
+        upstream = requests.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params={"address": address, "key": api_key},
+            timeout=5,
+        )
+        upstream.raise_for_status()
+        data = upstream.json()
+    except (requests.RequestException, ValueError):
+        return None
+    results = data.get("results") or []
+    if not results:
+        return None
+    location = (results[0].get("geometry") or {}).get("location") or {}
+    lat, lng = location.get("lat"), location.get("lng")
+    return (lat, lng) if lat is not None and lng is not None else None
 
 
 class PublicBusinessSerializer(serializers.ModelSerializer):
@@ -142,18 +167,27 @@ def public_booking_create(request, slug: str):
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
 
-    if biz.industry_mode == Business.Industry.MOBILE and (
-        not (data.get("address") or "").strip()
-        or data.get("latitude") is None
-        or data.get("longitude") is None
-    ):
-        raise serializers.ValidationError(
-            {
-                "location": (
-                    "Mobile bookings require an address and selected map location."
+    if biz.industry_mode == Business.Industry.MOBILE:
+        address = (data.get("address") or "").strip()
+        if not address:
+            raise serializers.ValidationError(
+                {"location": "Mobile bookings require a service address."}
+            )
+        if data.get("latitude") is None or data.get("longitude") is None:
+            # Client didn't select an autocomplete suggestion (e.g. it was
+            # rate-limited) — geocode the typed address ourselves rather
+            # than blocking the booking entirely.
+            geocoded = _geocode_address(address)
+            if geocoded is None:
+                raise serializers.ValidationError(
+                    {
+                        "location": (
+                            "Couldn't confirm that address. Please select it "
+                            "from the suggestions or check it's correct."
+                        )
+                    }
                 )
-            }
-        )
+            data["latitude"], data["longitude"] = geocoded
 
     service = get_object_or_404(
         Service, pk=data["service_id"], business=biz, is_active=True

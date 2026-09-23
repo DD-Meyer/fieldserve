@@ -89,7 +89,7 @@ def test_public_booking_creates_customer_and_job(
     assert job.location.y == pytest.approx(51.5308)
 
 
-def test_public_mobile_booking_requires_selected_location(
+def test_public_mobile_booking_requires_address(
     api, business, service, disable_ml_signals
 ):
     resp = api.post(
@@ -99,7 +99,53 @@ def test_public_mobile_booking_requires_selected_location(
             "email": "grace@example.com",
             "service_id": service.id,
             "scheduled_at": _future_workhour(days=2),
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 400
+    assert "location" in resp.data
+
+
+def test_public_mobile_booking_falls_back_to_geocoding_when_location_missing(
+    api, business, service, disable_ml_signals, monkeypatch
+):
+    monkeypatch.setattr(
+        "businesses.public_views._geocode_address",
+        lambda address: (51.5308, -0.1238),
+    )
+    resp = api.post(
+        f"/api/public/businesses/{business.slug}/bookings/",
+        {
+            "full_name": "Grace Hopper",
+            "email": "grace@example.com",
+            "service_id": service.id,
+            "scheduled_at": _future_workhour(days=2),
             "address": "1 King's Cross, London, UK",
+        },
+        format="json",
+    )
+
+    assert resp.status_code == 201, resp.data
+    job = Job.objects.get(pk=resp.data["booking_id"])
+    assert job.location.x == pytest.approx(-0.1238)
+    assert job.location.y == pytest.approx(51.5308)
+
+
+def test_public_mobile_booking_rejects_ungeocodable_address(
+    api, business, service, disable_ml_signals, monkeypatch
+):
+    monkeypatch.setattr(
+        "businesses.public_views._geocode_address", lambda address: None
+    )
+    resp = api.post(
+        f"/api/public/businesses/{business.slug}/bookings/",
+        {
+            "full_name": "Grace Hopper",
+            "email": "grace@example.com",
+            "service_id": service.id,
+            "scheduled_at": _future_workhour(days=2),
+            "address": "not a real place",
         },
         format="json",
     )
