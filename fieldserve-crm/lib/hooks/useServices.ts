@@ -18,6 +18,7 @@ export type Service = {
 };
 
 export type ServiceInput = {
+  business?: number;
   name: string;
   description?: string;
   duration_minutes: number;

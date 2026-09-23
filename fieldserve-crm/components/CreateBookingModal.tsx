@@ -446,6 +446,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         description: newService.description.trim(),
         duration_minutes: newService.duration_minutes,
         price,
+        business: business.data?.id,
       });
       setServiceId(created.id);
       setCreatedService(created);
