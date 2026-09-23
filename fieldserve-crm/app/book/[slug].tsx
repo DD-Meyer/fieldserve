@@ -315,10 +315,8 @@ export default function PublicBookingPage() {
       Alert.alert("Add an address", "Please enter the service address.");
       return;
     }
-    if (isMobileBusiness && (latitude == null || longitude == null)) {
-      Alert.alert("Select an address", "Choose the service address from the search results.");
-      return;
-    }
+    // Lat/lng is preferred (from picking a suggestion) but not required client-side —
+    // the backend falls back to geocoding the typed address if it's missing.
     setSubmitting(true);
     try {
       const iso = new Date(scheduledAt).toISOString();
