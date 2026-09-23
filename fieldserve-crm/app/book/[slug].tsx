@@ -23,6 +23,7 @@ import { styled } from "nativewind";
 import "../../global.css";
 import AppHeader from "@/components/AppHeader";
 
+import AddressAutocompleteWeb from "@/components/AddressAutocompleteWeb";
 import DateTimePickerField from "../../components/DateTimePickerField";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -92,6 +93,7 @@ async function apiGet<T>(path: string): Promise<T> {
   if (!API_BASE) throw new Error("EXPO_PUBLIC_API_URL is not configured.");
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Accept: "application/json" },
+    cache: "no-store",
   });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json();
@@ -145,6 +147,7 @@ function Field({
   label,
   value,
   onChange,
+  onBlur,
   placeholder,
   keyboardType,
   multiline,
@@ -152,6 +155,7 @@ function Field({
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   keyboardType?: "default" | "email-address" | "phone-pad";
   multiline?: boolean;
@@ -162,6 +166,7 @@ function Field({
       <TextInput
         value={value}
         onChangeText={onChange}
+        onBlur={onBlur}
         placeholder={placeholder}
         keyboardType={keyboardType ?? "default"}
         multiline={multiline}
@@ -196,8 +201,6 @@ export default function PublicBookingPage() {
   const [otherAvailable, setOtherAvailable] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [knownCustomer, setKnownCustomer] = useState(false);
-  const [detailsRevealed, setDetailsRevealed] = useState(false);
-  const [emailChecking, setEmailChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirm, setConfirm] = useState<{
     booking_id: number;
@@ -266,13 +269,10 @@ export default function PublicBookingPage() {
     return Array.from(new Set(slots)).sort();
   }, [suggestions, otherAvailable]);
 
-  const proceedFromEmail = async () => {
+  // Silent prefill only — never blocks or gates the rest of the form.
+  const lookupCustomerByEmail = async () => {
     const emailTrim = email.trim();
-    if (!emailTrim || !emailTrim.includes("@")) {
-      Alert.alert("Enter your email", "We need a valid email to continue.");
-      return;
-    }
-    setEmailChecking(true);
+    if (!emailTrim || !emailTrim.includes("@")) return;
     try {
       const res = await apiPost<CustomerLookup>(
         `/api/public/businesses/${slug}/lookup-customer/`,
@@ -288,15 +288,12 @@ export default function PublicBookingPage() {
       }
     } catch {
       setKnownCustomer(false);
-    } finally {
-      setEmailChecking(false);
-      setDetailsRevealed(true);
     }
   };
 
   const submit = async () => {
-    if (!detailsRevealed) {
-      Alert.alert("Add your details", "Enter your email and continue first.");
+    if (!email.trim() && !phone.trim()) {
+      Alert.alert("Add contact info", "Enter your email or phone so we can reach you.");
       return;
     }
     if (!fullName.trim()) {
@@ -318,11 +315,7 @@ export default function PublicBookingPage() {
       Alert.alert("Add an address", "Please enter the service address.");
       return;
     }
-    if (
-      isMobileBusiness &&
-      Platform.OS !== "web" &&
-      (latitude == null || longitude == null)
-    ) {
+    if (isMobileBusiness && (latitude == null || longitude == null)) {
       Alert.alert("Select an address", "Choose the service address from the search results.");
       return;
     }
@@ -516,105 +509,81 @@ export default function PublicBookingPage() {
           2. Your details
         </Text>
         <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
-          {!detailsRevealed ? (
-            <>
-              <Field
-                label="Email"
-                value={email}
-                onChange={setEmail}
-                placeholder="jane@example.com"
-                keyboardType="email-address"
-              />
-              <Text className="text-[11px] text-slate-500 mb-3">
-                We&apos;ll check if you&apos;ve booked with us before and fill in your details.
+          {knownCustomer ? (
+            <View className="mb-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              <Text className="text-[11px] font-semibold text-green-800">
+                {"Welcome back — we've prefilled your details. Edit anything that's changed."}
               </Text>
-              <Pressable
-                onPress={proceedFromEmail}
-                disabled={emailChecking || !email.trim()}
-                className="rounded-full py-3 items-center"
-                style={{
-                  backgroundColor: brand,
-                  opacity: emailChecking || !email.trim() ? 0.5 : 1,
+            </View>
+          ) : null}
+          <Field
+            label="Email"
+            value={email}
+            onChange={setEmail}
+            onBlur={lookupCustomerByEmail}
+            placeholder="jane@example.com"
+            keyboardType="email-address"
+          />
+          <Field
+            label="Full name"
+            value={fullName}
+            onChange={setFullName}
+            placeholder="Jane Smith"
+          />
+          <Field
+            label="Phone"
+            value={phone}
+            onChange={setPhone}
+            placeholder="+44 …"
+            keyboardType="phone-pad"
+          />
+          <View className="mb-3" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+            <Text className="text-xs font-semibold text-slate-600 mb-1">
+              {isMobileBusiness ? "Service address" : "Address"}
+            </Text>
+            {Platform.OS === "web" || !GooglePlacesAutocomplete ? (
+              <AddressAutocompleteWeb
+                value={address}
+                onChangeText={setAddress}
+                onSelect={({ description, latitude: lat, longitude: lng }) => {
+                  setAddress(description);
+                  setLatitude(lat);
+                  setLongitude(lng);
                 }}
-              >
-                {emailChecking ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-white text-sm font-bold">Continue</Text>
-                )}
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-xs text-slate-500">{email}</Text>
-                <Pressable onPress={() => setDetailsRevealed(false)}>
-                  <Text className="text-xs font-semibold text-blue-600">Change email</Text>
-                </Pressable>
-              </View>
-              {knownCustomer ? (
-                <View className="mb-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                  <Text className="text-[11px] font-semibold text-green-800">
-                    {"Welcome back — we've prefilled your details. Edit anything that's changed."}
-                  </Text>
-                </View>
-              ) : null}
-              <Field
-                label="Full name"
-                value={fullName}
-                onChange={setFullName}
-                placeholder="Jane Smith"
+                placeholder="Search for an address"
               />
-              <Field
-                label="Phone"
-                value={phone}
-                onChange={setPhone}
-                placeholder="+44 …"
-                keyboardType="phone-pad"
-              />
-              <View className="mb-3" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
-                <Text className="text-xs font-semibold text-slate-600 mb-1">
-                  {isMobileBusiness ? "Service address" : "Address"}
-                </Text>
-                {Platform.OS === "web" || !GooglePlacesAutocomplete ? (
-                  <TextInput
-                    value={address}
-                    onChangeText={setAddress}
-                    placeholder="Search for an address"
-                    className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
-                  />
-                ) : (
-                  <GooglePlacesAutocomplete
-                    placeholder="Search for an address"
-                    fetchDetails={true}
-                    disableScroll={true}
-                    minLength={2}
-                    debounce={300}
-                    onPress={(data: any, details: any = null) => {
-                      const selectedLatitude = details?.geometry?.location?.lat;
-                      const selectedLongitude = details?.geometry?.location?.lng;
-                      if (selectedLatitude == null || selectedLongitude == null) return;
-                      setAddress(data.description);
-                      setLatitude(selectedLatitude);
-                      setLongitude(selectedLongitude);
-                    }}
-                    query={{
-                      key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-                      language: "en",
-                      types: "address",
-                    }}
-                    styles={{
-                      container: {
-                        flex: 0,
-                        width: "100%",
-                        zIndex: 1000,
-                      },
-                      textInput: {
-                        borderWidth: 1,
-                        borderColor: "#e2e8f0",
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        height: 42,
+            ) : (
+              <GooglePlacesAutocomplete
+                placeholder="Search for an address"
+                fetchDetails={true}
+                disableScroll={true}
+                minLength={2}
+                debounce={300}
+                onPress={(data: any, details: any = null) => {
+                  const selectedLatitude = details?.geometry?.location?.lat;
+                  const selectedLongitude = details?.geometry?.location?.lng;
+                  if (selectedLatitude == null || selectedLongitude == null) return;
+                  setAddress(data.description);
+                  setLatitude(selectedLatitude);
+                  setLongitude(selectedLongitude);
+                }}
+                query={{
+                  key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                  language: "en",
+                  types: "address",
+                }}
+                styles={{
+                  container: {
+                    flex: 0,
+                    width: "100%",
+                    zIndex: 1000,
+                  },
+                  textInput: {
+                    borderWidth: 1,
+                    borderColor: "#e2e8f0",
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    height: 42,
                         color: "#0f172a",
                         fontSize: 14,
                       },
@@ -639,8 +608,6 @@ export default function PublicBookingPage() {
                   </Text>
                 ) : null}
               </View>
-            </>
-          )}
         </View>
 
         <Text className="text-sm font-bold text-slate-900 mb-2">
@@ -717,11 +684,11 @@ export default function PublicBookingPage() {
 
         <Pressable
           onPress={submit}
-          disabled={submitting || !detailsRevealed || !fullName || services.length === 0}
+          disabled={submitting || !fullName || services.length === 0}
           className="rounded-full py-3 items-center"
           style={{
             backgroundColor: brand,
-            opacity: submitting || !detailsRevealed || !fullName || services.length === 0 ? 0.5 : 1,
+            opacity: submitting || !fullName || services.length === 0 ? 0.5 : 1,
           }}
         >
           {submitting ? (

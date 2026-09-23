@@ -13,10 +13,13 @@ Throttled by IP to keep abuse manageable.
 
 from __future__ import annotations
 
+import requests
+from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date, parse_datetime
+from django.views.decorators.cache import never_cache
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
@@ -32,6 +35,10 @@ from .models import Business, Membership, Service
 
 class _BookingThrottle(AnonRateThrottle):
     rate = "20/hour"
+
+
+class _PlacesThrottle(AnonRateThrottle):
+    rate = "60/minute"
 
 
 class PublicBusinessSerializer(serializers.ModelSerializer):
@@ -107,6 +114,7 @@ def _qualified_members(business: Business, service: Service):
     return [m.user for m in memberships]
 
 
+@never_cache
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([_BookingThrottle])
@@ -115,6 +123,7 @@ def public_business_detail(request, slug: str):
     return Response(PublicBusinessSerializer(biz).data)
 
 
+@never_cache
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([_BookingThrottle])
@@ -180,16 +189,17 @@ def public_booking_create(request, slug: str):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Find-or-create the customer within this business.
+    # Find-or-create the customer within this business, keyed by email when
+    # provided — a different email always means a different customer, even if
+    # the phone number happens to match someone else on file.
     email = (data.get("email") or "").strip().lower()
     phone = (data.get("phone") or "").strip()
     location = None
     if data.get("latitude") is not None:
         location = Point(data["longitude"], data["latitude"], srid=4326)
-    customer = None
     if email:
         customer = Customer.objects.filter(business=biz, email__iexact=email).first()
-    if customer is None and phone:
+    else:
         customer = Customer.objects.filter(business=biz, phone=phone).first()
     if customer is None:
         customer = Customer.objects.create(
@@ -201,17 +211,19 @@ def public_booking_create(request, slug: str):
             location=location,
         )
     else:
-        # Patch in any new contact details the customer provided.
+        # Latest submission wins: overwrite any changed, non-blank contact details.
         updates: dict[str, str] = {}
-        if data["full_name"].strip() and customer.full_name != data["full_name"].strip():
-            updates["full_name"] = data["full_name"].strip()
-        if data.get("address") and not customer.address:
-            updates["address"] = data["address"].strip()
-        if phone and not customer.phone:
+        full_name = data["full_name"].strip()
+        if full_name and customer.full_name != full_name:
+            updates["full_name"] = full_name
+        address = (data.get("address") or "").strip()
+        if address and customer.address != address:
+            updates["address"] = address
+        if phone and customer.phone != phone:
             updates["phone"] = phone
-        if email and not customer.email:
+        if email and customer.email != email:
             updates["email"] = email
-        if location is not None and customer.location is None:
+        if location is not None and customer.location != location:
             customer.location = location
             updates["location"] = location
         if updates:
@@ -311,6 +323,82 @@ def _lookup_customer(
     if customer is None and phone:
         customer = Customer.objects.filter(business=business, phone=phone).first()
     return customer
+
+
+@never_cache
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([_PlacesThrottle])
+def public_places_autocomplete(request):
+    """Proxy Google's Places Autocomplete API so the key stays server-side.
+
+    Used by the web booking page, which can't safely bundle a browser-callable
+    key (react-native-google-places-autocomplete is native-only there).
+    """
+    query = (request.query_params.get("input") or "").strip()
+    api_key = getattr(settings, "GOOGLE_PLACES_SERVER_KEY", "")
+    if len(query) < 2 or not api_key:
+        return Response({"predictions": []})
+    try:
+        upstream = requests.get(
+            "https://maps.googleapis.com/maps/api/place/autocomplete/json",
+            params={"input": query, "types": "address", "key": api_key},
+            timeout=5,
+        )
+        upstream.raise_for_status()
+        data = upstream.json()
+    except (requests.RequestException, ValueError):
+        return Response({"predictions": []})
+    predictions = [
+        {"place_id": p.get("place_id"), "description": p.get("description")}
+        for p in data.get("predictions", [])
+        if p.get("place_id") and p.get("description")
+    ]
+    return Response({"predictions": predictions})
+
+
+@never_cache
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([_PlacesThrottle])
+def public_places_details(request):
+    """Resolve a place_id (from `public_places_autocomplete`) to lat/lng."""
+    place_id = (request.query_params.get("place_id") or "").strip()
+    if not place_id:
+        return Response(
+            {"detail": "place_id is required."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    api_key = getattr(settings, "GOOGLE_PLACES_SERVER_KEY", "")
+    if not api_key:
+        return Response(
+            {"detail": "Address lookup is not configured."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    try:
+        upstream = requests.get(
+            "https://maps.googleapis.com/maps/api/place/details/json",
+            params={
+                "place_id": place_id,
+                "fields": "formatted_address,geometry",
+                "key": api_key,
+            },
+            timeout=5,
+        )
+        upstream.raise_for_status()
+        data = upstream.json()
+    except (requests.RequestException, ValueError):
+        return Response(
+            {"detail": "Address lookup failed."}, status=status.HTTP_502_BAD_GATEWAY
+        )
+    result = data.get("result") or {}
+    location = (result.get("geometry") or {}).get("location") or {}
+    return Response(
+        {
+            "description": result.get("formatted_address", ""),
+            "latitude": location.get("lat"),
+            "longitude": location.get("lng"),
+        }
+    )
 
 
 @api_view(["POST"])

@@ -202,6 +202,9 @@ ML_INTERNAL_TOKEN = os.environ.get("ML_INTERNAL_TOKEN", "")
 # --- Road routing (OSRM-compatible API) ---
 ROAD_ROUTER_URL = os.environ.get("ROAD_ROUTER_URL", "https://router.project-osrm.org")
 
+# --- Google Places (server-side key, never sent to the browser) ---
+GOOGLE_PLACES_SERVER_KEY = os.environ.get("GOOGLE_PLACES_SERVER_KEY", "")
+
 # --- CORS ---
 _cors_env = os.environ.get("DJANGO_CORS_ORIGINS", "").strip()
 if _cors_env:
