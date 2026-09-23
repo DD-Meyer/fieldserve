@@ -16,12 +16,14 @@ import type { LeafletMapProps } from "./leafletHtml";
 type Props = LeafletMapProps & {
   title: string;
   googleMapsUrl?: string | null;
+  onMarkerPress?: (jobId: number) => void;
 };
 
 export default function ExpandableLeafletMap({
   title,
   googleMapsUrl,
   height = 240,
+  onMarkerPress,
   ...mapProps
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -30,10 +32,10 @@ export default function ExpandableLeafletMap({
   return (
     <>
       <View style={{ height, borderRadius: 8, overflow: "hidden", position: "relative" }}>
-        <RouteMap {...mapProps} height={height} interactive={false} />
+        <RouteMap {...mapProps} height={height} interactive onMarkerPress={onMarkerPress} />
         <Pressable
           onPress={() => setOpen(true)}
-          style={{ position: "absolute", inset: 0 }}
+          style={{ position: "absolute", right: 10, top: 10, width: 38, height: 38 }}
           accessibilityLabel={`Open ${title} full screen`}
         >
           <View
@@ -79,6 +81,7 @@ export default function ExpandableLeafletMap({
             {...mapProps}
             height={Math.max(300, window.height - (googleMapsUrl ? 132 : 58))}
             interactive
+            onMarkerPress={onMarkerPress}
           />
 
           {googleMapsUrl ? (

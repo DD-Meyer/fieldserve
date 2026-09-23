@@ -53,8 +53,12 @@ class BusinessSerializer(serializers.ModelSerializer):
             "role",
             "created_at",
             "updated_at",
+            "deletion_requested_at",
         ]
-        read_only_fields = ["id", "owner", "slug", "created_at", "updated_at", "role"]
+        read_only_fields = [
+            "id", "owner", "slug", "created_at", "updated_at", "role",
+            "deletion_requested_at",
+        ]
 
     def get_role(self, obj):
         user = self.context["request"].user
@@ -310,6 +314,18 @@ class BusinessViewSet(viewsets.ModelViewSet):
         if biz is None:
             return Response({"detail": "No business found."}, status=404)
         return Response(self.get_serializer(biz).data)
+
+    def destroy(self, request, *args, **kwargs):
+        business = self.get_object()
+        if business.owner_id != request.user.id:
+            raise PermissionDenied("Only the business owner can delete this business.")
+        if business.deletion_requested_at is not None:
+            return Response(status=204)
+        business.deletion_requested_at = timezone.now()
+        business.public_booking_enabled = False
+        business.save(update_fields=["deletion_requested_at", "public_booking_enabled", "updated_at"])
+        business.memberships.update(status=Membership.Status.INACTIVE)
+        return Response(status=202)
 
 
 class IndemnityDocumentViewSet(viewsets.ModelViewSet):

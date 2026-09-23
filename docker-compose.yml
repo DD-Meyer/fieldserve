@@ -17,6 +17,20 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build: ./fieldserve_backend
     env_file: .env
@@ -25,6 +39,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./fieldserve_backend:/app
       - ./fieldserve_backend/exports:/exports
@@ -69,5 +87,22 @@ services:
     command: ["python", "manage.py", "run_scheduler"]
     restart: unless-stopped
 
+  celery:
+    build: ./fieldserve_backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./fieldserve_backend:/app
+      - ./fieldserve_backend/exports:/exports
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    command: ["celery", "-A", "core", "worker", "--loglevel=INFO"]
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  redis_data:

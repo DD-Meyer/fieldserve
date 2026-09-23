@@ -41,14 +41,14 @@ export const WALKAROUND_STEPS: {
   guidance: string;
   marker: { x: number; y: number };
 }[] = [
-  { key: "front", label: "Front", guidance: "Face the vehicle head-on", marker: { x: 160, y: 25 } },
-  { key: "front_left", label: "Front left", guidance: "Stand at the front-left corner", marker: { x: 75, y: 45 } },
-  { key: "left", label: "Left side", guidance: "Keep the full left side in frame", marker: { x: 45, y: 95 } },
-  { key: "rear_left", label: "Rear left", guidance: "Stand at the rear-left corner", marker: { x: 75, y: 145 } },
-  { key: "rear", label: "Rear", guidance: "Face the vehicle directly from behind", marker: { x: 160, y: 165 } },
-  { key: "rear_right", label: "Rear right", guidance: "Stand at the rear-right corner", marker: { x: 245, y: 145 } },
-  { key: "right", label: "Right side", guidance: "Keep the full right side in frame", marker: { x: 275, y: 95 } },
-  { key: "front_right", label: "Front right", guidance: "Stand at the front-right corner", marker: { x: 245, y: 45 } },
+  { key: "front", label: "Front", guidance: "Move back, centre the vehicle, and keep the whole front inside the outline", marker: { x: 160, y: 25 } },
+  { key: "front_left", label: "Front left", guidance: "Stand at the front-left corner; turn slightly until the whole vehicle fits", marker: { x: 75, y: 45 } },
+  { key: "left", label: "Left side", guidance: "Move back and keep the complete left side inside the outline", marker: { x: 45, y: 95 } },
+  { key: "rear_left", label: "Rear left", guidance: "Stand at the rear-left corner; keep all vehicle edges visible", marker: { x: 75, y: 145 } },
+  { key: "rear", label: "Rear", guidance: "Move back, centre the vehicle, and keep the whole rear inside the outline", marker: { x: 160, y: 165 } },
+  { key: "rear_right", label: "Rear right", guidance: "Stand at the rear-right corner; turn slightly until the whole vehicle fits", marker: { x: 245, y: 145 } },
+  { key: "right", label: "Right side", guidance: "Move back and keep the complete right side inside the outline", marker: { x: 275, y: 95 } },
+  { key: "front_right", label: "Front right", guidance: "Stand at the front-right corner; keep all vehicle edges visible", marker: { x: 245, y: 45 } },
 ];
 
 export type Damage = {
@@ -199,7 +199,11 @@ export function useCreateInspection() {
       form.append("angle", input.angle);
       const part = await buildPhotoPart(input.photoUri, fileName);
       // React Native's FormData typings don't match the DOM signature.
-      form.append("photo", part as any, fileName);
+      if (typeof Blob !== "undefined" && part instanceof Blob) {
+        form.append("photo", part, fileName);
+      } else {
+        form.append("photo", part as any);
+      }
       return api.postFormData<Inspection>("/api/inspections/", form);
     },
     onSuccess: (row) => {
@@ -216,7 +220,11 @@ export function useCheckVehicleFrame() {
     mutationFn: async (photoUri: string) => {
       const form = new FormData();
       const part = await buildPhotoPart(photoUri, "frame-check.jpg");
-      form.append("image", part as any, "frame-check.jpg");
+      if (typeof Blob !== "undefined" && part instanceof Blob) {
+        form.append("image", part, "frame-check.jpg");
+      } else {
+        form.append("image", part as any);
+      }
       return api.postFormData<FrameCheck>("/api/inspections/check-frame/", form);
     },
   });

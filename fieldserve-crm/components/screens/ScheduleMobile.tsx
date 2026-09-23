@@ -85,6 +85,8 @@ function toStop(
     durationMin: j.duration_minutes ?? 30,
     distanceKm,
     travelMin,
+    jobId: j.id,
+    status: j.status,
   };
 }
 
@@ -186,6 +188,11 @@ export default function ScheduleMobile() {
       longitude: j.longitude,
       order: activeJobs.findIndex((job) => job.id === j.id) + 1,
       label: j.customer_name || j.address || `Job #${j.id}`,
+      jobId: j.id,
+      customerName: j.customer_name,
+      serviceType: j.service_type,
+      scheduledAt: j.scheduled_at,
+      jobStatus: j.status,
     }));
     if (depot) {
       list.unshift({
@@ -299,6 +306,7 @@ export default function ScheduleMobile() {
             path={mapPath}
             height={240}
             googleMapsUrl={googleMapsUrl}
+            onMarkerPress={(jobId) => router.push(`/job/${jobId}`)}
           />
           {roadRoute.isLoading ? (
             <Text className="text-[11px] text-slate-500 mt-2">Finding fastest road route…</Text>
@@ -325,11 +333,9 @@ export default function ScheduleMobile() {
           </Text>
         ) : (
           stops.map((stop, i) => (
-            <RouteStopRow
-              key={stop.order}
-              stop={stop}
-              isLast={i === stops.length - 1}
-            />
+            <Pressable key={stop.order} onPress={() => router.push(`/job/${stop.jobId}`)}>
+              <RouteStopRow stop={stop} isLast={i === stops.length - 1} />
+            </Pressable>
           ))
         )}
       </View>

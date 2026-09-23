@@ -15,6 +15,7 @@ from businesses.models import Business, Service
 from inspections.models import walkaround_progress
 from inspections.serializers import validate_inspection_image
 from users.models import Customer
+from users.notifications import notify_business_members
 from users.permissions import (
     IsBusinessMember,
     active_admin_business_ids,
@@ -76,6 +77,19 @@ class JobViewSet(viewsets.ModelViewSet):
         if target_date is not None:
             qs = qs.filter(scheduled_at__date=target_date)
 
+        date_from_raw = params.get("date_from", "")
+        date_to_raw = params.get("date_to", "")
+        if date_from_raw or date_to_raw:
+            if not date_from_raw or not date_to_raw:
+                raise ValidationError({"date_range": "Provide both date_from and date_to."})
+            date_from = _parse_date(date_from_raw)
+            date_to = _parse_date(date_to_raw)
+            if date_from is None or date_to is None:
+                raise ValidationError({"date_range": "Use YYYY-MM-DD dates."})
+            if date_from > date_to:
+                raise ValidationError({"date_range": "date_from must be on or before date_to."})
+            qs = qs.filter(scheduled_at__date__range=(date_from, date_to))
+
         assigned_to = params.get("assigned_to")
         if assigned_to == "me":
             qs = qs.filter(assigned_to=self.request.user)
@@ -101,16 +115,36 @@ class JobViewSet(viewsets.ModelViewSet):
             if is_admin:
                 raise ValidationError({"assigned_to": "Assign a team member to this booking."})
             # Staff bookings default to the creator so they show up on their own schedule.
-            serializer.save(assigned_to=self.request.user)
+            job = serializer.save(assigned_to=self.request.user)
         else:
-            serializer.save()
+            job = serializer.save()
+
+        notify_business_members(
+            job.business,
+            title="New booking created",
+            message=f"{job.service_type} for {job.customer.full_name}.",
+        )
 
     def perform_update(self, serializer):
         if "assigned_to" in serializer.validated_data and not is_active_admin(
             self.request.user, serializer.instance.business_id
         ):
             raise PermissionDenied("Only Admins can assign jobs.")
-        serializer.save()
+        job = serializer.instance
+        previous_assignee_id = job.assigned_to_id
+        previous_scheduled_at = job.scheduled_at
+        updated = serializer.save()
+        changes = []
+        if previous_assignee_id != updated.assigned_to_id:
+            changes.append("assignment")
+        if previous_scheduled_at != updated.scheduled_at:
+            changes.append("schedule")
+        if changes:
+            notify_business_members(
+                updated.business,
+                title="Booking updated",
+                message=f"{updated.service_type} for {updated.customer.full_name} changed: {', '.join(changes)}.",
+            )
 
     @action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
@@ -150,6 +184,11 @@ class JobViewSet(viewsets.ModelViewSet):
         if new_status == Job.Status.COMPLETED:
             job.completed_at = timezone.now()
         job.save(update_fields=["status", "completed_at", "updated_at"])
+        notify_business_members(
+            job.business,
+            title=f"Booking {new_status.replace('_', ' ')}",
+            message=f"{job.service_type} for {job.customer.full_name} is now {new_status.replace('_', ' ')}.",
+        )
         return Response(JobSerializer(job).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="indemnity/sign")

@@ -6,22 +6,22 @@
 
 @theme {
     /* UI Layout Tokens */
-    --color-background: #F9FAFB;
-    --color-foreground: #111827;
+    --color-background: #F5F6FA;
+    --color-foreground: #0F172A;
     --color-card: #FFFFFF;
     --color-muted: #F1F5F9; 
-    --color-muted-foreground: rgba(17, 24, 39, 0.65);
+    --color-muted-foreground: rgba(15, 23, 42, 0.6);
     
     /* Field CRM Priority Colors */
-    --color-primary: #021F94;
-    --color-accent: #0D9488;
-    --color-secondary-accent: #14B8A6;
+    --color-primary: #0A1247;
+    --color-accent: #2563EB;
+    --color-secondary-accent: #0D9488;
     
     /* Utilities & Alerts */
-    --color-border: rgba(17, 24, 39, 0.08);
+    --color-border: rgba(15, 23, 42, 0.08);
     --color-success: #10B981;
     --color-destructive: #EF4444;
-    --color-nav: rgba(249, 250, 251, 0.9);
+    --color-nav: #FFFFFF;
 
     /* Layout Spacing Grid System */
     --spacing-0: 0px;

@@ -35,6 +35,11 @@ export type Job = {
   after_walkaround_complete: boolean;
   after_walkaround_captured_angles: string[];
   after_walkaround_missing_angles: string[];
+  indemnity_version: number | null;
+  indemnity_signed: boolean;
+  indemnity_text: string;
+  indemnity_source: "text" | "pdf" | null;
+  indemnity_document_url: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -49,6 +54,8 @@ export type JobPage = {
 
 export type JobQuery = {
   date?: string; // "today" or "YYYY-MM-DD"
+  date_from?: string; // "YYYY-MM-DD"
+  date_to?: string; // "YYYY-MM-DD"
   status?: JobStatus;
   assigned_to?: number | "me";
   customer?: number;
@@ -63,6 +70,8 @@ export function useJobs(query: JobQuery = {}) {
     queryFn: () =>
       api.get<JobPage>("/api/jobs/", {
         date: query.date,
+        date_from: query.date_from,
+        date_to: query.date_to,
         status: query.status,
         assigned_to: query.assigned_to as string | number | undefined,
         customer: query.customer,

@@ -25,6 +25,13 @@ class InspectionThrottle(UserRateThrottle):
     rate = "60/hour"
 
 
+class FrameCheckThrottle(UserRateThrottle):
+    """Frame checks are short-lived guidance requests, not saved uploads."""
+
+    rate = "1200/hour"
+    scope = "inspection_frame_check"
+
+
 class InspectionViewSet(viewsets.ModelViewSet):
     serializer_class = InspectionSerializer
     permission_classes = [permissions.IsAuthenticated, IsBusinessMember]
@@ -46,7 +53,9 @@ class InspectionViewSet(viewsets.ModelViewSet):
         )
 
     def get_throttles(self):
-        if self.action in {"create", "reanalyse", "check_frame"}:
+        if self.action == "check_frame":
+            return [FrameCheckThrottle()]
+        if self.action in {"create", "reanalyse"}:
             return [InspectionThrottle()]
         return super().get_throttles()
 

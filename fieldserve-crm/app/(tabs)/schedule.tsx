@@ -1,9 +1,7 @@
 import { View } from "react-native";
 import "../../global.css";
 
-import AppHeader, {
-  FLOATING_HEADER_CONTENT_OFFSET,
-} from "../../components/AppHeader";
+import AppHeader from "../../components/AppHeader";
 import ScheduleFixed from "../../components/screens/ScheduleFixed";
 import ScheduleMobile from "../../components/screens/ScheduleMobile";
 import { useIndustry } from "../../contexts/IndustryContext";
@@ -17,7 +15,7 @@ export default function Schedule() {
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <AppHeader title={mode === "fixed" ? "Today's Schedule" : "Today's Route"} />
-      <View style={{ flex: 1, paddingTop: FLOATING_HEADER_CONTENT_OFFSET }}>
+      <View style={{ flex: 1, paddingTop: 0 }}>
         {mode === "fixed" ? <ScheduleFixed /> : <ScheduleMobile />}
       </View>
     </SafeAreaView>

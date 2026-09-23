@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import { styled } from "nativewind";
 import "../../global.css";
 
 import AppHeader from "../../components/AppHeader";
+import IndemnitySigningModal from "../../components/IndemnitySigningModal";
 import { useApi } from "../../lib/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -106,6 +107,7 @@ export default function JobDetail() {
 
   const { data: job, isLoading, error, refetch } = useJob(jobId);
   const transition = useTransition();
+  const [indemnityModalOpen, setIndemnityModalOpen] = useState(false);
   const { refreshing, onRefresh } = useRefresh([refetch]);
 
   const price = useMemo(() => {
@@ -225,6 +227,10 @@ export default function JobDetail() {
             label="Pre-service walkaround"
             value={`${job.walkaround_captured_angles.length}/8 captured`}
           />
+          <InfoRow
+            label="Client indemnity"
+            value={job.indemnity_signed ? "Signed" : "Signature required"}
+          />
           {job.status === "in_progress" || job.status === "completed" ? (
             <InfoRow
               label="After-service walkaround"
@@ -264,6 +270,8 @@ export default function JobDetail() {
                       ? router.push(`/job/inspect/${job.id}`)
                       : needsAfterWalkaround
                         ? router.push(`/job/inspect/${job.id}?phase=after`)
+                            : a.to === "in_progress" && !job.indemnity_signed
+                              ? setIndemnityModalOpen(true)
                       : doTransition(a.to, a.label)
                   }
                   disabled={transition.isPending}
@@ -299,6 +307,18 @@ export default function JobDetail() {
           </View>
         )}
       </ScrollView>
+      <IndemnitySigningModal
+        visible={indemnityModalOpen}
+        jobId={job.id}
+        indemnityText={job.indemnity_text}
+        indemnitySource={job.indemnity_source}
+        indemnityDocumentUrl={job.indemnity_document_url}
+        onClose={() => setIndemnityModalOpen(false)}
+        onSuccess={() => {
+          setIndemnityModalOpen(false);
+          void refetch();
+        }}
+      />
     </SafeAreaView>
   );
 }

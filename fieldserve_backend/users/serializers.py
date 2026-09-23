@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Customer, User
+from .models import Customer, Notification, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -15,8 +15,24 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "avatar_url",
             "clerk_user_id",
+            "push_notifications_enabled",
+            "email_notifications_enabled",
+            "dark_mode_enabled",
+            "background_location_enabled",
+            "text_size",
+            "quiet_hours_start",
+            "quiet_hours_end",
         ]
         read_only_fields = ["id", "username", "clerk_user_id"]
+
+    def validate(self, attrs):
+        start = attrs.get("quiet_hours_start", getattr(self.instance, "quiet_hours_start", None))
+        end = attrs.get("quiet_hours_end", getattr(self.instance, "quiet_hours_end", None))
+        if (start is None) != (end is None):
+            raise serializers.ValidationError(
+                "Quiet hours require both a start and an end time."
+            )
+        return attrs
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -124,3 +140,10 @@ class CustomerSerializer(serializers.ModelSerializer):
                 ],
             ).update(address=customer.address, location=customer.location)
         return customer
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ["id", "user", "title", "message", "read", "archived", "created_at"]
+        read_only_fields = ["id", "user", "created_at"]

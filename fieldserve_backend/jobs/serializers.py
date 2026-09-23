@@ -30,6 +30,9 @@ class JobSerializer(serializers.ModelSerializer):
     after_walkaround_missing_angles = serializers.SerializerMethodField()
     indemnity_version = serializers.SerializerMethodField()
     indemnity_signed = serializers.SerializerMethodField()
+    indemnity_text = serializers.SerializerMethodField()
+    indemnity_source = serializers.SerializerMethodField()
+    indemnity_document_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -60,6 +63,9 @@ class JobSerializer(serializers.ModelSerializer):
             "after_walkaround_missing_angles",
             "indemnity_version",
             "indemnity_signed",
+            "indemnity_text",
+            "indemnity_source",
+            "indemnity_document_url",
             "completed_at",
             "created_at",
             "updated_at",
@@ -82,6 +88,9 @@ class JobSerializer(serializers.ModelSerializer):
             "after_walkaround_missing_angles",
             "indemnity_version",
             "indemnity_signed",
+            "indemnity_text",
+            "indemnity_source",
+            "indemnity_document_url",
         ]
         extra_kwargs = {"business": {"required": False}}
 
@@ -108,6 +117,23 @@ class JobSerializer(serializers.ModelSerializer):
 
     def get_indemnity_signed(self, instance):
         return bool(getattr(getattr(instance, "indemnity", None), "is_signed", False))
+
+    def get_indemnity_text(self, instance):
+        document = getattr(getattr(instance, "indemnity", None), "document", None)
+        return getattr(document, "text", "") or ""
+
+    def get_indemnity_source(self, instance):
+        document = getattr(getattr(instance, "indemnity", None), "document", None)
+        return getattr(document, "source", None)
+
+    def get_indemnity_document_url(self, instance):
+        document = getattr(getattr(instance, "indemnity", None), "document", None)
+        file_field = getattr(document, "document", None)
+        if not file_field:
+            return None
+        request = self.context.get("request")
+        url = file_field.url
+        return request.build_absolute_uri(url) if request else url
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

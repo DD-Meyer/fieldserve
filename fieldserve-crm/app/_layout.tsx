@@ -14,14 +14,16 @@ import { ActivityIndicator, Text, View } from "react-native";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-console.log(
-  "[FieldServe] Clerk key present?",
-  Boolean(CLERK_PUBLISHABLE_KEY),
-  "prefix:",
-  CLERK_PUBLISHABLE_KEY?.slice(0, 12) ?? "(none)",
-);
+if (__DEV__) {
+  console.log(
+    "[FieldServe] Clerk key present?",
+    Boolean(CLERK_PUBLISHABLE_KEY),
+    "prefix:",
+    CLERK_PUBLISHABLE_KEY?.slice(0, 12) ?? "(none)",
+  );
+}
 
-if (!CLERK_PUBLISHABLE_KEY) {
+if (__DEV__ && !CLERK_PUBLISHABLE_KEY) {
   console.warn(
     "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set. Auth screens will not work.",
   );
@@ -81,11 +83,12 @@ export default function RootLayout() {
     "nexover-regular": require("../assets/fonts/NexoverDemo-Regular.otf"),
 
     // Body Text & UI Elements (Highly Readable)
-    "sans-light": require("../assets/fonts/PlusJakartaSans-Light.ttf"),
-    "sans-regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
-    "sans-medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
-    "sans-semibold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
-    "sans-bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
+    "PlusJakartaSans-Light": require("../assets/fonts/PlusJakartaSans-Light.ttf"),
+    "PlusJakartaSans-Regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
+    "PlusJakartaSans-Medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
+    "PlusJakartaSans-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
+    "PlusJakartaSans-Bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
+    "PlusJakartaSans-ExtraBold": require("../assets/fonts/PlusJakartaSans-ExtraBold.ttf"),
   });
 
   useEffect(() => {

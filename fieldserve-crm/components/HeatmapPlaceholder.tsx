@@ -105,7 +105,14 @@ export default function HeatmapPlaceholder({
             height={224}
           />
         ) : (
-          <FauxBlobs />
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-sm font-semibold text-slate-700 text-center">
+              {loading ? "Loading live demand data" : error ? "Demand data is unavailable" : "No demand data yet"}
+            </Text>
+            <Text className="text-xs text-slate-500 text-center mt-1">
+              Add customer locations and completed bookings to generate this map.
+            </Text>
+          </View>
         )}
         <View className="absolute bottom-2 left-3 bg-white/80 rounded px-2 py-1 z-10">
           <Text className="text-[10px] text-slate-600">
@@ -115,7 +122,7 @@ export default function HeatmapPlaceholder({
               ? "KDE preview"
               : hasRealData
               ? `KDE · ${pointCount ?? normalizedCells.length} customers · ${normalizedCells.length} cells`
-              : "KDE preview"}
+              : "Live KDE data required"}
           </Text>
         </View>
       </View>
@@ -181,53 +188,3 @@ function buildBusinessSuggestions(cells: LeafletHeatCell[], pointCount?: number)
   return suggestions;
 }
 
-function FauxBlobs() {
-  return (
-    <>
-      <View
-        style={{
-          position: "absolute",
-          top: 30,
-          left: 50,
-          width: 120,
-          height: 120,
-          borderRadius: 60,
-          backgroundColor: "rgba(220,38,38,0.55)",
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          top: 80,
-          left: 110,
-          width: 90,
-          height: 90,
-          borderRadius: 45,
-          backgroundColor: "rgba(251,146,60,0.6)",
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          top: 20,
-          right: 30,
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: "rgba(253,230,138,0.7)",
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          bottom: 20,
-          right: 60,
-          width: 70,
-          height: 70,
-          borderRadius: 35,
-          backgroundColor: "rgba(220,252,231,0.85)",
-        }}
-      />
-    </>
-  );
-}

@@ -175,9 +175,7 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
         >
           <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Close" />
         </Animated.View>
-
-        <Animated.View style={{ marginBottom: keyboardOffset }}>
-          <Animated.View style={{ transform: [{ translateY }] }}>
+        <Animated.View style={{ transform: [{ translateY }] }}>
             {children}
             <View
               {...panResponder.panHandlers}
@@ -185,7 +183,6 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
             >
               <View className="w-10 h-1.5 rounded-full bg-slate-300" />
             </View>
-          </Animated.View>
         </Animated.View>
       </View>
     </Modal>
