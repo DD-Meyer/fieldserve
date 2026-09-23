@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -9,7 +10,14 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+// react-native-google-places-autocomplete triggers a "Cannot access before
+// initialization" crash in the Metro web bundle, so it's native-only here —
+// the public booking page runs on web (Vercel) as well as in-app.
+let GooglePlacesAutocomplete: any = null;
+if (Platform.OS !== "web") {
+  GooglePlacesAutocomplete =
+    require("react-native-google-places-autocomplete").GooglePlacesAutocomplete;
+}
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 import { styled } from "nativewind";
 import "../../global.css";
@@ -306,7 +314,15 @@ export default function PublicBookingPage() {
       );
       return;
     }
-    if (isMobileBusiness && (!address.trim() || latitude == null || longitude == null)) {
+    if (isMobileBusiness && !address.trim()) {
+      Alert.alert("Add an address", "Please enter the service address.");
+      return;
+    }
+    if (
+      isMobileBusiness &&
+      Platform.OS !== "web" &&
+      (latitude == null || longitude == null)
+    ) {
       Alert.alert("Select an address", "Choose the service address from the search results.");
       return;
     }
@@ -560,54 +576,63 @@ export default function PublicBookingPage() {
                 <Text className="text-xs font-semibold text-slate-600 mb-1">
                   {isMobileBusiness ? "Service address" : "Address"}
                 </Text>
-                <GooglePlacesAutocomplete
-                  placeholder="Search for an address"
-                  fetchDetails={true}
-                  disableScroll={true}
-                  minLength={2}
-                  debounce={300}
-                  onPress={(data, details = null) => {
-                    const selectedLatitude = details?.geometry?.location?.lat;
-                    const selectedLongitude = details?.geometry?.location?.lng;
-                    if (selectedLatitude == null || selectedLongitude == null) return;
-                    setAddress(data.description);
-                    setLatitude(selectedLatitude);
-                    setLongitude(selectedLongitude);
-                  }}
-                  query={{
-                    key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-                    language: "en",
-                    types: "address",
-                  }}
-                  styles={{
-                    container: {
-                      flex: 0,
-                      width: "100%",
-                      zIndex: 1000,
-                    },
-                    textInput: {
-                      borderWidth: 1,
-                      borderColor: "#e2e8f0",
-                      borderRadius: 12,
-                      paddingHorizontal: 12,
-                      height: 42,
-                      color: "#0f172a",
-                      fontSize: 14,
-                    },
-                    listView: {
-                      position: "absolute",
-                      top: 44,
-                      left: 0,
-                      right: 0,
-                      borderWidth: 1,
-                      borderColor: "#e2e8f0",
-                      backgroundColor: "#ffffff",
-                      elevation: 1001,
-                      zIndex: 9999,
-                      maxHeight: 180,
-                    },
-                  }}
-                />
+                {Platform.OS === "web" || !GooglePlacesAutocomplete ? (
+                  <TextInput
+                    value={address}
+                    onChangeText={setAddress}
+                    placeholder="Search for an address"
+                    className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
+                  />
+                ) : (
+                  <GooglePlacesAutocomplete
+                    placeholder="Search for an address"
+                    fetchDetails={true}
+                    disableScroll={true}
+                    minLength={2}
+                    debounce={300}
+                    onPress={(data: any, details: any = null) => {
+                      const selectedLatitude = details?.geometry?.location?.lat;
+                      const selectedLongitude = details?.geometry?.location?.lng;
+                      if (selectedLatitude == null || selectedLongitude == null) return;
+                      setAddress(data.description);
+                      setLatitude(selectedLatitude);
+                      setLongitude(selectedLongitude);
+                    }}
+                    query={{
+                      key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                      language: "en",
+                      types: "address",
+                    }}
+                    styles={{
+                      container: {
+                        flex: 0,
+                        width: "100%",
+                        zIndex: 1000,
+                      },
+                      textInput: {
+                        borderWidth: 1,
+                        borderColor: "#e2e8f0",
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        height: 42,
+                        color: "#0f172a",
+                        fontSize: 14,
+                      },
+                      listView: {
+                        position: "absolute",
+                        top: 44,
+                        left: 0,
+                        right: 0,
+                        borderWidth: 1,
+                        borderColor: "#e2e8f0",
+                        backgroundColor: "#ffffff",
+                        elevation: 1001,
+                        zIndex: 9999,
+                        maxHeight: 180,
+                      },
+                    }}
+                  />
+                )}
                 {latitude != null && longitude != null ? (
                   <Text className="text-[11px] text-green-700 mt-1">
                     Location selected: {address}
