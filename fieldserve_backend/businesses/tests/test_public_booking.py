@@ -52,6 +52,14 @@ def test_public_business_detail(api, business):
     assert resp.status_code == 200
     assert resp.data["slug"] == business.slug
     assert resp.data["public_booking_enabled"] is True
+    assert resp.data["has_published_indemnity"] is True
+
+
+def test_public_business_detail_without_published_indemnity(api, business):
+    business.indemnities.all().delete()
+    resp = api.get(f"/api/public/businesses/{business.slug}/")
+    assert resp.status_code == 200
+    assert resp.data["has_published_indemnity"] is False
 
 
 def test_public_service_list(api, business, service):

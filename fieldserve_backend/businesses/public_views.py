@@ -30,12 +30,20 @@ from jobs.models import Job
 from jobs.scheduling_utils import check_slot_for_any, find_available_member, suggest_slots_for_any
 from users.models import Customer
 
-from .models import Business, Membership, Service
+from .models import Business, IndemnityDocument, Membership, Service
 
 
 class _BookingThrottle(AnonRateThrottle):
     scope = "public_booking"
     rate = "20/hour"
+
+
+class _SlotsThrottle(AnonRateThrottle):
+    """Read-only availability lookups — called far more often than an actual
+    booking (e.g. once per keystroke/date-pick), so needs a looser bucket."""
+
+    scope = "public_slots"
+    rate = "120/minute"
 
 
 class _PlacesThrottle(AnonRateThrottle):
@@ -67,6 +75,8 @@ def _geocode_address(address: str) -> tuple[float, float] | None:
 
 
 class PublicBusinessSerializer(serializers.ModelSerializer):
+    has_published_indemnity = serializers.SerializerMethodField()
+
     class Meta:
         model = Business
         fields = (
@@ -79,7 +89,11 @@ class PublicBusinessSerializer(serializers.ModelSerializer):
             "address_city",
             "address_country",
             "public_booking_enabled",
+            "has_published_indemnity",
         )
+
+    def get_has_published_indemnity(self, obj: Business) -> bool:
+        return obj.indemnities.filter(status=IndemnityDocument.Status.PUBLISHED).exists()
 
 
 class PublicServiceSerializer(serializers.ModelSerializer):
@@ -315,7 +329,7 @@ def public_booking_create(request, slug: str):
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([_BookingThrottle])
+@throttle_classes([_SlotsThrottle])
 def public_check_slot(request, slug: str):
     biz = _get_active_business(slug)
     scheduled_raw = request.data.get("scheduled_at")
@@ -464,7 +478,7 @@ def public_lookup_customer(request, slug: str):
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([_BookingThrottle])
+@throttle_classes([_SlotsThrottle])
 def public_suggest_slots(request, slug: str):
     """Return ranked open slots for a given day.
 

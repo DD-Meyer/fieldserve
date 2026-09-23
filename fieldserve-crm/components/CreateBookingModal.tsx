@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BottomSheetModal from "./BottomSheetModal";
@@ -30,6 +31,7 @@ import {
   type Service,
 } from "../lib/hooks/useServices";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import { useIndemnities } from "../lib/hooks/useIndemnities";
 import { useMe } from "../lib/hooks/useMe";
 import { useTeamMembers } from "../lib/hooks/useTeam";
 import DateTimePickerField from "./DateTimePickerField";
@@ -149,6 +151,11 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const checkSlot = useCheckSlot();
   const suggestSlots = useSuggestSlots();
   const business = useCurrentBusiness();
+  const router = useRouter();
+  const indemnities = useIndemnities(visible);
+  const hasPublishedIndemnity = (indemnities.data ?? []).some(
+    (i) => i.business === business.data?.id && i.status === "published",
+  );
   const { data: me } = useMe();
   const isAdmin = business.data?.role === "admin";
   const isMobileBusiness = business.data?.industry_mode === "mobile";
@@ -528,6 +535,23 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             style={{ maxHeight: windowHeight * 0.7 }}
             contentContainerStyle={{ paddingBottom: 24 }}
           >
+            {!indemnities.isLoading && !hasPublishedIndemnity ? (
+              <Pressable
+                onPress={() => {
+                  onClose();
+                  router.push("/indemnity");
+                }}
+                className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3"
+              >
+                <Text className="text-xs font-semibold text-amber-800">
+                  No published indemnity yet
+                </Text>
+                <Text className="text-[11px] text-amber-700 mt-0.5">
+                  Customers can't be booked (in-app or online) until you publish one. Tap to set it up.
+                </Text>
+              </Pressable>
+            ) : null}
+
             <Text className="text-xs font-semibold text-slate-600 mb-1">
               Customer
             </Text>
