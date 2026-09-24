@@ -124,7 +124,7 @@ function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
     loading: boolean;
   }>({ data: null, error: null, loading: true });
 
-  useMemo(() => {
+  useEffect(() => {
     let cancelled = false;
     setState({ data: null, error: null, loading: true });
     fn()
@@ -180,14 +180,30 @@ function Field({
 
 export default function PublicBookingPage() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const [refreshKey, setRefreshKey] = useState(0);
   const bizState = useAsync<PublicBusiness>(
     () => apiGet<PublicBusiness>(`/api/public/businesses/${slug}/`),
-    [slug],
+    [slug, refreshKey],
   );
   const svcState = useAsync<PublicService[]>(
     () => apiGet<PublicService[]>(`/api/public/businesses/${slug}/services/`),
-    [slug],
+    [slug, refreshKey],
   );
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        setRefreshKey((key) => key + 1);
+      }
+    };
+
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

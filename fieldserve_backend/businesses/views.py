@@ -263,7 +263,7 @@ class BusinessViewSet(viewsets.ModelViewSet):
         membership = business.memberships.filter(pk=membership_id).first()
         if membership is None:
             return Response({"detail": "Member not found."}, status=404)
-        if membership.user_id == business.owner_id:
+        if request.method == "DELETE" and membership.user_id == business.owner_id:
             raise PermissionDenied("The original account cannot be changed or removed.")
         if request.method == "DELETE":
             self._protect_final_admin(business, membership)
@@ -295,6 +295,12 @@ class BusinessViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError("Only active members can be edited.")
         serializer = MembershipUpdateSerializer(membership, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        if (
+            membership.user_id == business.owner_id
+            and "role" in serializer.validated_data
+            and serializer.validated_data["role"] != membership.role
+        ):
+            raise PermissionDenied("The original account cannot be changed or removed.")
         if "role" in serializer.validated_data and serializer.validated_data["role"] != membership.role:
             if serializer.validated_data["role"] != Membership.Role.ADMIN:
                 self._protect_final_admin(business, membership)
