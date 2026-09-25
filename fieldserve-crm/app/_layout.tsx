@@ -1,4 +1,4 @@
-import { ClerkLoaded, ClerkLoading, ClerkProvider, useAuth } from "@clerk/expo";
+import { ClerkLoaded, ClerkLoading, ClerkProvider, useAuth, useSession } from "@clerk/expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -30,7 +30,8 @@ if (__DEV__ && !CLERK_PUBLISHABLE_KEY) {
 }
 
 function AuthGate() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { session } = useSession();
   const { data: me, isLoading: isMeLoading } = useMe();
   const segments = useSegments();
   const router = useRouter();
@@ -50,6 +51,13 @@ function AuthGate() {
     const inPublicGroup = firstSegment === "book";
 
     if (inPublicGroup) return;
+
+    if (session?.currentTask) {
+      if (session.currentTask.key === "choose-organization" && !inOnboarding) {
+        router.replace("/(auth)/onboarding");
+      }
+      return;
+    }
 
     // 1. Not signed in -> Keep in auth group
     if (!isSignedIn) {
@@ -72,7 +80,7 @@ function AuthGate() {
         router.replace("/(tabs)");
       }
     }
-  }, [isLoaded, isMeLoading, isSignedIn, needsOnboarding, segments, router]);
+  }, [isLoaded, isMeLoading, isSignedIn, needsOnboarding, segments, router, session]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
@@ -126,6 +134,7 @@ export default function RootLayout() {
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
       proxyUrl={Platform.OS === "web" ? "/__clerk" : undefined}
+      taskUrls={{ "choose-organization": "/onboarding" }}
       tokenCache={tokenCache}
     >
       <ClerkLoading>
