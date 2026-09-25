@@ -2,7 +2,6 @@ import { useAuth, useClerk, useUser } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import {
   ActivityIndicator,
   Dimensions,
@@ -21,6 +20,11 @@ import { icons } from "@/constants/icons";
 import { Image } from "react-native";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const GooglePlacesAutocomplete =
+  Platform.OS === "web"
+    ? null
+    : require("react-native-google-places-autocomplete")
+        .GooglePlacesAutocomplete;
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -29,6 +33,7 @@ export default function OnboardingScreen() {
   const { createOrganization, getOrganization, setActive } = useClerk();
   const { user } = useUser();
   const [companyName, setCompanyName] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
   const [industryMode, setIndustryMode] = useState<"fixed" | "mobile">("fixed");
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +191,8 @@ export default function OnboardingScreen() {
 
               <View style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
                 <Text style={styles.label}>Company Address</Text>
-                <GooglePlacesAutocomplete
+                {GooglePlacesAutocomplete ? (
+                  <GooglePlacesAutocomplete
                   placeholder="Start typing an address anywhere in the world"
                   fetchDetails={true}
                   disableScroll={true} //  Fixes the VirtualizedList inside ScrollView error
@@ -240,7 +246,16 @@ export default function OnboardingScreen() {
                   textInputProps={{
                     placeholderTextColor: "#94a3b8",
                   }}
-                />
+                  />
+                ) : (
+                  <TextInput
+                    value={companyAddress}
+                    onChangeText={setCompanyAddress}
+                    placeholder="Company address"
+                    placeholderTextColor="#94a3b8"
+                    style={styles.input}
+                  />
+                )}
               </View>
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
