@@ -58,7 +58,7 @@ export default function OnboardingScreen() {
       setOrganizationId(organization.id);
       await setActive({ organization: organization.id });
 
-      const token = await authGetToken();
+      const token = await authGetToken({ skipCache: true });
       if (!token) {
         throw new Error("Failed to obtain authentication token.");
       }
