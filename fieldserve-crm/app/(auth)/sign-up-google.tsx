@@ -1,4 +1,4 @@
-import { useAuth, useSSO } from "@clerk/expo";
+import { useAuth, useSession, useSSO } from "@clerk/expo";
 import * as AuthSession from "expo-auth-session";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -17,12 +17,24 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function GoogleAuthScreen() {
   const router = useRouter();
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({
+    treatPendingAsSignedOut: false,
+  });
+  const { session } = useSession();
   const { startSSOFlow } = useSSO();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleContinue = async () => {
+    if (isSignedIn) {
+      router.replace(
+        session?.currentTask?.key === "choose-organization"
+          ? "/(auth)/onboarding"
+          : "/(tabs)",
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
     try {
@@ -76,7 +88,11 @@ export default function GoogleAuthScreen() {
   }
 
   if (isSignedIn) {
-    router.replace("/(tabs)");
+    router.replace(
+      session?.currentTask?.key === "choose-organization"
+        ? "/(auth)/onboarding"
+        : "/(tabs)",
+    );
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#2563eb" />

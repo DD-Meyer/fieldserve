@@ -25,7 +25,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 export default function OnboardingScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { getToken: authGetToken } = useAuth();
+  const { getToken: authGetToken } = useAuth({ treatPendingAsSignedOut: false });
   const { createOrganization, getOrganization, setActive } = useClerk();
   const { user } = useUser();
   const [companyName, setCompanyName] = useState("");
