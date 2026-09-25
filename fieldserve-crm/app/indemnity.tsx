@@ -132,6 +132,13 @@ export default function IndemnityScreen() {
         </View>
       ) : (
         <>
+          {business ? (
+            <View className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-3">
+              <Text className="text-[11px] font-semibold text-slate-700">Managing business</Text>
+              <Text className="text-xs text-slate-600 mt-0.5">{business.name} ({business.slug})</Text>
+            </View>
+          ) : null}
+
           <View className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
             <Text className="text-xs text-amber-900">New bookings require the currently active indemnity. Clients sign it on the staff device after the vehicle walkaround.</Text>
           </View>
