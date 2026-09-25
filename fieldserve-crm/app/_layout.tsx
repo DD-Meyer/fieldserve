@@ -10,7 +10,7 @@ import { tokenCache } from "../lib/clerk";
 import "@/global.css";
 import { useFonts } from "expo-font";
 import { useEffect, useMemo } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -125,6 +125,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
+      proxyUrl={Platform.OS === "web" ? "/__clerk" : undefined}
       tokenCache={tokenCache}
     >
       <ClerkLoading>
