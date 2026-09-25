@@ -1,8 +1,9 @@
 {
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/__clerk/:path*", "destination": "/api/__clerk/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/__clerk/(.*)", "dest": "/api/clerk?path=$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

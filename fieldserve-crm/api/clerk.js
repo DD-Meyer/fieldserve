@@ -10,9 +10,10 @@ export default function handler(request, response) {
     return;
   }
 
-  const targetPath = request.url
-    .replace(/^\/api\/__clerk/, "")
-    .replace(/^\/__clerk/, "");
+  const incomingUrl = new URL(request.url, "https://fieldserve.vercel.app");
+  const targetPath = incomingUrl.searchParams.get("path") ?? "";
+  incomingUrl.searchParams.delete("path");
+  const targetUrl = `/${targetPath}${incomingUrl.search}`;
   const forwardedFor = request.headers["x-forwarded-for"] ?? request.socket.remoteAddress ?? "";
   const headers = {
     ...request.headers,
@@ -26,7 +27,7 @@ export default function handler(request, response) {
     {
       hostname: CLERK_FRONTEND_API_HOST,
       method: request.method,
-      path: targetPath || "/",
+      path: targetUrl,
       headers,
     },
     (proxyResponse) => {
