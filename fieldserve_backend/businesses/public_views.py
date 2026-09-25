@@ -29,6 +29,7 @@ from jobs.indemnity import active_indemnity_for, attach_active_indemnity
 from jobs.models import Job
 from jobs.scheduling_utils import check_slot_for_any, find_available_member, suggest_slots_for_any
 from users.models import Customer
+from users.notifications import notify_business_members
 
 from .models import Business, IndemnityDocument, Membership, Service
 
@@ -319,6 +320,11 @@ def public_booking_create(request, slug: str):
             status=Job.Status.PENDING,
         )
     attach_active_indemnity(job)
+    notify_business_members(
+        job.business,
+        title="New booking created",
+        message=f"{job.service_type} for {job.customer.full_name}.",
+    )
 
     return Response(
         {

@@ -79,6 +79,8 @@ export function useNotifications(filter: NotificationFilter = "all") {
         ordering: "-created_at",
       }),
     staleTime: 15_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     enabled: !!isSignedIn,
   });
 }
@@ -95,6 +97,8 @@ export function useUnreadNotificationCount() {
         ordering: "-created_at",
       }),
     staleTime: 15_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     enabled: !!isSignedIn,
     select: (data) => data.count,
   });
