@@ -1,4 +1,4 @@
-"""Analytics models — derived data from the ML service.
+"""Analytics models - derived data from the ML service.
 
 These tables are write-only from the management commands (`score_churn`,
 `label_churn`, `retrain_churn`) and read-only from the CRM dashboard.
@@ -27,7 +27,7 @@ class ChurnScore(models.Model):
 
     model_version = models.CharField(
         max_length=64,
-        help_text="Maps to the bundle's `trained_at` field — lets us trace which "
+        help_text="Maps to the bundle's `trained_at` field - lets us trace which "
         "trained artefact produced this score.",
     )
     model_name = models.CharField(max_length=64)

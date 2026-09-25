@@ -148,10 +148,10 @@ export default function GuidedWalkaroundCamera({
           ready: false,
           reason: isRateLimited ? "rate_limited" : "check_failed",
           guidance: isRateLimited
-            ? "Auto check is busy — adjusting and retrying"
+            ? "Auto check is busy - adjusting and retrying"
             : error instanceof Error
               ? error.message
-              : "Auto check unavailable — use manual capture",
+              : "Auto check unavailable - use manual capture",
         });
       } finally {
         checkingRef.current = false;
@@ -205,7 +205,7 @@ export default function GuidedWalkaroundCamera({
                 color={frameCheck?.ready ? "#14532d" : "white"}
               />
               <Text style={[styles.readinessText, frameCheck?.ready && styles.readinessTextReady]} numberOfLines={1}>
-                {frameCheck?.ready ? "Position locked — hold steady" : frameCheck?.guidance ?? "Centre the vehicle and fit all edges inside the outline"}
+                {frameCheck?.ready ? "Position locked - hold steady" : frameCheck?.guidance ?? "Centre the vehicle and fit all edges inside the outline"}
               </Text>
             </View>
 

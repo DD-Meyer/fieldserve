@@ -1,4 +1,4 @@
-"""score_churn — push every customer through the ML service and persist scores.
+"""score_churn - push every customer through the ML service and persist scores.
 
 Usage:
     python manage.py score_churn                  # all businesses
@@ -67,7 +67,7 @@ class Command(BaseCommand):
             feature_rows: list[dict] = []
             for cust in batch:
                 row = build_features_for_customer(cust, as_of=as_of)
-                # ChurnRequest.customers requires customer_id — already set.
+                # ChurnRequest.customers requires customer_id already set.
                 feature_rows.append(row)
 
             try:

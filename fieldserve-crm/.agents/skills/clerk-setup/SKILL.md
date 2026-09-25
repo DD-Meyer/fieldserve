@@ -12,15 +12,15 @@ metadata:
 
 # Adding Clerk
 
-> **Version**: Check `package.json` for the SDK version — see `clerk` skill for the version table. Core 2 differences are noted inline with `> **Core 2 ONLY (skip if current SDK):**` callouts.
+> **Version**: Check `package.json` for the SDK version - see `clerk` skill for the version table. Core 2 differences are noted inline with `> **Core 2 ONLY (skip if current SDK):**` callouts.
 
-This skill sets up Clerk for authentication by following the official quickstart documentation. For agents, the `clerk` CLI handles most of this end to end — see the next section.
+This skill sets up Clerk for authentication by following the official quickstart documentation. For agents, the `clerk` CLI handles most of this end to end - see the next section.
 
 ## Agent-first: Provision via CLI
 
 The `clerk` CLI replaces most Dashboard clicks. Three scenarios cover almost everything:
 
-### Scenario A — New project, new Clerk app
+### Scenario A - New project, new Clerk app
 
 ```bash
 clerk init --framework <next|react|vue|nuxt|astro|react-router|tanstack-react-start|expressjs|fastify|expo> -y
@@ -28,7 +28,7 @@ clerk init --framework <next|react|vue|nuxt|astro|react-router|tanstack-react-st
 
 `clerk init` creates the Clerk app via PLAPI, links the project, writes the framework-specific publishable + secret keys to the right env file (e.g. `.env.local` for Next.js, `.env` for Vite-based projects), and installs the SDK package.
 
-### Scenario B — Existing project, existing Clerk app
+### Scenario B - Existing project, existing Clerk app
 
 ```bash
 clerk auth login                      # one-time OAuth (skip if already logged in)
@@ -37,7 +37,7 @@ clerk link --app app_xxx              # explicit form, required in agent mode
 clerk env pull                        # writes the framework-detected env vars
 ```
 
-### Scenario C — Existing project, new Clerk app
+### Scenario C - Existing project, new Clerk app
 
 ```bash
 clerk auth login
@@ -82,7 +82,7 @@ If the CLI isn't an option (sandboxed environments, docs walkthroughs), here's t
 | 3. Follow instructions | Execute steps; create `proxy.ts` (Next.js <=15: `middleware.ts`) |
 | 4. Get API keys | From [dashboard.clerk.com](https://dashboard.clerk.com/~/api-keys) |
 
-> If the project has `components.json` (shadcn/ui), apply the shadcn theme after setup. See `clerk-custom-ui` skill → shadcn Theme.
+> If the project has `components.json` (shadcn/ui), apply the shadcn theme after setup. See `clerk-custom-ui` skill -> shadcn Theme.
 
 ## Framework Detection
 
@@ -91,7 +91,7 @@ Check `package.json` to identify the framework:
 | Dependency | Framework | Quickstart URL |
 |------------|-----------|----------------|
 | `next` | Next.js | `https://clerk.com/docs/nextjs/getting-started/quickstart` |
-| `@remix-run/react` | Remix (deprecated) | Migrate to React Router v7 — use the React Router quickstart below |
+| `@remix-run/react` | Remix (deprecated) | Migrate to React Router v7 - use the React Router quickstart below |
 | `react-router` | React Router (v7+) | `https://clerk.com/docs/react-router/getting-started/quickstart` |
 | `astro` | Astro | `https://clerk.com/docs/astro/getting-started/quickstart` |
 | `nuxt` | Nuxt | `https://clerk.com/docs/nuxt/getting-started/quickstart` |
@@ -116,13 +116,13 @@ User Request: "Add Clerk" / "Add authentication"
     ├─ Read package.json
     │
     ├─ Existing auth detected?
-    │   ├─ YES → Audit → Migration plan
-    │   └─ NO → Fresh install
+    │   ├─ YES -> Audit -> Migration plan
+    │   └─ NO -> Fresh install
     │
-    ├─ Identify framework → WebFetch quickstart → Follow instructions
-    │   └─ Next.js? → Create proxy.ts (Next.js <=15: middleware.ts)
+    ├─ Identify framework -> WebFetch quickstart -> Follow instructions
+    │   └─ Next.js? -> Create proxy.ts (Next.js <=15: middleware.ts)
     │
-    └─ components.json exists? → YES → Apply shadcn theme (see clerk-custom-ui)
+    └─ components.json exists? -> YES -> Apply shadcn theme (see clerk-custom-ui)
 ```
 
 ## Setup Process
@@ -151,7 +151,7 @@ Execute each step from the quickstart guide:
 
 > **Next.js:** Create `proxy.ts` (Next.js <=15: `middleware.ts`). See the `clerk-nextjs-patterns` skill for middleware strategies.
 
-> **shadcn/ui detected** (`components.json` exists): ALWAYS apply the shadcn theme. See `clerk-custom-ui` skill → shadcn Theme section.
+> **shadcn/ui detected** (`components.json` exists): ALWAYS apply the shadcn theme. See `clerk-custom-ui` skill -> shadcn Theme section.
 
 ### 4. Get API Keys
 
@@ -176,12 +176,12 @@ If the project already has authentication, create a migration plan before replac
 ### Detect Existing Auth
 
 Check `package.json` for existing auth libraries:
-- `next-auth` / `@auth/core` → NextAuth/Auth.js
-- `@supabase/supabase-js` → Supabase Auth
-- `firebase` / `firebase-admin` → Firebase Auth
-- `@aws-amplify/auth` → AWS Cognito
-- `auth0` / `@auth0/nextjs-auth0` → Auth0
-- `passport` → Passport.js
+- `next-auth` / `@auth/core` -> NextAuth/Auth.js
+- `@supabase/supabase-js` -> Supabase Auth
+- `firebase` / `firebase-admin` -> Firebase Auth
+- `@aws-amplify/auth` -> AWS Cognito
+- `auth0` / `@auth0/nextjs-auth0` -> Auth0
+- `passport` -> Passport.js
 - Custom JWT/session implementation
 
 ### Migration Process
@@ -219,7 +219,7 @@ Check `package.json` for existing auth libraries:
 | React Router | `@clerk/react-router` |
 | TanStack Start | `@clerk/tanstack-react-start` |
 
-> **Core 2 ONLY (skip if current SDK):** React and Expo packages have different names: `@clerk/clerk-react` and `@clerk/clerk-expo` (with `clerk-` prefix).
+> **Core 2 ONLY (skip if current SDK):** React and Expo packages have different names: `@clerk/clerk-react` and `@clerk/expo` (with `clerk-` prefix).
 
 ### ClerkProvider Placement (Next.js)
 
@@ -314,7 +314,7 @@ Also import the shadcn CSS in your global styles:
 - `clerk-expo-patterns` - Expo patterns
 - `clerk-chrome-extension-patterns` - Chrome Extension patterns
 - `clerk-orgs` - B2B multi-tenant organizations
-- `clerk-webhooks` - Webhook → database sync
+- `clerk-webhooks` - Webhook -> database sync
 - `clerk-testing` - E2E testing setup
 - `clerk-swift` - Native iOS auth
 - `clerk-android` - Native Android auth

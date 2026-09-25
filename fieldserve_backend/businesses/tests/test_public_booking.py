@@ -9,14 +9,14 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from jobs.models import Job
-from users.models import Customer
+from users.models import Customer, Notification
 from businesses.models import IndemnityDocument, Membership
 
 pytestmark = pytest.mark.django_db
 
 
 def _future_workhour(days: int = 1) -> str:
-    """A deterministic ISO datetime N days from now at 10:00 local — safely
+    """A deterministic ISO datetime N days from now at 10:00 local - safely
     inside the default 08:00-18:00 business window regardless of when the
     test happens to run."""
     when = (timezone.now() + timedelta(days=days)).replace(
@@ -95,6 +95,9 @@ def test_public_booking_creates_customer_and_job(
     assert job.address == "1 King's Cross, London, UK"
     assert job.location.x == pytest.approx(-0.1238)
     assert job.location.y == pytest.approx(51.5308)
+    notification = Notification.objects.get(user=job.assigned_to)
+    assert notification.title == "New booking created"
+    assert notification.message == f"{service.name} for Grace Hopper."
 
 
 def test_public_mobile_booking_requires_address(

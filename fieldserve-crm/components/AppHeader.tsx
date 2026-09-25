@@ -24,7 +24,7 @@ const HEADER_TOP_OFFSET = 10;
 const HEADER_VERTICAL_PADDING = 20;
 const HEADER_ROW_HEIGHT = 56; // matches className "h-14" on the top row
 
-// The compact bar's height never animates — it's known up front and stays
+// The compact bar's height never animates - it's known up front and stays
 // fixed. That's what makes the collapse smooth even on a slow, tracked drag:
 // nothing about it forces a layout recalculation.
 export const COMPACT_HEADER_HEIGHT = HEADER_TOP_OFFSET + HEADER_ROW_HEIGHT + HEADER_VERTICAL_PADDING;
@@ -37,7 +37,7 @@ export const HOME_HEADER_EXTRA_HEIGHT = 170;
 // How much scroll distance (px) the collapse plays out over.
 const COLLAPSE_DISTANCE = 80;
 
-// Kept for any screen still importing the old constant — no longer used
+// Kept for any screen still importing the old constant - no longer used
 // internally now that the header doesn't float over content by default.
 export const FLOATING_HEADER_CONTENT_OFFSET = COMPACT_HEADER_HEIGHT;
 
@@ -58,7 +58,7 @@ type Props = {
   onNotificationPress?: () => void;
   /**
    * Reanimated shared value driven by the home screen's scroll position, used to collapse the
-   * header smoothly on the UI thread. Only relevant when `home` is true — create it with
+   * header smoothly on the UI thread. Only relevant when `home` is true - create it with
    * `useSharedValue(0)` and update it in a `useAnimatedScrollHandler` on the screen's ScrollView.
    */
   scrollY?: SharedValue<number>;
@@ -142,7 +142,7 @@ export default function AppHeader({
     opacity: interpolate(y.value, [0, COLLAPSE_DISTANCE], [0, 1], Extrapolation.CLAMP),
   }));
 
-  // The overlay only ever animates transform + opacity — never height,
+  // The overlay only ever animates transform + opacity - never height,
   // padding, or anything else that would force a layout pass. That's the
   // fix for the stutter: a transform is handled entirely by the
   // compositor, so it stays smooth no matter how slowly you drag.

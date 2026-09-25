@@ -1,10 +1,10 @@
-"""demo_retrain_loop — end-to-end smoke test for the churn retraining pipeline.
+"""demo_retrain_loop, end-to-end smoke test for the churn retraining pipeline.
 
 Intended for interactive validation (dissertation demo). Steps:
 
 1. Snapshot the live ML model version.
 2. Seed synthetic ChurnLabel rows from existing ChurnScores if fewer than
-   `--min-samples` real labels are available — this bypasses the 180-day
+   `--min-samples` real labels are available, this bypasses the 180-day
    waiting window so the loop can be exercised in seconds.
 3. Run `retrain_churn` to POST features to the ML service and hot-swap.
 4. Print the delta (old vs new model version) and the newest RetrainRun row.
@@ -102,11 +102,11 @@ class Command(BaseCommand):
             "trained_at"
         ) != after.get("trained_at")
         if swapped:
-            self.stdout.write(self.style.SUCCESS("✓ Model hot-swap detected."))
+            self.stdout.write(self.style.SUCCESS(" Model hot-swap detected."))
         else:
             self.stderr.write(
                 self.style.WARNING(
-                    "⚠ Model version/trained_at unchanged — hot-swap may have failed."
+                    "Model version/trained_at unchanged - hot-swap may have failed."
                 )
             )
 

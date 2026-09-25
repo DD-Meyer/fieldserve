@@ -104,7 +104,7 @@ def test_distance_dominates_floor(business, customer):
         price=Decimal("0"),
         status=Job.Status.SCHEDULED,
     )
-    # New job in Reading ~60km away — needs ~90 min travel, more than 5 min floor.
+    # New job in Reading ~60km away - needs ~90 min travel, more than 5 min floor.
     result = check_slot(
         business=business,
         scheduled_at=_dt(2026, 8, 20, 10, 45),

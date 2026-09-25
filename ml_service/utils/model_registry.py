@@ -1,4 +1,4 @@
-"""Model registry — loads the churn model bundle from disk.
+"""Model registry - loads the churn model bundle from disk.
 
 The training notebook saves a dict with these keys::
 
@@ -15,7 +15,7 @@ The training notebook saves a dict with these keys::
         "trained_at":        "ISO timestamp",
     }
 
-Older notebook versions saved a bare ``Pipeline`` — for those we wrap into the
+Older notebook versions saved a bare ``Pipeline`` - for those we wrap into the
 same shape with placeholder metadata and ``feature_names=None`` so the router
 can fall back to the RFM heuristic without crashing.
 """
@@ -50,7 +50,7 @@ def _wrap_legacy(obj: Any, path: Path) -> dict[str, Any]:
     return {
         "model": obj,
         "imputer": None,
-        "feature_names": None,  # unknown — caller must treat as legacy
+        "feature_names": None,  # unknown - caller must treat as legacy
         "model_name": "legacy",
         "feature_set_label": "unknown",
         "data_source": "unknown",

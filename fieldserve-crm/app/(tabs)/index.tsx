@@ -95,9 +95,9 @@ export default function HomeScreen() {
         title=""
         scrollY={scrollY}
         stats={[
-          { label: "Jobs Today", value: todayLoading ? "—" : String(todayJobs.length) },
-          { label: "Today's Revenue", value: todayLoading ? "—" : `$${todayRevenue.toFixed(0)}` },
-          { label: "Pending", value: todayLoading ? "—" : String(todayJobs.filter(job => job.status === "pending").length) },
+          { label: "Jobs Today", value: todayLoading ? "-" : String(todayJobs.length) },
+          { label: "Today's Revenue", value: todayLoading ? "-" : `$${todayRevenue.toFixed(0)}` },
+          { label: "Pending", value: todayLoading ? "-" : String(todayJobs.filter(job => job.status === "pending").length) },
         ]}
         notificationCount={unreadNotificationCount}
         onNotificationPress={() => router.push("/notifications" as any)}

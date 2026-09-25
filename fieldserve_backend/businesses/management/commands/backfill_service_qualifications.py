@@ -1,6 +1,6 @@
 """Auto-qualify all active members for any service that currently has none.
 
-Fixes services created before qualification defaults existed — with zero
+Fixes services created before qualification defaults existed - with zero
 qualified members, `_qualified_members()` always returns [] and no time slot
 can ever be offered, even on an empty day.
 
@@ -25,7 +25,7 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         unqualified = Service.objects.filter(qualified_members__isnull=True).distinct()
         if not unqualified.exists():
-            self.stdout.write(self.style.SUCCESS("Nothing to do — every service already has qualified members."))
+            self.stdout.write(self.style.SUCCESS("Nothing to do - every service already has qualified members."))
             return
 
         for service in unqualified.select_related("business"):
@@ -40,6 +40,6 @@ class Command(BaseCommand):
                 service.qualified_members.set(active_members)
 
         if not opts["apply"]:
-            self.stdout.write(self.style.WARNING("\nDry run only — re-run with --apply to save."))
+            self.stdout.write(self.style.WARNING("\nDry run only - re-run with --apply to save."))
         else:
             self.stdout.write(self.style.SUCCESS("Done."))

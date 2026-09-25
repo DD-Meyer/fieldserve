@@ -61,7 +61,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <View className="flex-row items-center justify-between py-2 border-b border-slate-100">
       <Text className="text-xs text-slate-500">{label}</Text>
       <Text className="text-sm text-slate-900 font-medium" numberOfLines={1}>
-        {value || "—"}
+        {value || "-"}
       </Text>
     </View>
   );
@@ -220,7 +220,7 @@ export default function CustomerProfile() {
               <Text className="text-2xl font-bold text-slate-900 mt-1">
                 {latestScore
                   ? `${Math.round(Number(latestScore.probability) * 100)}%`
-                  : "—"}
+                  : "-"}
               </Text>
             </View>
             {latestScore ? (
@@ -254,7 +254,7 @@ export default function CustomerProfile() {
               {latestScore.feature_snapshot.raw_model_probability != null &&
               latestScore.feature_snapshot.manual_adjusted_probability != null ? (
                 <Text className="text-[11px] text-green-800 mt-1 font-semibold">
-                  Raw {Math.round(latestScore.feature_snapshot.raw_model_probability * 100)}% → adjusted {Math.round(latestScore.feature_snapshot.manual_adjusted_probability * 100)}%
+                  Raw {Math.round(latestScore.feature_snapshot.raw_model_probability * 100)}% -> adjusted {Math.round(latestScore.feature_snapshot.manual_adjusted_probability * 100)}%
                 </Text>
               ) : null}
             </View>

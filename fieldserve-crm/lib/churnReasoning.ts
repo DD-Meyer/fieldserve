@@ -214,7 +214,7 @@ function buildReasons(snapshot: ChurnFeatureSnapshot): ChurnReason[] {
     const raw = snapshot.raw_model_probability;
     const adjusted = snapshot.manual_adjusted_probability;
     const value = isNumber(raw) && isNumber(adjusted)
-      ? `${Math.round(raw * 100)}% → ${Math.round(adjusted * 100)}%`
+      ? `${Math.round(raw * 100)}% -> ${Math.round(adjusted * 100)}%`
       : snapshot.manual_retention_status.replace("_", " ");
     reasons.push(reason(
       "manual-retention",

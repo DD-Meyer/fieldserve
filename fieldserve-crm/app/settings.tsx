@@ -2,7 +2,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 
 import ScreenScaffold from "../components/ScreenScaffold";

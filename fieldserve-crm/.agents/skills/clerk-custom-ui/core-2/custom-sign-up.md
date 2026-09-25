@@ -1,13 +1,13 @@
 # Custom Sign-Up Flow (Core 2)
 
-> This document covers the **older SDK** (`@clerk/nextjs` v5–v6, `@clerk/clerk-react` v5–v6, `@clerk/clerk-expo` v1–v2). For the current SDK, see `core-3/custom-sign-up.md`.
+> This document covers the **older SDK** (`@clerk/nextjs` v5–v6, `@clerk/clerk-react` v5–v6, `@clerk/expo` v1–v2). For the current SDK, see `core-3/custom-sign-up.md`.
 
 Build a custom sign-up experience using the `useSignUp()` hook.
 
 ## Hook API
 
 ```typescript
-import { useSignUp } from '@clerk/nextjs' // or @clerk/clerk-react, @clerk/clerk-expo
+import { useSignUp } from '@clerk/nextjs' // or @clerk/clerk-react, @clerk/expo
 
 const { signUp, isLoaded, setActive } = useSignUp()
 ```

@@ -1,12 +1,12 @@
 """Soft-delete businesses whose linked Clerk organization no longer exists.
 
 Covers orgs deleted directly in Clerk before the `organization.deleted`
-webhook handler existed (or if a webhook delivery was ever missed) — checks
+webhook handler existed (or if a webhook delivery was ever missed) - checks
 each Clerk-linked business against the Clerk API and applies the same
 soft-delete used by `organization.deleted` / the in-app "delete business".
 
 Usage:
-    # Dry run (default) — lists which businesses would be affected.
+    # Dry run (default) - lists which businesses would be affected.
     python manage.py sync_deleted_organizations
 
     # Apply.
@@ -46,14 +46,14 @@ class Command(BaseCommand):
                     )
 
         if not missing:
-            self.stdout.write(self.style.SUCCESS("Nothing to do — every Clerk-linked business still exists."))
+            self.stdout.write(self.style.SUCCESS("Nothing to do - every Clerk-linked business still exists."))
             return
 
         for biz in missing:
-            self.stdout.write(f"- [{biz.id}] {biz.name!r} (slug={biz.slug}) — Clerk org no longer exists")
+            self.stdout.write(f"- [{biz.id}] {biz.name!r} (slug={biz.slug}) - Clerk org no longer exists")
 
         if not opts["apply"]:
-            self.stdout.write(self.style.WARNING("\nDry run only — re-run with --apply to soft-delete these."))
+            self.stdout.write(self.style.WARNING("\nDry run only - re-run with --apply to soft-delete these."))
             return
 
         for biz in missing:

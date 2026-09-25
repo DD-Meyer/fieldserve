@@ -78,8 +78,8 @@ def main() -> None:
     document = Document(SOURCE)
 
     set_text(
-        find_paragraph(document, "Document version 3 — final submission"),
-        "Document version 4 — literature and evidence integration update",
+        find_paragraph(document, "Document version 3 - final submission"),
+        "Document version 4 - literature and evidence integration update",
     )
 
     set_text(
@@ -100,7 +100,7 @@ def main() -> None:
     )
 
     set_text(
-        find_paragraph(document, "2.6 Computer-Vision Vehicle-Damage Detection — An Outstanding Literature Strand"),
+        find_paragraph(document, "2.6 Computer-Vision Vehicle-Damage Detection - An Outstanding Literature Strand"),
         "2.6 Computer-Vision Vehicle-Damage Detection",
     )
     first_cv = find_paragraph(
@@ -246,8 +246,8 @@ def main() -> None:
     )
 
     figure_renumbering = (
-        ("Figure 5.5: Example validation batch — deployed model predictions for the same images, for direct visual comparison with Figure 5.4.", "Figure 5.7: Example validation batch — deployed model predictions for the same images, for direct visual comparison with Figure 5.6."),
-        ("Figure 5.4: Example validation batch — ground-truth labels.", "Figure 5.6: Example validation batch — ground-truth labels."),
+        ("Figure 5.5: Example validation batch - deployed model predictions for the same images, for direct visual comparison with Figure 5.4.", "Figure 5.7: Example validation batch - deployed model predictions for the same images, for direct visual comparison with Figure 5.6."),
+        ("Figure 5.4: Example validation batch - ground-truth labels.", "Figure 5.6: Example validation batch - ground-truth labels."),
         ("Figure 5.3: Normalised confusion matrix for the deployed model. The largest source of error for dent, scratch, and crack is under-detection against background (false negatives) rather than confusion between damage classes.", "Figure 5.5: Normalised confusion matrix for the deployed model. The largest source of error for dent, scratch, and crack is under-detection against background (false negatives) rather than confusion between damage classes."),
         ("Figure 5.2: Precision-recall curves per class for the deployed model, showing the strong separation between the three high-performing classes (glass shatter, tire flat, lamp broken) and the three weaker classes (dent, scratch, crack).", "Figure 5.4: Precision-recall curves per class for the deployed model, showing the strong separation between the three high-performing classes (glass shatter, tire flat, lamp broken) and the three weaker classes (dent, scratch, crack)."),
         ("Figure 5.1: Training and validation loss and metric curves across training for the deployed model.", "Figure 5.3: Training and validation loss and metric curves across training for the deployed model."),
@@ -342,15 +342,15 @@ def main() -> None:
     )
     set_text(
         completed_literature,
-        "Completed — Chapter 2.6 now reviews CarDD, the peer-reviewed YOLO lineage, YOLOv8 software, and an operational insurance-company study; four verified references were added.",
+        "Completed - Chapter 2.6 now reviews CarDD, the peer-reviewed YOLO lineage, YOLOv8 software, and an operational insurance-company study; four verified references were added.",
     )
     completed_literature.style = "List Paragraph"
     cursor = completed_literature
     for item in (
-        "Completed — Backend test suite: 32 tests passed in Docker; scheduler and public-booking focused suite: 13 tests passed.",
-        "Completed — FastAPI smoke checks: /health, /version, /vision/status, and /openapi.json returned HTTP 200; deployed vision model reported as yolov8n-cardd-5c2d7c9.",
-        "Completed with limitation — KDE notebook used 96,210 located records and selected bandwidth 0.236 degrees by five-fold cross-validation; spatial-fold log-likelihood was -203.1629 ± 335.0770 per point, indicating unstable geographic generalisation.",
-        "Completed with limitation — Churn risk thresholds are High ≥ 0.65 and Medium ≥ 0.35; the report retains the leakage-safe held-out model comparison and must not infer results from the empty churn_results_retailii.csv file.",
+        "Completed - Backend test suite: 32 tests passed in Docker; scheduler and public-booking focused suite: 13 tests passed.",
+        "Completed - FastAPI smoke checks: /health, /version, /vision/status, and /openapi.json returned HTTP 200; deployed vision model reported as yolov8n-cardd-5c2d7c9.",
+        "Completed with limitation - KDE notebook used 96,210 located records and selected bandwidth 0.236 degrees by five-fold cross-validation; spatial-fold log-likelihood was -203.1629 ± 335.0770 per point, indicating unstable geographic generalisation.",
+        "Completed with limitation - Churn risk thresholds are High ≥ 0.65 and Medium ≥ 0.35; the report retains the leakage-safe held-out model comparison and must not infer results from the empty churn_results_retailii.csv file.",
     ):
         cursor = insert_after(cursor, item, "List Paragraph")
 
@@ -360,7 +360,7 @@ def main() -> None:
     )
     set_text(
         completed_architecture,
-        "Completed — Figures 3.1–3.3 reproduce the supplied high-level system, Django app-ownership, and ML data-flow diagrams.",
+        "Completed - Figures 3.1–3.3 reproduce the supplied high-level system, Django app-ownership, and ML data-flow diagrams.",
     )
     completed_schema = find_paragraph(
         document,
@@ -368,13 +368,13 @@ def main() -> None:
     )
     set_text(
         completed_schema,
-        "Completed — Figure 3.2 documents the supplied app/data-ownership relationships including inspections; Chapter 4.1 records the persisted inspection fields.",
+        "Completed - Figure 3.2 documents the supplied app/data-ownership relationships including inspections; Chapter 4.1 records the persisted inspection fields.",
     )
     completed_cursor = completed_schema
     for item in (
-        "Completed — Figure 4.6 reproduces the supplied implemented mobile heat map with clusters and density markers.",
-        "Completed — Figures 4.7–4.9 reproduce the supplied guided capture, framing guidance, damage overlays, and inspection summary evidence.",
-        "Completed — Figures 5.1–5.2 reproduce the supplied churn PR/ROC curves and XGBoost feature-importance output.",
+        "Completed - Figure 4.6 reproduces the supplied implemented mobile heat map with clusters and density markers.",
+        "Completed - Figures 4.7–4.9 reproduce the supplied guided capture, framing guidance, damage overlays, and inspection summary evidence.",
+        "Completed - Figures 5.1–5.2 reproduce the supplied churn PR/ROC curves and XGBoost feature-importance output.",
     ):
         completed_cursor = insert_after(completed_cursor, item, "List Paragraph")
 

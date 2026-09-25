@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 // react-native-google-places-autocomplete triggers a "Cannot access before
-// initialization" crash in the Metro web bundle, so it's native-only here —
+// initialization" crash in the Metro web bundle, so it's native-only here
 // the public booking page runs on web (Vercel) as well as in-app.
 let GooglePlacesAutocomplete: any = null;
 if (Platform.OS !== "web") {
@@ -246,7 +246,7 @@ export default function PublicBookingPage() {
     }
     let cancelled = false;
     setLoadingSlots(true);
-    // Debounced — email/phone are typed character-by-character, and every
+    // Debounced - email/phone are typed character-by-character, and every
     // keystroke would otherwise fire its own suggest-slots request.
     const timer = setTimeout(() => {
       apiPost<SuggestSlotsResponse>(
@@ -291,7 +291,7 @@ export default function PublicBookingPage() {
     return Array.from(new Set(slots)).sort();
   }, [suggestions, otherAvailable]);
 
-  // Silent prefill only — never blocks or gates the rest of the form.
+  // Silent prefill only - never blocks or gates the rest of the form.
   const lookupCustomerByEmail = async () => {
     const emailTrim = email.trim();
     if (!emailTrim || !emailTrim.includes("@")) return;
@@ -337,7 +337,7 @@ export default function PublicBookingPage() {
       Alert.alert("Add an address", "Please enter the service address.");
       return;
     }
-    // Lat/lng is preferred (from picking a suggestion) but not required client-side —
+    // Lat/lng is preferred (from picking a suggestion) but not required client-side
     // the backend falls back to geocoding the typed address if it's missing.
     setSubmitting(true);
     try {
@@ -497,7 +497,7 @@ export default function PublicBookingPage() {
           <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-5">
             <Text className="text-xs text-slate-500">
               {svcState.error
-                ? "Couldn't load services — please refresh and try again."
+                ? "Couldn't load services, please refresh and try again."
                 : "No services listed yet. Please check back soon."}
             </Text>
           </View>
@@ -552,7 +552,7 @@ export default function PublicBookingPage() {
           {knownCustomer ? (
             <View className="mb-3 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
               <Text className="text-[11px] font-semibold text-green-800">
-                {"Welcome back — we've prefilled your details. Edit anything that's changed."}
+                {"Welcome back! We've prefilled your details. Edit anything that's changed."}
               </Text>
             </View>
           ) : null}

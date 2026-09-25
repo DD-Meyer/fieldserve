@@ -402,7 +402,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     }
     if (duplicateHit) {
       setCustErr(
-        `"${duplicateHit.full_name}" already exists — select them instead.`,
+        `"${duplicateHit.full_name}" already exists - select them instead.`,
       );
       return;
     }
@@ -443,7 +443,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
     }
     if (duplicateServiceHit) {
       setServiceErr(
-        `"${duplicateServiceHit.name}" already exists — select it instead.`,
+        `"${duplicateServiceHit.name}" already exists - select it instead.`,
       );
       return;
     }
@@ -482,7 +482,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       return setErr(
         slotState.reason === "outside_hours"
           ? `Outside company hours (${business.data?.working_hours_start?.slice(0, 5)}–${business.data?.working_hours_end?.slice(0, 5)}).`
-          : "Time conflicts with another job — pick a suggested slot.",
+          : "Time conflicts with another job - pick a suggested slot.",
       );
     }
     try {
@@ -510,7 +510,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
           reason: body.scheduled_at as CheckSlotResponse["reason"],
           suggested_slots: body.suggested_slots,
         });
-        setErr("Slot unavailable — try a suggestion below.");
+        setErr("Slot unavailable - try a suggestion below.");
       } else {
         setErr(apiErrorMessage(e, "Could not create booking."));
       }
@@ -1183,7 +1183,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             />
 
             <Text className="text-xs font-semibold text-slate-600 mb-1">
-              Price override ($) — optional
+              Price override ($) - optional
             </Text>
             <TextInput
               value={priceOverride}

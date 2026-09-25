@@ -43,7 +43,7 @@ export function useShareBooking() {
         await nav.clipboard.writeText(bookingLink);
         Alert.alert(
           "Link copied",
-          "The booking link is on your clipboard — paste it into an email or message.",
+          "The booking link is on your clipboard - paste it into an email or message.",
         );
         return;
       }

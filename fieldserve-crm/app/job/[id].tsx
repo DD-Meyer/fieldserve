@@ -16,7 +16,7 @@ import "../../global.css";
 import AppHeader from "../../components/AppHeader";
 import IndemnitySigningModal from "../../components/IndemnitySigningModal";
 import { useApi } from "../../lib/api";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRefresh } from "@/hooks/useRefresh";
 import {
@@ -94,7 +94,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
         className="text-sm text-slate-900 font-medium flex-1 text-right ml-3"
         numberOfLines={2}
       >
-        {value || "—"}
+        {value || "-"}
       </Text>
     </View>
   );
@@ -219,7 +219,7 @@ export default function JobDetail() {
           <InfoRow label="Price" value={price} />
           <InfoRow
             label="Duration"
-            value={job.duration_minutes ? `${job.duration_minutes} min` : "—"}
+            value={job.duration_minutes ? `${job.duration_minutes} min` : "-"}
           />
           <InfoRow label="Assigned to" value={assignedToName} />
           <InfoRow label="Notes" value={job.notes} />

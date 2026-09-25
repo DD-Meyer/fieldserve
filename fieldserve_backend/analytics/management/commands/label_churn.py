@@ -1,7 +1,7 @@
-"""label_churn — compute ground-truth churn labels once the window has elapsed.
+"""label_churn - compute ground-truth churn labels once the window has elapsed.
 
 For each ChurnScore older than `window_days`, check whether the customer had
-any completed job in `[scored_at, scored_at + window_days]`. If not → churned.
+any completed job in `[scored_at, scored_at + window_days]`. If not -> churned.
 
 Usage:
     python manage.py label_churn                  # default 180-day window

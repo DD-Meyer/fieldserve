@@ -1,7 +1,7 @@
 """Deterministic gap-insertion scheduler.
 
 The old design tried to reorder jobs with an ML-style nearest-neighbour route
-optimiser, which never made physical sense — workers must visit each customer
+optimiser, which never made physical sense - workers must visit each customer
 at the promised time. Instead, when the customer is *booking*, we search the
 day's existing appointments for gaps big enough to accommodate the new job,
 score each candidate on total travel + fragmentation, and hand back a short
@@ -145,7 +145,7 @@ def _day_anchors(
     Day-open and day-close use the business depot location if set, otherwise
     they have no coordinates and only the buffer floor applies between them
     and the new job. When `assigned_to` is given, only that member's own jobs
-    are considered — each team member effectively has their own calendar, so
+    are considered - each team member effectively has their own calendar, so
     different members can be booked at the same time.
     """
     open_dt = _combine(day, business.working_hours_start, tz)
@@ -242,7 +242,7 @@ def _fragmentation_penalty(window: Window, start: datetime, duration: timedelta)
         penalty += FRAG_PENALTY
     if 0 < idle_after < FRAG_SLIVER_MINUTES:
         penalty += FRAG_PENALTY
-    _ = end  # placeholder — end is (window bounds already account for duration)
+    _ = end  # placeholder - end is (window bounds already account for duration)
     return penalty
 
 

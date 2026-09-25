@@ -33,7 +33,7 @@ export default function MapFixed() {
       }
     >
       <Text className="text-xs text-slate-500 mb-4">
-        Where your customers come from — KDE on home postcodes
+        Where your customers come from - KDE on home postcodes
       </Text>
 
       <View className="mb-4">
@@ -68,7 +68,7 @@ export default function MapFixed() {
 
       <View className="mt-4 bg-blue-50 border border-blue-100 rounded-2xl p-4 flex-row">
         <View className="h-9 w-9 rounded-full bg-blue-100 items-center justify-center mr-3">
-          <Text className="text-blue-700">★</Text>
+          <Text className="text-blue-700"></Text>
         </View>
         <View className="flex-1">
           <Text className="text-sm font-semibold text-blue-900">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Modal, Platform, Pressable, Share, Text, TextInput, View } from "react-native";
 
-import { useCompany } from "../lib/hooks/useCompany";
+import { useCurrentBusiness } from "../lib/hooks/useBusiness";
 import { getBookingLink } from "../lib/publicBookingUrl";
 
 type Props = {
@@ -24,7 +24,7 @@ async function copyText(text: string, successTitle: string) {
 }
 
 export default function ShareBookingModal({ visible, onClose }: Props) {
-  const { data: companyProfile } = useCompany();
+  const { data: companyProfile } = useCurrentBusiness();
   const [tab, setTab] = useState<"link" | "embed">("link");
 
   const bookingLink = getBookingLink(companyProfile?.slug);

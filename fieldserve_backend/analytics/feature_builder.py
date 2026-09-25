@@ -1,6 +1,6 @@
 """Compute the 17 churn features for a Customer from their Job history.
 
-Mirrors `ml_service/features/churn.py` — the column names + order must match
+Mirrors `ml_service/features/churn.py` - the column names + order must match
 exactly, otherwise the FastAPI service rejects (or worse, silently mis-scores)
 the prediction.
 

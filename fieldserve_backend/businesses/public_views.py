@@ -29,6 +29,7 @@ from jobs.indemnity import active_indemnity_for, attach_active_indemnity
 from jobs.models import Job
 from jobs.scheduling_utils import check_slot_for_any, find_available_member, suggest_slots_for_any
 from users.models import Customer
+from users.notifications import notify_business_members
 
 from .models import Business, IndemnityDocument, Membership, Service
 
@@ -38,8 +39,13 @@ class _BookingThrottle(AnonRateThrottle):
     rate = "20/hour"
 
 
+class _PublicReadThrottle(AnonRateThrottle):
+    scope = "public_read"
+    rate = "120/minute"
+
+
 class _SlotsThrottle(AnonRateThrottle):
-    """Read-only availability lookups — called far more often than an actual
+    """Read-only availability lookups - called far more often than an actual
     booking (e.g. once per keystroke/date-pick), so needs a looser bucket."""
 
     scope = "public_slots"
@@ -156,7 +162,7 @@ def _qualified_members(business: Business, service: Service):
 @never_cache
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([_BookingThrottle])
+@throttle_classes([_PublicReadThrottle])
 def public_business_detail(request, slug: str):
     biz = get_object_or_404(Business, slug=slug)
     return Response(PublicBusinessSerializer(biz).data)
@@ -165,7 +171,7 @@ def public_business_detail(request, slug: str):
 @never_cache
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([_BookingThrottle])
+@throttle_classes([_PublicReadThrottle])
 def public_service_list(request, slug: str):
     biz = _get_active_business(slug)
     services = biz.services.filter(is_active=True)
@@ -189,7 +195,7 @@ def public_booking_create(request, slug: str):
             )
         if data.get("latitude") is None or data.get("longitude") is None:
             # Client didn't select an autocomplete suggestion (e.g. it was
-            # rate-limited) — geocode the typed address ourselves rather
+            # rate-limited) - geocode the typed address ourselves rather
             # than blocking the booking entirely.
             geocoded = _geocode_address(address)
             if geocoded is None:
@@ -238,7 +244,7 @@ def public_booking_create(request, slug: str):
         )
 
     # Find-or-create the customer within this business, keyed by email when
-    # provided — a different email always means a different customer, even if
+    # provided - a different email always means a different customer, even if
     # the phone number happens to match someone else on file.
     email = (data.get("email") or "").strip().lower()
     phone = (data.get("phone") or "").strip()
@@ -314,6 +320,11 @@ def public_booking_create(request, slug: str):
             status=Job.Status.PENDING,
         )
     attach_active_indemnity(job)
+    notify_business_members(
+        job.business,
+        title="New booking created",
+        message=f"{job.service_type} for {job.customer.full_name}.",
+    )
 
     return Response(
         {

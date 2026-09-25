@@ -158,7 +158,7 @@ def adjusted_score_for_retention(
 
 
 def safe_score_customer(customer: Customer) -> ChurnScore | None:
-    """Best-effort rescoring for signal handlers — swallows ML errors."""
+    """Best-effort rescoring for signal handlers - swallows ML errors."""
     try:
         return score_customer(customer)
     except MLServiceError as exc:

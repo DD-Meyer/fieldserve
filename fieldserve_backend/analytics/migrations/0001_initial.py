@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ('scored_at', models.DateTimeField(help_text='The `as_of` timestamp sent to the ML service.')),
                 ('probability', models.DecimalField(decimal_places=4, max_digits=5)),
                 ('risk_bucket', models.CharField(choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')], max_length=8)),
-                ('model_version', models.CharField(help_text="Maps to the bundle's `trained_at` field — lets us trace which trained artefact produced this score.", max_length=64)),
+                ('model_version', models.CharField(help_text="Maps to the bundle's `trained_at` field, lets us trace which trained artefact produced this score.", max_length=64)),
                 ('model_name', models.CharField(max_length=64)),
                 ('feature_set', models.CharField(max_length=64)),
                 ('feature_snapshot', models.JSONField(help_text='Exact feature dict sent to the ML service. Kept so that the matching ChurnLabel can be paired with the features used at score time.')),

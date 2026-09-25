@@ -4,7 +4,7 @@ import { useState } from "react";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SettingsGroup from "../components/SettingsGroup";
 import SettingsRow from "../components/SettingsRow";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { useMe, useUpdateMe } from "../lib/hooks/useMe";
 
 export default function ProfileScreen() {

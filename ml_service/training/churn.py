@@ -8,7 +8,7 @@ Single source of truth for *training* a churn model. Used by:
 - the CLI: ``python -m training.churn --csv path/to/online_retail.csv``.
 
 The function ``train_from_bookings`` is the entry point for the
-"data → trained bundle" path; ``train_from_features`` is the entry point
+"data -> trained bundle" path; ``train_from_features`` is the entry point
 when the caller already has pre-engineered rows + labels.
 
 Saves a bundle dict matching what ``utils.model_registry.load_churn_bundle``
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 ML_SERVICE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_BUNDLE_PATH = ML_SERVICE_DIR / "models" / "churn" / "churn_model.joblib"
 
-# Defaults — match the notebook's protocol so models trained here are directly
+# Defaults - match the notebook's protocol so models trained here are directly
 # comparable to ones trained in the dissertation notebook.
 DEFAULT_CHURN_DAYS = 180
 DEFAULT_OBS_DAYS = 365
@@ -386,7 +386,7 @@ def save_bundle(bundle: dict[str, Any], path: Path | None = None) -> Path:
     tmp = path.with_suffix(path.suffix + ".tmp")
     joblib.dump(bundle, tmp)
     tmp.replace(path)
-    log.info("Saved churn bundle → %s (%.1f KB)", path, path.stat().st_size / 1024)
+    log.info("Saved churn bundle -> %s (%.1f KB)", path, path.stat().st_size / 1024)
     return path
 
 
@@ -402,7 +402,7 @@ def train_from_bookings(
     data_source: str = "UCI Online Retail II",
     save_path: Path | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    """End-to-end: bookings → labels + features → bake-off → save bundle.
+    """End-to-end: bookings -> labels + features -> bake-off -> save bundle.
 
     Returns ``(path_written, bundle)``.
     """
@@ -458,7 +458,7 @@ def train_from_csv(
     *,
     save_path: Path | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    """Top-level convenience: load → clean → train → save. CLI entry point."""
+    """Top-level convenience: load -> clean -> train -> save. CLI entry point."""
     raw = load_online_retail(Path(data_dir))
     bookings = clean_to_bookings(raw)
     return train_from_bookings(bookings, save_path=save_path)
@@ -491,7 +491,7 @@ def _cli() -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
     path, bundle = train_from_csv(Path(args.data_dir), save_path=Path(args.out))
-    print(f"Wrote bundle → {path}")
+    print(f"Wrote bundle -> {path}")
     print(f"  best model     : {bundle['model_name']} ({bundle['feature_set_label']})")
     print(f"  metrics        : {bundle['metrics']}")
     print(f"  training cutoff: {bundle['churn_definition']['cutoff_date_used_in_training']}")

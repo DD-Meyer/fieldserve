@@ -2,7 +2,7 @@
 
 Loads a YOLOv8 model at import time if the weights file exists AND
 ultralytics is installed. Otherwise serves a deterministic stub so the
-rest of the pipeline (Django → ml_service → mobile) can be exercised
+rest of the pipeline (Django -> ml_service -> mobile) can be exercised
 end-to-end while the CarDD fine-tune trains.
 
 The damage model reports findings; a separate generic detector validates
@@ -73,7 +73,7 @@ class _Model:
     def _try_load(self) -> None:
         if not WEIGHTS_PATH.exists():
             log.warning(
-                "Vehicle damage weights not found at %s — serving fallback stub.",
+                "Vehicle damage weights not found at %s - serving fallback stub.",
                 WEIGHTS_PATH,
             )
             return
@@ -85,9 +85,9 @@ class _Model:
             self.version = f"yolov8n-cardd-{sha}"
             log.info("Loaded vehicle damage model %s", self.version)
         except ImportError as exc:
-            log.warning("Ultralytics import failed: %s — serving fallback stub.", exc)
+            log.warning("Ultralytics import failed: %s - serving fallback stub.", exc)
         except Exception:  # noqa: BLE001
-            log.exception("Failed to load vehicle damage model — serving fallback stub.")
+            log.exception("Failed to load vehicle damage model - serving fallback stub.")
 
     def predict(self, image: Image.Image) -> list[dict[str, Any]]:
         self._ensure_loaded()
@@ -103,7 +103,7 @@ class _Model:
                 max_det=20,
             )
         except Exception:  # noqa: BLE001
-            log.exception("YOLO inference failed — returning empty damage list.")
+            log.exception("YOLO inference failed - returning empty damage list.")
             return []
         damages: list[dict[str, Any]] = []
         for r in results:
@@ -136,7 +136,7 @@ class _Model:
     def _stub(self, image: Image.Image) -> list[dict[str, Any]]:
         """Deterministic pseudo-detection based on image hash.
 
-        Not for evaluation — purely to unblock the mobile / Django integration
+        Not for evaluation - purely to unblock the mobile / Django integration
         while the CarDD fine-tune runs. Emits 0–2 fake boxes on the right side
         of the image with a stable label picked from the hash.
         """

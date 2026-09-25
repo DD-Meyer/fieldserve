@@ -41,14 +41,14 @@ class MLClient:
         *,
         as_of: str | None = None,
     ) -> dict[str, Any]:
-        """POST /predict/churn — returns the parsed JSON body."""
+        """POST /predict/churn - returns the parsed JSON body."""
         payload: dict[str, Any] = {"customers": customers}
         if as_of is not None:
             payload["as_of"] = as_of
         return self._post("/predict/churn", payload)
 
     def churn_info(self) -> dict[str, Any]:
-        """GET /predict/churn/info — diagnostic metadata for the live bundle."""
+        """GET /predict/churn/info - diagnostic metadata for the live bundle."""
         return self._get("/predict/churn/info")
 
     def heatmap(
@@ -58,7 +58,7 @@ class MLClient:
         grid_size: int = 40,
         bandwidth: float | None = None,
     ) -> dict[str, Any]:
-        """POST /predict/heatmap — KDE grid of demand density."""
+        """POST /predict/heatmap - KDE grid of demand density."""
         payload: dict[str, Any] = {"points": points, "grid_size": grid_size}
         if bandwidth is not None:
             payload["bandwidth"] = bandwidth
@@ -70,7 +70,7 @@ class MLClient:
         grid_size: int = 40,
         forecast_horizon_days: int = 30,
     ) -> dict[str, Any]:
-        """POST /predict/heatmap/forecast — forecast demand opportunity zones."""
+        """POST /predict/heatmap/forecast - forecast demand opportunity zones."""
         return self._post(
             "/predict/heatmap/forecast",
             {"grid_size": grid_size, "forecast_horizon_days": forecast_horizon_days},
@@ -83,7 +83,7 @@ class MLClient:
         *,
         average_speed_kmh: float = 40.0,
     ) -> dict[str, Any]:
-        """POST /predict/schedule — nearest-neighbour route ordering."""
+        """POST /predict/schedule - nearest-neighbour route ordering."""
         payload = {
             "depot_latitude": depot[0],
             "depot_longitude": depot[1],
@@ -100,7 +100,7 @@ class MLClient:
         *,
         data_source: str = "django-analytics",
     ) -> dict[str, Any]:
-        """POST /admin/train/from_features — kicks off a retrain on the ML service."""
+        """POST /admin/train/from_features - kicks off a retrain on the ML service."""
         return self._post(
             "/admin/train/from_features",
             {"data_source": data_source, "rows": rows},
@@ -108,7 +108,7 @@ class MLClient:
         )
 
     def reload_model(self) -> dict[str, Any]:
-        """POST /admin/reload — hot-swap the in-memory model on the ML service."""
+        """POST /admin/reload - hot-swap the in-memory model on the ML service."""
         return self._post("/admin/reload", {}, admin=True)
 
     def train_heatmap(
@@ -119,7 +119,7 @@ class MLClient:
         min_samples: int = 20,
         min_log_likelihood_delta: float = 0.0,
     ) -> dict[str, Any]:
-        """POST /admin/train/heatmap — metric-gated forecast heatmap training."""
+        """POST /admin/train/heatmap - metric-gated forecast heatmap training."""
         return self._post(
             "/admin/train/heatmap",
             {
@@ -143,7 +143,7 @@ class MLClient:
         promote: bool = True,
         timeout_seconds: int = 7200,
     ) -> dict[str, Any]:
-        """POST /admin/train/vision — gated YOLO candidate train/promote."""
+        """POST /admin/train/vision - gated YOLO candidate train/promote."""
         return self._post(
             "/admin/train/vision",
             {
@@ -180,7 +180,7 @@ class MLClient:
         except httpx.RequestError as exc:
             raise MLServiceError(f"GET {url} failed: {exc}") from exc
         if resp.status_code >= 400:
-            raise MLServiceError(f"GET {url} → {resp.status_code}: {resp.text}")
+            raise MLServiceError(f"GET {url} -> {resp.status_code}: {resp.text}")
         return resp.json()
 
     def _post(self, path: str, payload: dict[str, Any], *, admin: bool = False) -> dict[str, Any]:
@@ -192,5 +192,5 @@ class MLClient:
         except httpx.RequestError as exc:
             raise MLServiceError(f"POST {url} failed: {exc}") from exc
         if resp.status_code >= 400:
-            raise MLServiceError(f"POST {url} → {resp.status_code}: {resp.text}")
+            raise MLServiceError(f"POST {url} -> {resp.status_code}: {resp.text}")
         return resp.json()

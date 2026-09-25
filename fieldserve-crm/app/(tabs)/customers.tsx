@@ -253,7 +253,7 @@ export default function Customers() {
         <Text className="text-xs text-slate-500 mb-4">
           {modelMeta
             ? `${modelMeta.name} · ${modelMeta.featureSet} · trained ${modelMeta.trainedAt}`
-            : "No churn scores yet — run `score_churn` on the backend."}
+            : "No churn scores yet! Run `score_churn` on the backend."}
         </Text>
 
         {isLoading ? (

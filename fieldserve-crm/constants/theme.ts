@@ -10,7 +10,7 @@ export const colors = {
     // Medium-dark slate for secondary captions and secondary texts
     mutedForeground: "rgba(15, 23, 42, 0.6)",
 
-    // Deep navy → lighter navy sweep used behind the home header/hero card,
+    // Deep navy -> lighter navy sweep used behind the home header/hero card,
     // matches the dashboard's dark blue banner (not a teal fade)
     headerGradient: ["#0A1247", "#152B6E", "#1E3A8A"] as const,
     // Kept for any component still referencing the old 3-stop gradient

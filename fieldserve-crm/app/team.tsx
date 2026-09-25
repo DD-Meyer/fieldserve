@@ -267,14 +267,14 @@ export default function TeamScreen() {
                       <View
                         className={`w-5 h-5 rounded border items-center justify-center ${checked ? "bg-blue-600 border-blue-600" : "border-slate-300"}`}
                       >
-                        {checked ? <Text className="text-white text-xs font-bold">✓</Text> : null}
+                        {checked ? <Text className="text-white text-xs font-bold"></Text> : null}
                       </View>
                       <Text className="text-sm text-slate-800">{service.name}</Text>
                     </Pressable>
                   );
                 })}
                 {(services.data?.results?.length ?? 0) === 0 ? (
-                  <Text className="text-xs text-slate-500">No services yet — add one from Services first.</Text>
+                  <Text className="text-xs text-slate-500">No services yet. Add one from Services first.</Text>
                 ) : null}
               </View>
             )}

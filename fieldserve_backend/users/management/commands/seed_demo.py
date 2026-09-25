@@ -12,7 +12,7 @@ Running with --reset will delete any existing customers/jobs for that business f
 Running with --business-name allows you to override the default "FieldServe Detailing" name.
 
 Run twice with different --industry values (same --clerk-id) to give one
-demo login two businesses — mobile and fixed — so reviewers can flip the
+demo login two businesses - mobile and fixed - so reviewers can flip the
 industry-mode switch and see genuinely different data on each side.
 """
 
@@ -154,12 +154,12 @@ def _job_specs(today_start):
     ]
 
 
-# Recency buckets → deterministic churn-risk spread across the seeded base.
-# (days_ago_low, days_ago_high, weight) — weight controls how many customers land here
+# Recency buckets -> deterministic churn-risk spread across the seeded base.
+# (days_ago_low, days_ago_high, weight) - weight controls how many customers land here
 RECENCY_BUCKETS = [
-    (1, 7, 0.30),      # recently active — low churn risk
-    (15, 45, 0.40),    # mid-tenure — moderate risk
-    (90, 210, 0.30),   # gone quiet — high risk
+    (1, 7, 0.30),      # recently active - low churn risk
+    (15, 45, 0.40),    # mid-tenure - moderate risk
+    (90, 210, 0.30),   # gone quiet - high risk
 ]
 
 

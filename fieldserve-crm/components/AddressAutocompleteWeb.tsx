@@ -13,7 +13,7 @@ type Props = {
 };
 
 // Web-only replacement for react-native-google-places-autocomplete (which
-// crashes the Metro web bundle) — proxies through our backend so the Places
+// crashes the Metro web bundle) - proxies through our backend so the Places
 // API key never reaches the browser.
 export default function AddressAutocompleteWeb({ value, onChangeText, onSelect, placeholder }: Props) {
   const [predictions, setPredictions] = useState<Prediction[]>([]);

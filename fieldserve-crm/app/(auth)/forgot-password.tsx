@@ -1,4 +1,4 @@
-import { useAuth, useSignIn } from "@clerk/clerk-expo";
+import { useAuth, useSignIn } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {

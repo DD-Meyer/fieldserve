@@ -206,7 +206,10 @@ ROAD_ROUTER_URL = os.environ.get("ROAD_ROUTER_URL", "https://router.project-osrm
 GOOGLE_PLACES_SERVER_KEY = os.environ.get("GOOGLE_PLACES_SERVER_KEY", "")
 
 # --- CORS ---
-_cors_env = os.environ.get("DJANGO_CORS_ORIGINS", "").strip()
+_cors_env = os.environ.get(
+    "DJANGO_CORS_ORIGINS",
+    os.environ.get("CORS_ALLOWED_ORIGINS", ""),
+).strip()
 if _cors_env:
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
 else:
