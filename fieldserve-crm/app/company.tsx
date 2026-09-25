@@ -113,15 +113,15 @@ export default function CompanyScreen() {
       </Text>
 
       <SettingsGroup title="Business">
-        <SettingsRow label="Name" value={b?.name ?? "—"} onPress={() => openBusinessEdit("name")} />
-        <SettingsRow label="Trading name" value={b?.trading_name || "—"} onPress={() => openBusinessEdit("trading_name")} />
-        <SettingsRow label="Tax ID" value={b?.tax_id || "—"} onPress={() => openBusinessEdit("tax_id")} />
+        <SettingsRow label="Name" value={b?.name ?? "-"} onPress={() => openBusinessEdit("name")} />
+        <SettingsRow label="Trading name" value={b?.trading_name || "-"} onPress={() => openBusinessEdit("trading_name")} />
+        <SettingsRow label="Tax ID" value={b?.tax_id || "-"} onPress={() => openBusinessEdit("tax_id")} />
       </SettingsGroup>
 
       <SettingsGroup title="Contact">
-        <SettingsRow label="Email" value={b?.email || "—"} onPress={() => openBusinessEdit("email")} />
-        <SettingsRow label="Phone" value={b?.phone || "—"} onPress={() => openBusinessEdit("phone")} />
-        <SettingsRow label="Website" value={b?.website || "—"} onPress={() => openBusinessEdit("website")} />
+        <SettingsRow label="Email" value={b?.email || "-"} onPress={() => openBusinessEdit("email")} />
+        <SettingsRow label="Phone" value={b?.phone || "-"} onPress={() => openBusinessEdit("phone")} />
+        <SettingsRow label="Website" value={b?.website || "-"} onPress={() => openBusinessEdit("website")} />
       </SettingsGroup>
 
       <SettingsGroup title="Address">
@@ -130,11 +130,11 @@ export default function CompanyScreen() {
           value={
             [b?.address_line1, b?.address_city, b?.address_postcode]
               .filter(Boolean)
-              .join(", ") || "—"
+              .join(", ") || "-"
           }
           onPress={() => openBusinessEdit("address")}
         />
-        <SettingsRow label="Registered address" value={b?.address_country || "—"} onPress={() => openBusinessEdit("address")} />
+        <SettingsRow label="Registered address" value={b?.address_country || "-"} onPress={() => openBusinessEdit("address")} />
       </SettingsGroup>
 
       <SettingsGroup title="Branding">
@@ -153,17 +153,17 @@ export default function CompanyScreen() {
       <SettingsGroup title="Scheduling">
         <SettingsRow
           label="Opening time"
-          value={b?.working_hours_start?.slice(0, 5) ?? "—"}
+          value={b?.working_hours_start?.slice(0, 5) ?? "-"}
           onPress={() => openEdit("opening")}
         />
         <SettingsRow
           label="Closing time"
-          value={b?.working_hours_end?.slice(0, 5) ?? "—"}
+          value={b?.working_hours_end?.slice(0, 5) ?? "-"}
           onPress={() => openEdit("closing")}
         />
         <SettingsRow
           label="Travel buffer"
-          value={b ? `${b.default_travel_buffer_minutes} min` : "—"}
+          value={b ? `${b.default_travel_buffer_minutes} min` : "-"}
           description="Minimum gap enforced between same-day jobs."
           onPress={() => openEdit("buffer")}
         />

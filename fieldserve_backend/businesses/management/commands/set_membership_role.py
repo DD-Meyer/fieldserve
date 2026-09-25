@@ -1,7 +1,7 @@
 """Fix a user's membership role for a business (e.g. staff -> admin).
 
 Usage:
-    # Dry run (default) — shows current vs proposed role, changes nothing.
+    # Dry run (default) - shows current vs proposed role, changes nothing.
     python manage.py set_membership_role --email jane@example.com --slug my-business --role admin
 
     # Apply the change.
@@ -45,10 +45,10 @@ class Command(BaseCommand):
             f"(status={membership.status})"
         )
         if membership.role == role:
-            self.stdout.write(self.style.SUCCESS("Already set — nothing to do."))
+            self.stdout.write(self.style.SUCCESS("Already set - nothing to do."))
             return
         if not opts["apply"]:
-            self.stdout.write(self.style.WARNING("Dry run only — re-run with --apply to save."))
+            self.stdout.write(self.style.WARNING("Dry run only - re-run with --apply to save."))
             return
 
         membership.role = role

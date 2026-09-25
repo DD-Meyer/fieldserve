@@ -18,7 +18,7 @@ RFM_FEATURES: list[str] = [
     "total_spend_12m",
 ]
 
-# Extended feature set — the production model is trained on these, in this order.
+# Extended feature set - the production model is trained on these, in this order.
 # Order matters: the saved sklearn Pipeline was fit on a numpy array, so column
 # order is the only thing that lines the coefficients up correctly.
 EXT_FEATURES: list[str] = [

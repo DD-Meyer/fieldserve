@@ -147,7 +147,7 @@ def run_analysis(inspection: Inspection) -> None:
         log.warning("Damage detection failed for inspection %s: %s", inspection.pk, exc)
         inspection.analysis_status = Inspection.AnalysisStatus.FAILED
         inspection.analysis_error = str(exc)
-    except Exception as exc:  # noqa: BLE001 — surface anything else on the row
+    except Exception as exc:  # noqa: BLE001 - surface anything else on the row
         log.exception("Unexpected error running damage detection")
         inspection.analysis_status = Inspection.AnalysisStatus.FAILED
         inspection.analysis_error = f"unexpected: {exc}"

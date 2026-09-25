@@ -1,7 +1,7 @@
-# FieldServe — System Architecture
+# FieldServe, System Architecture
 
 Visual map of how the FieldServe CRM components connect end-to-end.
-All diagrams are [Mermaid](https://mermaid.js.org/) — they render natively in VS Code's Markdown preview and on GitHub.
+All diagrams are [Mermaid](https://mermaid.js.org/), they render natively in VS Code's Markdown preview and on GitHub.
 
 ---
 
@@ -48,7 +48,7 @@ flowchart LR
 
 ## 2. Request lifecycle (typical read)
 
-How a single user action — e.g. "open Schedule screen" — travels through the stack.
+How a single user action - e.g. "open Schedule screen", travels through the stack.
 
 ```mermaid
 sequenceDiagram
@@ -173,7 +173,7 @@ sequenceDiagram
     DB-->>API: user + tenant_id
     API-->>App: JWT {sub, tenant_id, role}
     App->>API: GET /api/jobs (Bearer JWT)
-    API->>API: Decode JWT → set tenant filter
+    API->>API: Decode JWT -> set tenant filter
     API->>DB: SELECT … WHERE tenant_id=?
     DB-->>API: scoped rows
     API-->>App: 200 JSON

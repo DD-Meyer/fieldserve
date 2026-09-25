@@ -124,7 +124,7 @@ export default function DateTimePickerField({
           <Text className={selectedDate ? "text-sm text-slate-900" : "text-sm text-slate-400"}>
             {selectedDate ? formatDisplayDate(selectedDate) : placeholder || "Select a date"}
           </Text>
-          <Text className="text-slate-400 text-xs">📅</Text>
+          <Text className="text-slate-400 text-xs"></Text>
         </Pressable>
       )}
 

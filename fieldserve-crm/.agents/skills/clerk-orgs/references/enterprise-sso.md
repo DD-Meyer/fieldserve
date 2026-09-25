@@ -1,10 +1,10 @@
 # Enterprise SSO
 
-Per-organization SAML or OIDC. Configured via [Dashboard → Configure → Enterprise Connections](https://dashboard.clerk.com/last-active?path=user-authentication/enterprise-connections) or via `clerk api -X POST /v1/enterprise_connections` (requires a plan with the SAML feature enabled). New users from a matching domain auto-join via JIT Provisioning.
+Per-organization SAML or OIDC. Configured via [Dashboard -> Configure -> Enterprise Connections](https://dashboard.clerk.com/last-active?path=user-authentication/enterprise-connections) or via `clerk api -X POST /v1/enterprise_connections` (requires a plan with the SAML feature enabled). New users from a matching domain auto-join via JIT Provisioning.
 
 ## Configuration Flow
 
-1. Open Dashboard → Configure → **Enterprise Connections** (or per-org: Organizations → select org → **SSO Connections**).
+1. Open Dashboard -> Configure -> **Enterprise Connections** (or per-org: Organizations -> select org -> **SSO Connections**).
 2. Add a SAML or OIDC connection and choose which Organization scopes the connection.
 3. Supply the customer's IdP metadata (SAML) or client credentials (OIDC). Clerk generates an ACS URL + Entity ID for the IdP admin to configure on their end.
 4. Set the domain the connection enforces on (e.g. `acme.com`). Clerk routes any sign-in with that email domain through the connection.
@@ -39,7 +39,7 @@ const ssoAccount = user?.enterpriseAccounts?.[0]
 if (ssoAccount) {
   // Directly on EnterpriseAccount:
   ssoAccount.emailAddress           // the email used for SSO
-  ssoAccount.active                 // boolean — is the account active
+  ssoAccount.active                 // boolean - is the account active
   ssoAccount.firstName, ssoAccount.lastName
   ssoAccount.lastAuthenticatedAt    // Date | null
 
@@ -56,16 +56,16 @@ if (ssoAccount) {
 ### Common Mistakes
 
 ```typescript
-// ❌ Wrong — `provider` is not a field on EnterpriseAccount
+//  Wrong - `provider` is not a field on EnterpriseAccount
 ssoAccount.provider
 
-// ✓ Right — `provider` lives on the nested connection
+//  Right - `provider` lives on the nested connection
 ssoAccount.enterpriseConnection?.provider
 ```
 
 `enterpriseConnection` is `null` if the connection was deleted after the account was provisioned. Always guard with `?.`.
 
-## Verified Domains (separate feature — short reference)
+## Verified Domains (separate feature - short reference)
 
 Verified Domains are a different feature from Enterprise SSO and **cannot coexist on the same domain for the same Organization**. Short reference:
 
@@ -102,7 +102,7 @@ The `identifier` is the user's email. Clerk uses the domain to route to the corr
 
 ## Key Rules
 
-- **`provider` is nested.** Always `enterpriseAccounts[i].enterpriseConnection?.provider` — not directly on the account.
+- **`provider` is nested.** Always `enterpriseAccounts[i].enterpriseConnection?.provider` - not directly on the account.
 - **SSO connection owns the domain.** The domain the SSO connection enforces on is set on the connection itself; it does NOT require a separate Verified Domain (and in fact the two features are mutually exclusive per-domain).
 - **Strategy name matters.** Core 3 uses `'enterprise_sso'`; Core 2 used `'saml'`. They are NOT interchangeable.
 - **Multiple connections per org is fine.** Typical enterprise: one SAML connection to Okta + one OIDC to Azure AD for different user segments / domains.

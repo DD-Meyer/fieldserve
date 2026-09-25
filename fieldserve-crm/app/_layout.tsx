@@ -1,4 +1,4 @@
-import { ClerkLoaded, ClerkLoading, ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkLoaded, ClerkLoading, ClerkProvider, useAuth } from "@clerk/expo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";

@@ -44,7 +44,7 @@ def _require_token(x_internal_token: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
-# /admin/reload  — hot-swap the in-memory model to the latest on-disk artefact
+# /admin/reload  - hot-swap the in-memory model to the latest on-disk artefact
 # ---------------------------------------------------------------------------
 
 
@@ -56,7 +56,7 @@ def reload_model(x_internal_token: str | None = Header(default=None)) -> dict[st
 
 
 # ---------------------------------------------------------------------------
-# /admin/train  — retrain from data the caller supplies
+# /admin/train  - retrain from data the caller supplies
 # ---------------------------------------------------------------------------
 
 
@@ -162,7 +162,7 @@ def train_from_features_endpoint(
 ) -> TrainResponse:
     """Retrain from a JSON list of pre-engineered rows + labels.
 
-    Does *not* auto-reload — call ``POST /admin/reload`` once you've verified
+    Does *not* auto-reload - call ``POST /admin/reload`` once you've verified
     the new metrics in the response.
     """
     _require_token(x_internal_token)

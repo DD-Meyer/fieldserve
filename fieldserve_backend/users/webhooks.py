@@ -1,4 +1,4 @@
-"""Clerk webhook handler — mirrors user lifecycle into local DB."""
+"""Clerk webhook handler - mirrors user lifecycle into local DB."""
 
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ class ClerkWebhookView(View):
             clerk_user_id=clerk_user_id,
             defaults={"username": clerk_user_id, "email": email},
         )
-        # Match loosely ("org:admin", "admin", etc.) — Clerk's exact role
+        # Match loosely ("org:admin", "admin", etc.) - Clerk's exact role
         # string has drifted between API versions; a strict match silently
         # demoted admins to staff. The business owner is never demoted,
         # regardless of what Clerk reports, since they must stay an admin.

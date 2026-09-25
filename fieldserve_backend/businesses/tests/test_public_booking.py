@@ -16,7 +16,7 @@ pytestmark = pytest.mark.django_db
 
 
 def _future_workhour(days: int = 1) -> str:
-    """A deterministic ISO datetime N days from now at 10:00 local — safely
+    """A deterministic ISO datetime N days from now at 10:00 local - safely
     inside the default 08:00-18:00 business window regardless of when the
     test happens to run."""
     when = (timezone.now() + timedelta(days=days)).replace(

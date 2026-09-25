@@ -130,7 +130,7 @@ def _safe_load_bundle() -> dict[str, Any] | None:
     try:
         return load_churn_bundle()
     except ModelNotFoundError as exc:
-        log.warning("Churn bundle not loaded: %s — falling back to RFM heuristic.", exc)
+        log.warning("Churn bundle not loaded: %s - falling back to RFM heuristic.", exc)
         return None
 
 

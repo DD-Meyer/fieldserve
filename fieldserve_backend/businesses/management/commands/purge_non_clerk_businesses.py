@@ -7,7 +7,7 @@ manual admin creation) without `--clerk-organization-id`, and shouldn't be
 reachable from the public booking pages.
 
 Usage:
-    # Dry run (default) — lists what would be deleted, changes nothing.
+    # Dry run (default) - lists what would be deleted, changes nothing.
     python manage.py purge_non_clerk_businesses
 
     # Delete one specific business by slug.
@@ -54,7 +54,7 @@ class Command(BaseCommand):
             )
 
         if not queryset.exists():
-            self.stdout.write(self.style.SUCCESS("Nothing to do — no matching businesses."))
+            self.stdout.write(self.style.SUCCESS("Nothing to do - no matching businesses."))
             return
 
         for biz in queryset:
@@ -68,7 +68,7 @@ class Command(BaseCommand):
         if not opts["apply"]:
             self.stdout.write(
                 self.style.WARNING(
-                    f"\nDry run only — {queryset.count()} business(es) listed above would be "
+                    f"\nDry run only - {queryset.count()} business(es) listed above would be "
                     "deleted (with all their jobs/customers/services/indemnities cascaded). "
                     "Re-run with --apply to actually delete."
                 )

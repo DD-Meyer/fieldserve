@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { useCallback, useMemo } from "react";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
@@ -136,7 +136,7 @@ export function useApi() {
           const token = await getToken();
           if (token) headers["Authorization"] = `Bearer ${token}`;
         }
-        // NB: do NOT set Content-Type — the runtime must include the multipart
+        // NB: do NOT set Content-Type - the runtime must include the multipart
         // boundary automatically.
         const res = await fetch(url, { method: "POST", headers, body: form });
         const parsed = await parseBody(res);

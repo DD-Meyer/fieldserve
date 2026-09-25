@@ -85,7 +85,7 @@ describe("buildChurnReasoning", () => {
     expect(result.reasons[0]).toMatchObject({
       key: "manual-retention",
       impact: "protective",
-      value: "78% → 20%",
+      value: "78% -> 20%",
     });
   });
 });

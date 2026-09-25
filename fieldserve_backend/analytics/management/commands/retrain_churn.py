@@ -1,4 +1,4 @@
-"""retrain_churn — ship labelled features to the ML service and hot-swap.
+"""retrain_churn - ship labelled features to the ML service and hot-swap.
 
 Workflow:
     1. Gather all ChurnLabel rows not yet consumed by a retrain run.
@@ -90,7 +90,7 @@ class Command(BaseCommand):
             ChurnLabel.objects.filter(pk__in=[l.pk for l in labels]).update(used_in_retrain=run)
 
         self.stdout.write(self.style.SUCCESS(
-            f"Trained {run.model_name} on {run.n_samples} samples — metrics={run.metrics}"
+            f"Trained {run.model_name} on {run.n_samples} samples - metrics={run.metrics}"
         ))
 
         if opts["no_reload"]:
@@ -105,5 +105,5 @@ class Command(BaseCommand):
             ))
             return
         self.stdout.write(self.style.SUCCESS(
-            f"Hot-swap complete — mode={swap.get('mode')}, trained_at={swap.get('trained_at')}"
+            f"Hot-swap complete - mode={swap.get('mode')}, trained_at={swap.get('trained_at')}"
         ))

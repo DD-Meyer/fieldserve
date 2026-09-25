@@ -445,7 +445,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Not a member of that business.")
         slug = self._resolve_slug(biz, serializer.validated_data["name"])
         service = serializer.save(business=biz, slug=slug)
-        # A service nobody's qualified for can never be scheduled — default to
+        # A service nobody's qualified for can never be scheduled - default to
         # every active member being qualified; admins can narrow it down later.
         service.qualified_members.set(
             biz.memberships.filter(status=Membership.Status.ACTIVE)

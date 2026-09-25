@@ -27,7 +27,7 @@ function StatBlock({ label, value }: { label: string; value: string }) {
 function NoScoreBadge() {
   return (
     <View className="px-2.5 py-1 rounded-full items-center bg-slate-100">
-      <Text className="text-[11px] font-bold text-slate-500">—</Text>
+      <Text className="text-[11px] font-bold text-slate-500">-</Text>
       <Text className="text-[10px] font-medium text-slate-500">No score</Text>
     </View>
   );

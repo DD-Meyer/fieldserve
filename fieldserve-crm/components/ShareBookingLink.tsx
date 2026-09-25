@@ -1,12 +1,12 @@
 // Page where users can share the booking link with others. This component uses the Web Share API if available, otherwise it falls back to copying the link to the clipboard.
 import { Alert, Pressable, Text, View } from "react-native";
 
-import { useCompany } from "@/lib/hooks/useCompany";
+import { useCurrentBusiness } from "@/lib/hooks/useBusiness";
 import { getBookingLink } from "@/lib/publicBookingUrl";
 
 // Show options to embed or share a link for booking a service with FieldServe. Uses the Web Share API if available, otherwise falls back to copying the link to the clipboard.
 export default function ShareBookingLink() {
-    const { data: companyProfile } = useCompany();
+    const { data: companyProfile } = useCurrentBusiness();
     const bookingLink = getBookingLink(companyProfile?.slug);
 
 

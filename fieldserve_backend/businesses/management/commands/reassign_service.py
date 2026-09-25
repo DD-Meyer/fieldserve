@@ -37,12 +37,12 @@ class Command(BaseCommand):
             f"[{destination.id}] {destination.slug!r}"
         )
         if service.business_id == destination.id:
-            self.stdout.write(self.style.SUCCESS("Already on that business — nothing to do."))
+            self.stdout.write(self.style.SUCCESS("Already on that business - nothing to do."))
             return
         if Service.objects.filter(business=destination, slug=service.slug).exclude(pk=service.pk).exists():
             raise CommandError("Destination business already has a service with that slug.")
         if not opts["apply"]:
-            self.stdout.write(self.style.WARNING("Dry run only — re-run with --apply to save."))
+            self.stdout.write(self.style.WARNING("Dry run only - re-run with --apply to save."))
             return
 
         service.business = destination

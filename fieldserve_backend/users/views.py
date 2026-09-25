@@ -52,7 +52,7 @@ class MeView(generics.RetrieveUpdateAPIView):
                 clerk_organization_id=organization_id,
             )
 
-        # Match loosely ("org:admin", "admin", etc.) — Clerk's claim key is the
+        # Match loosely ("org:admin", "admin", etc.) - Clerk's claim key is the
         # abbreviated "rol" (not "role"), and the exact role string has
         # drifted between API versions. The business owner is never demoted,
         # regardless of what the claim says, since they must stay an admin.

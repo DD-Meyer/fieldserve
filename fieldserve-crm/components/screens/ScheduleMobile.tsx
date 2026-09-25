@@ -81,7 +81,7 @@ function toStop(
     order,
     time,
     customer: j.customer_name || `Customer #${j.customer}`,
-    location: j.address || j.customer_address || "—",
+    location: j.address || j.customer_address || "-",
     durationMin: j.duration_minutes ?? 30,
     distanceKm,
     travelMin,

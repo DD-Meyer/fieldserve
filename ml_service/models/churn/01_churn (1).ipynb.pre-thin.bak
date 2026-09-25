@@ -5,10 +5,10 @@
    "id": "f1224bb9",
    "metadata": {},
    "source": [
-    "# CM3070 FieldServe CRM — Churn Prediction (UCI Online Retail II)\n",
-    "**Model:** Binary classification — will a customer make no purchase in the next 180 days?  \n",
+    "# CM3070 FieldServe CRM - Churn Prediction (UCI Online Retail II)\n",
+    "**Model:** Binary classification - will a customer make no purchase in the next 180 days?  \n",
     "**Dataset:** UCI Online Retail II, reframed as field-service bookings  \n",
-    "**Models compared:** Logistic Regression (RFM baseline) → LR (extended) → Random Forest → XGBoost  \n",
+    "**Models compared:** Logistic Regression (RFM baseline) -> LR (extended) -> Random Forest -> XGBoost  \n",
     "**Primary metric:** PR-AUC (imbalanced classes); also ROC-AUC, F1, Brier Score\n",
     "\n",
     "---\n",
@@ -19,7 +19,7 @@
     "## How to get the data\n",
     "1. Go to https://www.kaggle.com/datasets/mashlyn/online-retail-ii-uci (or https://archive.ics.uci.edu/dataset/502/online+retail+ii)\n",
     "2. Download into `data/online_retail_ii/`\n",
-    "3. The dataset is most commonly distributed as a single Excel file `online_retail_II.xlsx` with two sheets (`Year 2009-2010` and `Year 2010-2011`). Some Kaggle mirrors instead provide two CSVs. This notebook handles either — see the loader cell below.\n",
+    "3. The dataset is most commonly distributed as a single Excel file `online_retail_II.xlsx` with two sheets (`Year 2009-2010` and `Year 2010-2011`). Some Kaggle mirrors instead provide two CSVs. This notebook handles either - see the loader cell below.\n",
     "4. Columns expected: `Invoice` (or `InvoiceNo`), `StockCode`, `Description`, `Quantity`, `InvoiceDate`, `Price` (or `UnitPrice`), `Customer ID` (or `CustomerID`), `Country`"
    ]
   },
@@ -33,7 +33,7 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "Libraries loaded ✓\n"
+      "Libraries loaded \n"
      ]
     }
    ],
@@ -57,7 +57,7 @@
     "RANDOM_STATE = 42\n",
     "np.random.seed(RANDOM_STATE)\n",
     "\n",
-    "print('Libraries loaded ✓')"
+    "print('Libraries loaded ')"
    ]
   },
   {
@@ -237,7 +237,7 @@
      "output_type": "stream",
      "text": [
       "Rows after cleaning: 824,293\n",
-      "Date range: 2009-12-01 → 2011-12-09\n",
+      "Date range: 2009-12-01 -> 2011-12-09\n",
       "Unique customers: 5,939\n",
       "Unique invoices : 44,870\n",
       "Cancellation rate (line-level): 2.3%\n"
@@ -253,7 +253,7 @@
     "# 1. Invoice as string so we can check the cancellation prefix safely\n",
     "df['Invoice'] = df['Invoice'].astype(str)\n",
     "\n",
-    "# 2. Drop rows with no customer ID — can't attribute these to a churn label\n",
+    "# 2. Drop rows with no customer ID - can't attribute these to a churn label\n",
     "df = df.dropna(subset=['Customer ID']).copy()\n",
     "\n",
     "# Safe numeric conversion for Customer ID (handles floats, strings with decimals, etc.)\n",
@@ -275,7 +275,7 @@
     "\n",
     "# ── Verification Prints ──────────────────────────────────────────────────────\n",
     "print(f'Rows after cleaning: {len(df):,}')\n",
-    "print(f'Date range: {df[\"InvoiceDate\"].min().date()} → {df[\"InvoiceDate\"].max().date()}')\n",
+    "print(f'Date range: {df[\"InvoiceDate\"].min().date()} -> {df[\"InvoiceDate\"].max().date()}')\n",
     "print(f'Unique customers: {df[\"Customer ID\"].nunique():,}')\n",
     "print(f'Unique invoices : {df[\"Invoice\"].nunique():,}')\n",
     "print(f'Cancellation rate (line-level): {df[\"cancelled\"].mean():.1%}')"
@@ -293,7 +293,7 @@
      "text": [
       "Bookings (invoices) loaded: 44,870\n",
       "Unique customers: 5,939\n",
-      "Date range: 2009-12-01 → 2011-12-09\n"
+      "Date range: 2009-12-01 -> 2011-12-09\n"
      ]
     },
     {
@@ -400,7 +400,7 @@
     "\n",
     "print(f'Bookings (invoices) loaded: {len(bookings):,}')\n",
     "print(f'Unique customers: {bookings[\"customer_id\"].nunique():,}')\n",
-    "print(f'Date range: {bookings[\"booking_date\"].min().date()} → {bookings[\"booking_date\"].max().date()}')\n",
+    "print(f'Date range: {bookings[\"booking_date\"].min().date()} -> {bookings[\"booking_date\"].max().date()}')\n",
     "bookings.head(3)"
    ]
   },
@@ -411,12 +411,12 @@
    "source": [
     "## 2  Define the Churn Label (Leakage-Safe)\n",
     "\n",
-    "**Protocol — same as the Olist notebook, for direct comparability:**\n",
-    "- **Observation window**: `T − 365 days` → `T`\n",
-    "- **Prediction window**: `T` → `T + 180 days`\n",
+    "**Protocol - same as the Olist notebook, for direct comparability:**\n",
+    "- **Observation window**: `T − 365 days` -> `T`\n",
+    "- **Prediction window**: `T` -> `T + 180 days`\n",
     "- **Churn label = 1** if customer makes zero bookings in the prediction window, else 0\n",
-    "- Features computed **only** on the observation window — no leakage\n",
-    "- **Modelling population restricted to repeat customers (≥2 bookings in the observation window)** — same restriction as Olist, kept for methodological consistency across the report, even though this dataset is much less affected by the one-time-buyer problem.\n",
+    "- Features computed **only** on the observation window - no leakage\n",
+    "- **Modelling population restricted to repeat customers (≥2 bookings in the observation window)** - same restriction as Olist, kept for methodological consistency across the report, even though this dataset is much less affected by the one-time-buyer problem.\n",
     "\n",
     "Cutoff is chosen so the full 180-day prediction window stays inside the dataset's date range (same right-censoring logic as the Olist fix)."
    ]
@@ -431,17 +431,17 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "Full data range: 2009-12-01 → 2011-12-09\n",
+      "Full data range: 2009-12-01 -> 2011-12-09\n",
       "\n",
-      "Observation window : 2010-06-12 → 2011-06-12\n",
-      "Prediction window  : 2011-06-12 → 2011-12-09\n"
+      "Observation window : 2010-06-12 -> 2011-06-12\n",
+      "Prediction window  : 2011-06-12 -> 2011-12-09\n"
      ]
     }
    ],
    "source": [
     "data_max_date = bookings['booking_date'].max()\n",
     "data_min_date = bookings['booking_date'].min()\n",
-    "print(f'Full data range: {data_min_date.date()} → {data_max_date.date()}')\n",
+    "print(f'Full data range: {data_min_date.date()} -> {data_max_date.date()}')\n",
     "\n",
     "CHURN_DAYS  = 180\n",
     "MIN_BOOKINGS = 2\n",
@@ -452,11 +452,11 @@
     "OBS_START = CUTOFF - pd.DateOffset(days=365)\n",
     "PRED_END  = CUTOFF + pd.DateOffset(days=CHURN_DAYS)\n",
     "\n",
-    "print(f'\\nObservation window : {OBS_START.date()} → {CUTOFF.date()}')\n",
-    "print(f'Prediction window  : {CUTOFF.date()} → {PRED_END.date()}')\n",
+    "print(f'\\nObservation window : {OBS_START.date()} -> {CUTOFF.date()}')\n",
+    "print(f'Prediction window  : {CUTOFF.date()} -> {PRED_END.date()}')\n",
     "\n",
     "if OBS_START < data_min_date:\n",
-    "    print(f'\\n⚠ WARNING: observation window starts before the data begins '\n",
+    "    print(f'\\n WARNING: observation window starts before the data begins '\n",
     "          f'({OBS_START.date()} < {data_min_date.date()}). Some customers\\' '\n",
     "          f'full 365-day history will be truncated. Consider this in §3.3 if it occurs.')"
    ]
@@ -476,7 +476,7 @@
       "One-time buyers excluded            : 1,338 (30.7% of obs-window customers)\n",
       "\n",
       "Active customers in obs window (repeat-only) : 3,027\n",
-      "Churn rate                                   : 31.4%  (label=1 → no return within 180 days)\n",
+      "Churn rate                                   : 31.4%  (label=1 -> no return within 180 days)\n",
       "Non-churned (minority class) count           : 2,076\n"
      ]
     }
@@ -508,7 +508,7 @@
     "\n",
     "churn_rate = labels['churned'].mean()\n",
     "print(f'\\nActive customers in obs window (repeat-only) : {len(labels):,}')\n",
-    "print(f'Churn rate                                   : {churn_rate:.1%}  (label=1 → no return within {CHURN_DAYS} days)')\n",
+    "print(f'Churn rate                                   : {churn_rate:.1%}  (label=1 -> no return within {CHURN_DAYS} days)')\n",
     "print(f'Non-churned (minority class) count           : {(labels[\"churned\"]==0).sum():,}')"
    ]
   },
@@ -529,8 +529,8 @@
     "\n",
     "Same feature families as the Olist notebook, **minus the location feature** (no coordinates in this dataset):\n",
     "\n",
-    "- **`feat_rfm`** — Recency, Frequency, Monetary only (Logistic Regression baseline)\n",
-    "- **`feat_ext`** — Full extended set (RF + XGBoost candidate), including spend-volatility (`spend_per_visit_std`/`cv`) but **not** `dist_from_centroid_km`\n",
+    "- **`feat_rfm`** - Recency, Frequency, Monetary only (Logistic Regression baseline)\n",
+    "- **`feat_ext`** - Full extended set (RF + XGBoost candidate), including spend-volatility (`spend_per_visit_std`/`cv`) but **not** `dist_from_centroid_km`\n",
     "\n",
     "All features computed strictly on the observation window."
    ]
@@ -609,7 +609,7 @@
     "feat['evening_share'] = grp['booking_date'].apply(lambda d: (d.dt.hour >= 17).mean())\n",
     "\n",
     "# --- GEOGRAPHY (categorical, not coordinate-based) ---\n",
-    "# No lat/lng available in this dataset. Country is retained as a coarse proxy —\n",
+    "# No lat/lng available in this dataset. Country is retained as a coarse proxy -\n",
     "# encoded as a binary 'is_domestic' flag (UK vs. non-UK) since the customer base\n",
     "# is overwhelmingly UK-based and this avoids a high-cardinality categorical.\n",
     "customer_country = grp['country'].first()\n",
@@ -745,10 +745,10 @@
     "## 5  Evaluation Harness\n",
     "\n",
     "Same metrics as the Olist notebook, for direct comparability:\n",
-    "- **PR-AUC** — primary metric for imbalanced binary classification\n",
-    "- **ROC-AUC** — prevalence-invariant; the more honest comparator when the base rate is itself extreme\n",
+    "- **PR-AUC** - primary metric for imbalanced binary classification\n",
+    "- **ROC-AUC** - prevalence-invariant; the more honest comparator when the base rate is itself extreme\n",
     "- **F1-score**\n",
-    "- **Brier Score** — calibration quality for the High/Medium/Low UI risk buckets"
+    "- **Brier Score** - calibration quality for the High/Medium/Low UI risk buckets"
    ]
   },
   {
@@ -761,7 +761,7 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "Evaluation harness ready ✓\n"
+      "Evaluation harness ready \n"
      ]
     }
    ],
@@ -800,7 +800,7 @@
     "    print(f'  Brier   : {brier:.4f}')\n",
     "    return model\n",
     "\n",
-    "print('Evaluation harness ready ✓')"
+    "print('Evaluation harness ready ')"
    ]
   },
   {
@@ -808,7 +808,7 @@
    "id": "57e1c226",
    "metadata": {},
    "source": [
-    "## 6  Model 1 — Logistic Regression (RFM baseline)"
+    "## 6  Model 1 - Logistic Regression (RFM baseline)"
    ]
   },
   {
@@ -847,7 +847,7 @@
    "id": "34a3dc25",
    "metadata": {},
    "source": [
-    "## 7  Model 2 — Logistic Regression (Extended features)"
+    "## 7  Model 2 - Logistic Regression (Extended features)"
    ]
   },
   {
@@ -882,7 +882,7 @@
    "id": "8ce1bae5",
    "metadata": {},
    "source": [
-    "## 8  Model 3 — Random Forest (Extended features)"
+    "## 8  Model 3 - Random Forest (Extended features)"
    ]
   },
   {
@@ -910,7 +910,7 @@
     "    n_estimators=300,\n",
     "    max_depth=None,\n",
     "    min_samples_leaf=5,\n",
-    "    # NOTE: no class_weight='balanced' — training data is already SMOTE-resampled\n",
+    "    # NOTE: no class_weight='balanced' - training data is already SMOTE-resampled\n",
     "    # to ~50/50. Adding class_weight on top double-corrects (see Olist notebook\n",
     "    # for the diagnosis of this exact bug and its effect).\n",
     "    random_state=RANDOM_STATE,\n",
@@ -925,7 +925,7 @@
    "id": "4638df44",
    "metadata": {},
    "source": [
-    "## 9  Model 4 — XGBoost (Extended features)"
+    "## 9  Model 4 - XGBoost (Extended features)"
    ]
   },
   {
@@ -941,7 +941,7 @@
      "traceback": [
       "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
       "\u001b[31mModuleNotFoundError\u001b[39m                       Traceback (most recent call last)",
-      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[18]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m xgboost \u001b[38;5;28;01mimport\u001b[39;00m XGBClassifier\n\u001b[32m      2\u001b[39m \n\u001b[32m      3\u001b[39m \u001b[38;5;66;03m# NOTE: no scale_pos_weight — same reasoning as Random Forest above; SMOTE\u001b[39;00m\n\u001b[32m      4\u001b[39m \u001b[38;5;66;03m# already handles the imbalance for the training set used here.\u001b[39;00m\n",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[18]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mfrom\u001b[39;00m xgboost \u001b[38;5;28;01mimport\u001b[39;00m XGBClassifier\n\u001b[32m      2\u001b[39m \n\u001b[32m      3\u001b[39m \u001b[38;5;66;03m# NOTE: no scale_pos_weight - same reasoning as Random Forest above; SMOTE\u001b[39;00m\n\u001b[32m      4\u001b[39m \u001b[38;5;66;03m# already handles the imbalance for the training set used here.\u001b[39;00m\n",
       "\u001b[31mModuleNotFoundError\u001b[39m: No module named 'xgboost'"
      ]
     }
@@ -949,7 +949,7 @@
    "source": [
     "from xgboost import XGBClassifier\n",
     "\n",
-    "# NOTE: no scale_pos_weight — same reasoning as Random Forest above; SMOTE\n",
+    "# NOTE: no scale_pos_weight - same reasoning as Random Forest above; SMOTE\n",
     "# already handles the imbalance for the training set used here.\n",
     "xgb = XGBClassifier(\n",
     "    n_estimators=500,\n",
@@ -987,7 +987,7 @@
      "output_type": "stream",
      "text": [
       "\n",
-      "=== Churn Prediction — Model Comparison (§5.1, Online Retail II) ===\n",
+      "=== Churn Prediction - Model Comparison (§5.1, Online Retail II) ===\n",
       "Empty DataFrame\n",
       "Columns: []\n",
       "Index: []\n",
@@ -1004,7 +1004,7 @@
      "traceback": [
       "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
       "\u001b[31mKeyError\u001b[39m                                  Traceback (most recent call last)",
-      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[19]\u001b[39m\u001b[32m, line 13\u001b[39m\n\u001b[32m      9\u001b[39m results_df.to_csv(OUT_DIR / \u001b[33m'churn_results_retailii.csv'\u001b[39m, index=\u001b[38;5;28;01mFalse\u001b[39;00m)\n\u001b[32m     10\u001b[39m print(\u001b[33m'\\nSaved to outputs/churn_results_retailii.csv'\u001b[39m)\n\u001b[32m     11\u001b[39m \n\u001b[32m     12\u001b[39m print(\u001b[33m'\\n--- Sanity check ---'\u001b[39m)\n\u001b[32m---> \u001b[39m\u001b[32m13\u001b[39m roc_spread = results_df[\u001b[33m'ROC-AUC'\u001b[39m].max() - results_df[\u001b[33m'ROC-AUC'\u001b[39m].min()\n\u001b[32m     14\u001b[39m pr_roc_gap = (results_df[\u001b[33m'PR-AUC'\u001b[39m] - results_df[\u001b[33m'ROC-AUC'\u001b[39m]).abs().mean()\n\u001b[32m     15\u001b[39m print(f'ROC-AUC spread across models : {roc_spread:.3f}  (very small spread may indicate models are not differentiating)')\n\u001b[32m     16\u001b[39m print(f'Mean |PR-AUC - ROC-AUC| gap   : {pr_roc_gap:.3f}  (large gap was the red flag on Olist — compare against that)')\n",
+      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[19]\u001b[39m\u001b[32m, line 13\u001b[39m\n\u001b[32m      9\u001b[39m results_df.to_csv(OUT_DIR / \u001b[33m'churn_results_retailii.csv'\u001b[39m, index=\u001b[38;5;28;01mFalse\u001b[39;00m)\n\u001b[32m     10\u001b[39m print(\u001b[33m'\\nSaved to outputs/churn_results_retailii.csv'\u001b[39m)\n\u001b[32m     11\u001b[39m \n\u001b[32m     12\u001b[39m print(\u001b[33m'\\n--- Sanity check ---'\u001b[39m)\n\u001b[32m---> \u001b[39m\u001b[32m13\u001b[39m roc_spread = results_df[\u001b[33m'ROC-AUC'\u001b[39m].max() - results_df[\u001b[33m'ROC-AUC'\u001b[39m].min()\n\u001b[32m     14\u001b[39m pr_roc_gap = (results_df[\u001b[33m'PR-AUC'\u001b[39m] - results_df[\u001b[33m'ROC-AUC'\u001b[39m]).abs().mean()\n\u001b[32m     15\u001b[39m print(f'ROC-AUC spread across models : {roc_spread:.3f}  (very small spread may indicate models are not differentiating)')\n\u001b[32m     16\u001b[39m print(f'Mean |PR-AUC - ROC-AUC| gap   : {pr_roc_gap:.3f}  (large gap was the red flag on Olist - compare against that)')\n",
       "\u001b[36mFile \u001b[39m\u001b[32mc:\\Users\\daryn\\anaconda3\\envs\\venv-Training-ML-Models\\Lib\\site-packages\\pandas\\core\\frame.py:4378\u001b[39m, in \u001b[36mDataFrame.__getitem__\u001b[39m\u001b[34m(self, key)\u001b[39m\n\u001b[32m   4374\u001b[39m \n\u001b[32m   4375\u001b[39m         \u001b[38;5;28;01mif\u001b[39;00m is_single_key:\n\u001b[32m   4376\u001b[39m             \u001b[38;5;28;01mif\u001b[39;00m self.columns.nlevels > \u001b[32m1\u001b[39m:\n\u001b[32m   4377\u001b[39m                 \u001b[38;5;28;01mreturn\u001b[39;00m self._getitem_multilevel(key)\n\u001b[32m-> \u001b[39m\u001b[32m4378\u001b[39m             indexer = self.columns.get_loc(key)\n\u001b[32m   4379\u001b[39m             \u001b[38;5;28;01mif\u001b[39;00m is_integer(indexer):\n\u001b[32m   4380\u001b[39m                 indexer = [indexer]\n\u001b[32m   4381\u001b[39m         \u001b[38;5;28;01melse\u001b[39;00m:\n",
       "\u001b[36mFile \u001b[39m\u001b[32mc:\\Users\\daryn\\anaconda3\\envs\\venv-Training-ML-Models\\Lib\\site-packages\\pandas\\core\\indexes\\range.py:525\u001b[39m, in \u001b[36mRangeIndex.get_loc\u001b[39m\u001b[34m(self, key)\u001b[39m\n\u001b[32m    523\u001b[39m         \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mKeyError\u001b[39;00m(key) \u001b[38;5;28;01mfrom\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34;01merr\u001b[39;00m\n\u001b[32m    524\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;28misinstance\u001b[39m(key, Hashable):\n\u001b[32m--> \u001b[39m\u001b[32m525\u001b[39m     \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mKeyError\u001b[39;00m(key)\n\u001b[32m    526\u001b[39m \u001b[38;5;28mself\u001b[39m._check_indexing_error(key)\n\u001b[32m    527\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mKeyError\u001b[39;00m(key)\n",
       "\u001b[31mKeyError\u001b[39m: 'ROC-AUC'"
@@ -1017,7 +1017,7 @@
     "    for r in results\n",
     "])\n",
     "\n",
-    "print('\\n=== Churn Prediction — Model Comparison (§5.1, Online Retail II) ===')\n",
+    "print('\\n=== Churn Prediction - Model Comparison (§5.1, Online Retail II) ===')\n",
     "print(results_df.to_string(index=False))\n",
     "\n",
     "results_df.to_csv(OUT_DIR / 'churn_results_retailii.csv', index=False)\n",
@@ -1027,7 +1027,7 @@
     "roc_spread = results_df['ROC-AUC'].max() - results_df['ROC-AUC'].min()\n",
     "pr_roc_gap = (results_df['PR-AUC'] - results_df['ROC-AUC']).abs().mean()\n",
     "print(f'ROC-AUC spread across models : {roc_spread:.3f}  (very small spread may indicate models are not differentiating)')\n",
-    "print(f'Mean |PR-AUC - ROC-AUC| gap   : {pr_roc_gap:.3f}  (large gap was the red flag on Olist — compare against that)')"
+    "print(f'Mean |PR-AUC - ROC-AUC| gap   : {pr_roc_gap:.3f}  (large gap was the red flag on Olist - compare against that)')"
    ]
   },
   {
@@ -1067,12 +1067,12 @@
     "colours = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63']\n",
     "\n",
     "for i, r in enumerate(results):\n",
-    "    label = f\"{r['Model']} ({r['Features']}) — PR-AUC={r['PR-AUC']:.3f}\"\n",
+    "    label = f\"{r['Model']} ({r['Features']}) - PR-AUC={r['PR-AUC']:.3f}\"\n",
     "    p, rec, _ = precision_recall_curve(y_test, r['_y_prob'])\n",
     "    axes[0].plot(rec, p, color=colours[i], label=label, linewidth=1.8)\n",
     "    fpr, tpr, _ = roc_curve(y_test, r['_y_prob'])\n",
     "    axes[1].plot(fpr, tpr, color=colours[i],\n",
-    "                 label=f\"{r['Model']} ({r['Features']}) — AUC={r['ROC-AUC']:.3f}\",\n",
+    "                 label=f\"{r['Model']} ({r['Features']}) - AUC={r['ROC-AUC']:.3f}\",\n",
     "                 linewidth=1.8)\n",
     "\n",
     "axes[0].set_xlabel('Recall'); axes[0].set_ylabel('Precision')\n",
@@ -1095,7 +1095,7 @@
    "id": "a1d84104",
    "metadata": {},
    "source": [
-    "## 12  Feature Importance (XGBoost — Figure for §5.1)"
+    "## 12  Feature Importance (XGBoost - Figure for §5.1)"
    ]
   },
   {
@@ -1127,7 +1127,7 @@
     "\n",
     "fig, ax = plt.subplots(figsize=(8, 6))\n",
     "importances.plot(kind='barh', ax=ax, color='#2196F3', edgecolor='white')\n",
-    "ax.set_title('XGBoost Feature Importances (gain) — Online Retail II', fontsize=13)\n",
+    "ax.set_title('XGBoost Feature Importances (gain) - Online Retail II', fontsize=13)\n",
     "ax.set_xlabel('Importance (gain)')\n",
     "ax.grid(axis='x', alpha=0.3)\n",
     "plt.tight_layout()\n",
@@ -1192,7 +1192,7 @@
    "source": [
     "## 14  Export Best Model for FastAPI (joblib)\n",
     "\n",
-    "Same export protocol as the Olist notebook: a single bundle with the fitted model, a matched imputer, exact feature order, risk thresholds, and metadata — including a `data_source` field so the FastAPI service (and anyone reading the bundle later) knows which dataset trained this specific model."
+    "Same export protocol as the Olist notebook: a single bundle with the fitted model, a matched imputer, exact feature order, risk thresholds, and metadata - including a `data_source` field so the FastAPI service (and anyone reading the bundle later) knows which dataset trained this specific model."
    ]
   },
   {
@@ -1205,11 +1205,11 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "Best model by PR-AUC : Logistic Regression — Extended features\n",
+      "Best model by PR-AUC : Logistic Regression - Extended features\n",
       "PR-AUC=0.6173  ROC-AUC=0.7813  F1=0.5928  Brier=0.1951\n",
       "Feature set (17 features): ['recency_days', 'tenure_days', 'freq_12m', 'freq_3m', 'avg_inter_booking_gap', 'inter_booking_gap_std', 'total_spend_12m', 'avg_ticket', 'monetary_trend', 'spend_per_visit_std', 'spend_per_visit_cv', 'cancellation_rate', 'unique_item_types', 'total_units', 'weekend_share', 'evening_share', 'is_uk']\n",
       "\n",
-      "Saved bundle → models\\churn_model.joblib\n",
+      "Saved bundle -> models\\churn_model.joblib\n",
       "File size: 3.1 KB\n"
      ]
     }
@@ -1232,7 +1232,7 @@
     "    best_model_obj   = lookup[best_row['Model']]\n",
     "    best_feature_set = EXT_FEATURES\n",
     "\n",
-    "print(f\"Best model by PR-AUC : {best_row['Model']} — {best_row['Features']}\")\n",
+    "print(f\"Best model by PR-AUC : {best_row['Model']} - {best_row['Features']}\")\n",
     "print(f\"PR-AUC={best_row['PR-AUC']}  ROC-AUC={best_row['ROC-AUC']}  F1={best_row['F1']}  Brier={best_row['Brier Score']}\")\n",
     "print(f\"Feature set ({len(best_feature_set)} features): {best_feature_set}\")\n",
     "\n",
@@ -1265,7 +1265,7 @@
     "MODEL_PATH = MODEL_DIR / 'churn_model.joblib'\n",
     "joblib.dump(bundle, MODEL_PATH)\n",
     "\n",
-    "print(f'\\nSaved bundle → {MODEL_PATH}')\n",
+    "print(f'\\nSaved bundle -> {MODEL_PATH}')\n",
     "print(f'File size: {MODEL_PATH.stat().st_size / 1024:.1f} KB')"
    ]
   },
@@ -1283,7 +1283,7 @@
       "Feature order   : ['recency_days', 'tenure_days', 'freq_12m', 'freq_3m', 'avg_inter_booking_gap', 'inter_booking_gap_std', 'total_spend_12m', 'avg_ticket', 'monetary_trend', 'spend_per_visit_std', 'spend_per_visit_cv', 'cancellation_rate', 'unique_item_types', 'total_units', 'weekend_share', 'evening_share', 'is_uk']\n",
       "Sample churn probability : 0.6612\n",
       "\n",
-      "✓ Reload + predict succeeded — bundle is FastAPI-ready\n"
+      " Reload + predict succeeded - bundle is FastAPI-ready\n"
      ]
     }
    ],
@@ -1301,7 +1301,7 @@
     "print(f'Reloaded model  : {loaded[\"model_name\"]} ({loaded[\"feature_set_label\"]}) trained on {loaded[\"data_source\"]}')\n",
     "print(f'Feature order   : {loaded_features}')\n",
     "print(f'Sample churn probability : {sample_prob:.4f}')\n",
-    "print('\\n✓ Reload + predict succeeded — bundle is FastAPI-ready')"
+    "print('\\n Reload + predict succeeded - bundle is FastAPI-ready')"
    ]
   },
   {
@@ -1379,9 +1379,9 @@
     "| `models/churn_model.joblib` | FastAPI ML microservice |\n",
     "| RQ1 template text | §5.3 |\n",
     "\n",
-    "**Unchanged notebooks (still Olist — require lat/lng):**\n",
-    "- `02_scheduling.ipynb` — job duration prediction + OR-Tools route optimisation\n",
-    "- `03_heatmap.ipynb` — KDE demand heat map from Olist customer lat/lng"
+    "**Unchanged notebooks (still Olist - require lat/lng):**\n",
+    "- `02_scheduling.ipynb` - job duration prediction + OR-Tools route optimisation\n",
+    "- `03_heatmap.ipynb` - KDE demand heat map from Olist customer lat/lng"
    ]
   },
   {

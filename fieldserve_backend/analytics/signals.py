@@ -7,7 +7,7 @@ commits:
 2. Rescore the customer via the ML service so the dashboard reflects the new
    booking immediately.
 
-Both steps are best-effort — if the ML service is down, the booking still
+Both steps are best-effort - if the ML service is down, the booking still
 saves. The signal runs on `transaction.on_commit` so an outer rollback
 correctly suppresses the rescore.
 """
