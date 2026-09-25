@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -25,10 +26,11 @@ export default function GoogleAuthScreen() {
     setError(null);
     setLoading(true);
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({
-        scheme: "fieldservecrm",
-        path: "oauth-native-callback",
-      });
+      const redirectUrl = AuthSession.makeRedirectUri(
+        Platform.OS === "web"
+          ? { path: "sign-up-google" }
+          : { scheme: "fieldservecrm", path: "oauth-native-callback" },
+      );
 
       const { createdSessionId, setActive, signIn, signUp } =
         await startSSOFlow({
