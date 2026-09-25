@@ -43,7 +43,7 @@ async function parseBody(res: Response): Promise<unknown> {
 }
 
 export function useApi() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
 
   const request = useCallback(
     async <T = unknown>(
@@ -69,10 +69,8 @@ export function useApi() {
         Accept: "application/json",
       };
       if (body !== undefined) headers["Content-Type"] = "application/json";
-      if (isSignedIn) {
-        const token = await getToken();
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-      }
+      const token = await getToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       if (__DEV__) {
         console.log(
           `[FieldServe API] -> ${method} ${url.toString()} (auth: ${
@@ -132,10 +130,8 @@ export function useApi() {
         }
         const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
         const headers: Record<string, string> = { Accept: "application/json" };
-        if (isSignedIn) {
-          const token = await getToken();
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-        }
+        const token = await getToken();
+        if (token) headers["Authorization"] = `Bearer ${token}`;
         // NB: do NOT set Content-Type - the runtime must include the multipart
         // boundary automatically.
         const res = await fetch(url, { method: "POST", headers, body: form });
@@ -144,7 +140,7 @@ export function useApi() {
         return parsed as T;
       },
     }),
-    [request, getToken, isSignedIn],
+    [request, getToken],
   );
 }
 

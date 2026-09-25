@@ -39,7 +39,7 @@ export type UserPreferencesUpdate = Partial<
 
 export function useMe() {
   const api = useApi();
-  const { isSignedIn, userId } = useAuth();
+  const { isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
   return useQuery({
     queryKey: ["me", userId],
     queryFn: () => api.get<Me>("/api/auth/me/"),
