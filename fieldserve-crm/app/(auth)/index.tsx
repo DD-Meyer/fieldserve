@@ -401,6 +401,8 @@ export default function AuthScreen() {
                     style={styles.input}
                   />
 
+                  {mode === "sign-up" ? <View nativeID="clerk-captcha" /> : null}
+
                   {mode === "sign-in" ? (
                     <Pressable
                       onPress={() => router.push("/(auth)/forgot-password")}
