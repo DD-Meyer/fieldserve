@@ -25,6 +25,13 @@ function errorMessage(error: any) {
   const body = error?.body;
   if (typeof body === "string") return body;
   if (body?.detail) return String(body.detail);
+  if (body && typeof body === "object") {
+    const fieldError = Object.values(body).find(
+      (value) => typeof value === "string" || Array.isArray(value),
+    );
+    if (Array.isArray(fieldError)) return fieldError.map(String).join(" ");
+    if (typeof fieldError === "string") return fieldError;
+  }
   return error?.message || "Something went wrong.";
 }
 
@@ -76,6 +83,7 @@ export default function IndemnityScreen() {
         uri: asset.uri,
         name: asset.name,
         mimeType: asset.mimeType || "application/pdf",
+        file: asset.file,
       });
     } catch (requestError) {
       Alert.alert("PDF not uploaded", errorMessage(requestError));
