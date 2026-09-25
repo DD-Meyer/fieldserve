@@ -48,16 +48,22 @@ export function useCreatePdfIndemnity() {
       uri,
       name,
       mimeType,
+      file,
     }: {
       business: number;
       uri: string;
       name: string;
       mimeType?: string;
+      file?: File;
     }) => {
       const form = new FormData();
       form.append("business", String(business));
       form.append("source", "pdf");
-      form.append("document", { uri, name, type: mimeType || "application/pdf" } as any);
+      if (file) {
+        form.append("document", file, name);
+      } else {
+        form.append("document", { uri, name, type: mimeType || "application/pdf" } as any);
+      }
       return api.postFormData<Indemnity>("/api/indemnities/", form);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: indemnityKey }),
