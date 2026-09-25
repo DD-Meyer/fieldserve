@@ -25,6 +25,21 @@ _JWK_CACHED_AT: float = 0.0
 _JWK_TTL_SECONDS = 60 * 60  # rotate cache hourly
 
 
+def _allowed_issuers() -> list[str]:
+    issuers: list[str] = []
+    configured_issuer = getattr(settings, "CLERK_ISSUER", "").strip().rstrip("/")
+    if configured_issuer:
+        issuers.append(configured_issuer)
+
+    jwks_url = getattr(settings, "CLERK_JWKS_URL", "").strip()
+    suffix = "/.well-known/jwks.json"
+    if jwks_url.endswith(suffix):
+        proxy_issuer = jwks_url[: -len(suffix)].rstrip("/")
+        if proxy_issuer and proxy_issuer not in issuers:
+            issuers.append(proxy_issuer)
+    return issuers
+
+
 def _get_jwk_client() -> PyJWKClient:
     global _JWK_CLIENT, _JWK_CACHED_AT
     now = time.time()
@@ -93,8 +108,9 @@ class ClerkJWTAuthentication(authentication.BaseAuthentication):
             signing_key = _get_jwk_client().get_signing_key_from_jwt(token).key
             options = {"verify_aud": False}
             kwargs: dict[str, Any] = {}
-            if getattr(settings, "CLERK_ISSUER", ""):
-                kwargs["issuer"] = settings.CLERK_ISSUER
+            issuers = _allowed_issuers()
+            if issuers:
+                kwargs["issuer"] = issuers
             return jwt.decode(
                 token,
                 signing_key,
