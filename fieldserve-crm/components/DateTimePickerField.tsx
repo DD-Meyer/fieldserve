@@ -3,6 +3,7 @@ import { Platform, Pressable, Text, View } from "react-native";
 
 let NativePicker: any = null;
 if (Platform.OS !== "web") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   NativePicker = require("@react-native-community/datetimepicker").default;
 }
 

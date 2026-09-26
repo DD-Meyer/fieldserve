@@ -139,6 +139,7 @@ def check_slot_for_any(
         if result.ok:
             return result
         fallback = fallback or result
+    assert fallback is not None
     return fallback
 
 

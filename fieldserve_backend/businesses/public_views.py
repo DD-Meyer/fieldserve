@@ -14,6 +14,7 @@ Throttled by IP to keep abuse manageable.
 from __future__ import annotations
 
 import requests
+from typing import Any, cast
 from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.db import transaction
@@ -185,7 +186,7 @@ def public_booking_create(request, slug: str):
     biz = _get_active_business(slug)
     serializer = PublicBookingSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
+    data = cast(dict[str, Any], serializer.validated_data)
 
     if biz.industry_mode == Business.Industry.MOBILE:
         address = (data.get("address") or "").strip()
@@ -266,7 +267,7 @@ def public_booking_create(request, slug: str):
         )
     else:
         # Latest submission wins: overwrite any changed, non-blank contact details.
-        updates: dict[str, str] = {}
+        updates: dict[str, str | Point] = {}
         full_name = data["full_name"].strip()
         if full_name and customer.full_name != full_name:
             updates["full_name"] = full_name

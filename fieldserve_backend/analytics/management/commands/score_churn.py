@@ -63,6 +63,8 @@ class Command(BaseCommand):
         as_of_iso = as_of.isoformat()
 
         total_written = 0
+        model_version = "unknown"
+        model_name = "unknown"
         for batch in _chunk(customers, batch_size):
             feature_rows: list[dict] = []
             for cust in batch:

@@ -131,6 +131,8 @@ const EMPTY_CUSTOMER: CustomerFormState = {
   longitude: null,
 };
 
+const EMPTY_CUSTOMERS: Customer[] = [];
+
 const EMPTY_SERVICE: ServiceFormState = {
   name: "",
   description: "",
@@ -161,7 +163,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const isMobileBusiness = business.data?.industry_mode === "mobile";
   const team = useTeamMembers(isAdmin ? business.data?.id ?? null : null);
 
-  const customers = custPage?.results ?? [];
+  const customers = custPage?.results ?? EMPTY_CUSTOMERS;
   const services = (svcPage?.results ?? []).filter((s) => s.is_active);
 
   const [customerId, setCustomerId] = useState<number | null>(null);
@@ -174,13 +176,6 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const [slotState, setSlotState] = useState<CheckSlotResponse | null>(null);
   const [suggestions, setSuggestions] = useState<SlotRecommendation[]>([]);
   const [otherAvailable, setOtherAvailable] = useState<string[]>([]);
-  const suggestDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  }, []);
-
   const [custSearch, setCustSearch] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [newCustOpen, setNewCustOpen] = useState(false);
@@ -547,7 +542,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   No published indemnity yet
                 </Text>
                 <Text className="text-[11px] text-amber-700 mt-0.5">
-                  Customers can't be booked (in-app or online) until you publish one. Tap to set it up.
+                  Customers can&apos;t be booked (in-app or online) until you publish one. Tap to set it up.
                 </Text>
               </Pressable>
             ) : null}
@@ -1016,7 +1011,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 {qualifiedMembers.length === 0 ? (
                   <View className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-3">
                     <Text className="text-xs text-amber-800">
-                      No team member is set up for this service yet. Add it to a member's
+                      No team member is set up for this service yet. Add it to a member&apos;s
                       profile under Team settings before booking.
                     </Text>
                   </View>

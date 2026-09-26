@@ -38,8 +38,8 @@ export default function AuthScreen() {
 
   // Clerk Hooks
   const { isLoaded: isAuthLoaded, isSignedIn, signOut } = useAuth();
-  const { signIn, setActive: setSignInActive, isLoaded: isSignInLoaded } = useSignIn();
-  const { signUp, setActive: setSignUpActive, isLoaded: isSignUpLoaded } = useSignUp();
+  const { signIn } = useSignIn();
+  const { signUp } = useSignUp();
   const { data: me, isLoading: isMeLoading } = useMe();
 
   // Form State
@@ -71,21 +71,13 @@ export default function AuthScreen() {
     );
   }
 
-  const finishSignInSession = async (createdSessionId: string | null) => {
-    if (!createdSessionId) {
-      setError("Sign-in succeeded but no session was created.");
-      return;
-    }
-    if (!setSignInActive) {
-      setError("Sign-in is not ready to activate the session.");
-      return;
-    }
-    await setSignInActive({ session: createdSessionId });
+  const finishSignInSession = async () => {
+    const { error: finalizeError } = await signIn.finalize();
+    if (finalizeError) throw finalizeError;
     router.replace("/(tabs)");
   };
 
   const startSignInMfa = async () => {
-    if (!signIn) return;
     const factor = signIn.supportedSecondFactors?.find(
       (secondFactor) => secondFactor.strategy === "email_code",
     );
@@ -95,10 +87,8 @@ export default function AuthScreen() {
       );
       return;
     }
-    await signIn.prepareSecondFactor({
-      strategy: "email_code",
-      emailAddressId: (factor as any).emailAddressId,
-    });
+    const { error: mfaError } = await signIn.mfa.sendEmailCode();
+    if (mfaError) throw mfaError;
     setStage("sign-in-verify");
   };
 
@@ -107,32 +97,25 @@ export default function AuthScreen() {
       router.replace("/(tabs)");
       return;
     }
-    if (!isSignInLoaded || !signIn) return;
+    if (!signIn) return;
     setError(null);
     setLoading(true);
     try {
-      let attempt = await signIn.create({
+      const { error: passwordError } = await signIn.password({
         identifier: email.trim(),
         password,
       });
+      if (passwordError) throw passwordError;
 
-      if (
-        attempt.status !== "complete" &&
-        attempt.supportedFirstFactors?.some((factor) => factor.strategy === "password")
+      if (signIn.status === "complete") {
+        await finishSignInSession();
+      } else if (
+        signIn.status === "needs_second_factor" ||
+        signIn.status === "needs_client_trust"
       ) {
-        attempt = await signIn.attemptFirstFactor({
-          strategy: "password",
-          password,
-        });
-      }
-
-      if (attempt.status === "complete") {
-        await finishSignInSession(attempt.createdSessionId);
-      } else if (attempt.status === "needs_second_factor") {
         await startSignInMfa();
       } else {
-        console.log("[FieldServe] sign-in incomplete", attempt.status, attempt);
-        setError(`Sign-in not complete (status: ${attempt.status}).`);
+        setError(`Sign-in not complete (status: ${signIn.status}).`);
       }
     } catch (e: any) {
       console.log("[FieldServe] sign-in error", e);
@@ -149,26 +132,30 @@ export default function AuthScreen() {
   };
 
   const startSignUp = async () => {
-    if (!isSignUpLoaded || !signUp) return;
+    if (!signUp) return;
     setError(null);
     setLoading(true);
     try {
-      const createdSignUp = await signUp.create({
+      const { error: signUpError } = await signUp.password({
         emailAddress: email.trim().toLowerCase(),
         password,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
       });
+      if (signUpError) throw signUpError;
 
-      if (createdSignUp.status === "complete") {
-        await setSignUpActive({ session: createdSignUp.createdSessionId });
+      if (signUp.status === "complete") {
+        const { error: finalizeError } = await signUp.finalize();
+        if (finalizeError) throw finalizeError;
         router.replace("/(auth)/onboarding");
         return;
       }
 
-      await createdSignUp.prepareEmailAddressVerification({
-        strategy: "email_code",
-      });
+      if (!signUp.unverifiedFields.includes("email_address")) {
+        throw new Error(`Sign-up not complete (status: ${signUp.status}).`);
+      }
+      const { error: verificationError } = await signUp.verifications.sendEmailCode();
+      if (verificationError) throw verificationError;
       setStage("sign-up-verify");
     } catch (e: any) {
       if (isAlreadySignedInError(e)) {
@@ -184,19 +171,18 @@ export default function AuthScreen() {
   };
 
   const confirmSignInCode = async () => {
-    if (!isSignInLoaded || !signIn) return;
+    if (!signIn) return;
     setError(null);
     setLoading(true);
     try {
-      const attempt = await signIn.attemptSecondFactor({
-        strategy: "email_code",
+      const { error: verificationError } = await signIn.mfa.verifyEmailCode({
         code: code.trim(),
       });
-      if (attempt.status === "complete") {
-        await finishSignInSession(attempt.createdSessionId);
+      if (verificationError) throw verificationError;
+      if (signIn.status === "complete") {
+        await finishSignInSession();
       } else {
-        console.log("[FieldServe] verify incomplete", attempt.status, attempt);
-        setError(`Verification not complete (status: ${attempt.status}).`);
+        setError(`Verification not complete (status: ${signIn.status}).`);
       }
     } catch (e: any) {
       console.log("[FieldServe] verify error", e);
@@ -207,18 +193,20 @@ export default function AuthScreen() {
   };
 
   const confirmCode = async () => {
-    if (!isSignUpLoaded || !signUp) return;
+    if (!signUp) return;
     setError(null);
     setLoading(true);
     try {
-      const attempt = await signUp.attemptEmailAddressVerification({
+      const { error: verificationError } = await signUp.verifications.verifyEmailCode({
         code: code.trim(),
       });
-      if (attempt.status === "complete") {
-        await setSignUpActive({ session: attempt.createdSessionId });
+      if (verificationError) throw verificationError;
+      if (signUp.status === "complete") {
+        const { error: finalizeError } = await signUp.finalize();
+        if (finalizeError) throw finalizeError;
         router.replace("/(auth)/onboarding");
       } else {
-        setError("Verification incomplete.");
+        setError(`Verification incomplete (status: ${signUp.status}).`);
       }
     } catch (e: any) {
       setError(e?.errors?.[0]?.longMessage || e?.message || "Code rejected");

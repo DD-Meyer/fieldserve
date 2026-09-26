@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-import { levelFromProb, type RiskLevel } from "../lib/churnRisk";
+import type { RiskLevel } from "../lib/churnRisk";
 
 export { levelFromProb, type RiskLevel } from "../lib/churnRisk";
 

@@ -299,10 +299,10 @@ def test_check_frame_rejects_unsupported_content_type(mock_check, api_client_aut
 
 @patch("inspections.views.check_vehicle_frame")
 def test_check_frame_is_throttled(mock_check, api_client_auth, monkeypatch):
-    from inspections.views import InspectionThrottle
+    from inspections.views import FrameCheckThrottle
 
     cache.clear()
-    monkeypatch.setattr(InspectionThrottle, "rate", "1/hour")
+    monkeypatch.setattr(FrameCheckThrottle, "rate", "1/hour")
     mock_check.return_value = {
         "ready": True,
         "reason": "ready",
