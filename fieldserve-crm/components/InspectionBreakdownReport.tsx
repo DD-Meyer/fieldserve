@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-import type { Damage, Inspection } from "@/lib/hooks/useInspections";
+import type { Inspection } from "@/lib/hooks/useInspections";
 
 export default function InspectionBreakdownReport({
   inspection,

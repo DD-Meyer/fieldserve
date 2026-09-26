@@ -1,4 +1,4 @@
-import SignatureCanvas from "react-native-signature-canvas";
+import SignatureCanvas, { type SignatureViewRef } from "react-native-signature-canvas";
 import { useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
@@ -16,7 +16,7 @@ type Props = {
 };
 
 export default function IndemnitySigningModal({ visible, jobId, indemnityText, indemnitySource, indemnityDocumentUrl, onClose, onSuccess }: Props) {
-  const signatureRef = useRef<SignatureCanvas>(null);
+  const signatureRef = useRef<SignatureViewRef>(null);
   const [signedName, setSignedName] = useState("");
   const [hasSignature, setHasSignature] = useState(false);
   const [drawingSignature, setDrawingSignature] = useState(false);
@@ -52,7 +52,7 @@ export default function IndemnitySigningModal({ visible, jobId, indemnityText, i
   };
 
   return (
-    <BottomSheetModal visible={visible} onClose={onClose} bottomOffset={0}>
+    <BottomSheetModal visible={visible} onClose={onClose}>
       <View className="bg-white rounded-t-2xl px-5 pt-8 max-h-[88%]">
         <ScrollView
           keyboardShouldPersistTaps="handled"

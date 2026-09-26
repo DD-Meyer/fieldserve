@@ -69,7 +69,7 @@ export default function BookingCalendarCard({ month, jobs, selectedDate, onMonth
           );
         })}
       </View>
-      <Text style={[typography.styles.eyebrow, { marginTop: 12 }]}>{selectedDate.toDateString() == new Date().toDateString() ? "TODAY" : selectedDate.toDateString()} ({selectedJobs.length} bookings)</Text>
+      <Text style={[typography.styles.eyebrow, { marginTop: 12 }]}>{selectedDate.toDateString() === new Date().toDateString() ? "TODAY" : selectedDate.toDateString()} ({selectedJobs.length} bookings)</Text>
       {selectedJobs.length ? selectedJobs.map((job) => (
         <View key={job.id} className="flex-row items-center mt-2">
           <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginRight: 8 }} />

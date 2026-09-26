@@ -27,7 +27,6 @@ import {
   useReanalyseInspection,
   useDeleteInspection,
 } from "@/lib/hooks/useInspections";
-import { Button } from "@react-navigation/elements";
 import InspectionBreakdownReport from "@/components/InspectionBreakdownReport";
 
 export default function InspectScreen() {

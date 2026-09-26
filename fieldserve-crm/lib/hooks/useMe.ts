@@ -2,6 +2,7 @@ import { useAuth } from "@clerk/expo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useApi } from "../api";
+import { shouldEnableMeQuery } from "./meQuery";
 
 export type Membership = {
   id: number;
@@ -39,12 +40,13 @@ export type UserPreferencesUpdate = Partial<
 
 export function useMe() {
   const api = useApi();
-  const { isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+
   return useQuery({
     queryKey: ["me", userId],
     queryFn: () => api.get<Me>("/api/auth/me/"),
     staleTime: 60_000,
-    enabled: !!isSignedIn,
+    enabled: shouldEnableMeQuery({ isLoaded, isSignedIn }),
   });
 }
 

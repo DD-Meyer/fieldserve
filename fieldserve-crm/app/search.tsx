@@ -12,7 +12,7 @@ export default function SearchScreen() {
   const routeQuery = typeof params.query === "string" ? params.query : "";
   const [query, setQuery] = useState("");
   const { data: jobsPage } = useJobs({ ordering: "-scheduled_at" });
-  const jobs = jobsPage?.results ?? [];
+  const jobs = jobsPage?.results;
 
   useEffect(() => {
     setQuery(routeQuery);
@@ -20,10 +20,10 @@ export default function SearchScreen() {
 
   // Filter the results dynamically based on the search query
   const filteredResults = useMemo(() => {
-    if (!query.trim()) return jobs;
+    if (!query.trim()) return jobs ?? [];
 
     const lowerCaseQuery = query.toLowerCase();
-    return jobs.filter(
+    return (jobs ?? []).filter(
       (item) =>
         item.customer_name.toLowerCase().includes(lowerCaseQuery) ||
         item.service_type.toLowerCase().includes(lowerCaseQuery)

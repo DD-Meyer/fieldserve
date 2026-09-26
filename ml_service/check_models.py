@@ -1,23 +1,18 @@
-import joblib
+from utils.model_registry import load_churn_bundle
 
-m = joblib.load("./models/churn_pred_model.joblib")
+bundle = load_churn_bundle()
+model = bundle["model"]
+imputer = bundle.get("imputer")
 
-print("Pipeline steps:")
-for name, step in m.steps:
-    print(f"  - {name}: {type(step).__name__}")
+print(f"Model: {bundle.get('model_name', type(model).__name__)}")
+print(f"Feature set: {bundle.get('feature_set_label', 'unknown')}")
+print(f"Artifact: {bundle['_artefact_path']}")
+print(f"Estimator: {type(model).__name__}")
+print(f"Imputer: {type(imputer).__name__ if imputer is not None else 'none'}")
+print(f"Feature count: {len(bundle.get('feature_names') or [])}")
 
-# Inspect each step for feature info
-print("\nPer-step feature info:")
-for name, step in m.steps:
-    print(f"\n  step={name}")
-    print(f"    feature_names_in_ : {getattr(step, 'feature_names_in_', None)}")
-    print(f"    n_features_in_    : {getattr(step, 'n_features_in_', None)}")
-    # ColumnTransformer carries the spec
-    if hasattr(step, "transformers_"):
-        for tname, transformer, cols in step.transformers_:
-            print(f"    transformer {tname!r}: cols={cols}")
-    # Final estimator with coefficients
-    if hasattr(step, "coef_"):
-        print(f"    coef_ shape       : {step.coef_.shape}")
-    if hasattr(step, "feature_importances_"):
-        print(f"    n_importances     : {len(step.feature_importances_)}")
+for name, step in getattr(model, "steps", []):
+    print(f"Pipeline step {name}: {type(step).__name__}")
+
+if hasattr(model, "feature_importances_"):
+    print(f"Feature importances: {len(model.feature_importances_)}")

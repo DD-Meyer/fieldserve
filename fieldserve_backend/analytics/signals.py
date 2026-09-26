@@ -15,10 +15,12 @@ correctly suppresses the rescore.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 
 from jobs.models import Job
@@ -38,7 +40,11 @@ def _rescore_on_job_save(sender, instance: Job, created, **kwargs) -> None:
     # Update last_seen_at if the new job extends recency.
     now = timezone.now()
     job_dt = instance.scheduled_at
-    if job_dt and job_dt <= now:
+    if isinstance(job_dt, str):
+        job_dt = parse_datetime(job_dt)
+    if job_dt is not None and timezone.is_naive(job_dt):
+        job_dt = timezone.make_aware(job_dt)
+    if job_dt is not None and job_dt <= now:
         Customer.objects.filter(pk=customer_id, last_seen_at__lt=job_dt).update(
             last_seen_at=job_dt
         )

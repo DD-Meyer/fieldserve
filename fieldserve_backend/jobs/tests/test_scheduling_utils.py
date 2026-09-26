@@ -16,8 +16,9 @@ from jobs.scheduling_utils import check_slot
 pytestmark = pytest.mark.django_db
 
 
-def _dt(y, m, d, hh, mm):
-    return timezone.make_aware(datetime(y, m, d, hh, mm))
+def _tomorrow_at(hh, mm):
+    day = timezone.localdate() + timedelta(days=1)
+    return timezone.make_aware(datetime.combine(day, time(hh, mm)))
 
 
 def test_outside_hours_rejected(business):
@@ -27,7 +28,7 @@ def test_outside_hours_rejected(business):
 
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 7, 30),
+        scheduled_at=_tomorrow_at(7, 30),
         duration_minutes=30,
     )
     assert not result.ok
@@ -41,7 +42,7 @@ def test_end_after_close_rejected(business):
     business.save()
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 17, 45),
+        scheduled_at=_tomorrow_at(17, 45),
         duration_minutes=60,
     )
     assert not result.ok
@@ -55,14 +56,14 @@ def test_buffer_conflict_no_coords(business, customer):
         business=business,
         customer=customer,
         service_type="Wash",
-        scheduled_at=_dt(2026, 8, 20, 10, 0),
+        scheduled_at=_tomorrow_at(10, 0),
         duration_minutes=30,
         price=Decimal("0"),
         status=Job.Status.SCHEDULED,
     )
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 10, 45),
+        scheduled_at=_tomorrow_at(10, 45),
         duration_minutes=30,
     )
     assert not result.ok
@@ -77,14 +78,14 @@ def test_ok_when_gap_meets_floor(business, customer):
         business=business,
         customer=customer,
         service_type="Wash",
-        scheduled_at=_dt(2026, 8, 20, 10, 0),
+        scheduled_at=_tomorrow_at(10, 0),
         duration_minutes=30,
         price=Decimal("0"),
         status=Job.Status.SCHEDULED,
     )
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 11, 0),
+        scheduled_at=_tomorrow_at(11, 0),
         duration_minutes=30,
     )
     assert result.ok
@@ -98,7 +99,7 @@ def test_distance_dominates_floor(business, customer):
         business=business,
         customer=customer,
         service_type="Wash",
-        scheduled_at=_dt(2026, 8, 20, 10, 0),
+        scheduled_at=_tomorrow_at(10, 0),
         duration_minutes=30,
         location=Point(-0.1278, 51.5074, srid=4326),
         price=Decimal("0"),
@@ -107,7 +108,7 @@ def test_distance_dominates_floor(business, customer):
     # New job in Reading ~60km away - needs ~90 min travel, more than 5 min floor.
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 10, 45),
+        scheduled_at=_tomorrow_at(10, 45),
         duration_minutes=30,
         lat=51.4543,
         lng=-0.9781,
@@ -123,14 +124,14 @@ def test_exclude_job_id_ignores_self(business, customer):
         business=business,
         customer=customer,
         service_type="Wash",
-        scheduled_at=_dt(2026, 8, 20, 10, 0),
+        scheduled_at=_tomorrow_at(10, 0),
         duration_minutes=30,
         price=Decimal("0"),
         status=Job.Status.SCHEDULED,
     )
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 10, 0),
+        scheduled_at=_tomorrow_at(10, 0),
         duration_minutes=30,
         exclude_job_id=j.pk,
     )
@@ -144,14 +145,14 @@ def test_cancelled_jobs_ignored(business, customer):
         business=business,
         customer=customer,
         service_type="Wash",
-        scheduled_at=_dt(2026, 8, 20, 10, 0),
+        scheduled_at=_tomorrow_at(10, 0),
         duration_minutes=30,
         price=Decimal("0"),
         status=Job.Status.CANCELLED,
     )
     result = check_slot(
         business=business,
-        scheduled_at=_dt(2026, 8, 20, 10, 15),
+        scheduled_at=_tomorrow_at(10, 15),
         duration_minutes=30,
     )
     assert result.ok

@@ -20,7 +20,7 @@ function messageFrom(error: any) {
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-  const { signIn, setActive, isLoaded: isSignInLoaded } = useSignIn();
+  const { signIn } = useSignIn();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -43,10 +43,12 @@ export default function ForgotPasswordScreen() {
     setError(null);
     setLoading(true);
     try {
-      await signIn.create({
-        strategy: "reset_password_email_code",
+      const { error: createError } = await signIn.create({
         identifier: email.trim().toLowerCase(),
       });
+      if (createError) throw createError;
+      const { error: sendError } = await signIn.resetPasswordEmailCode.sendCode();
+      if (sendError) throw sendError;
       setStep("code");
     } catch (requestError) {
       setError(messageFrom(requestError));
@@ -63,11 +65,11 @@ export default function ForgotPasswordScreen() {
     setError(null);
     setLoading(true);
     try {
-      const attempt = await signIn.attemptFirstFactor({
-        strategy: "reset_password_email_code",
+      const { error: verifyError } = await signIn.resetPasswordEmailCode.verifyCode({
         code: code.trim(),
       });
-      if (attempt.status !== "needs_new_password") {
+      if (verifyError) throw verifyError;
+      if (signIn.status !== "needs_new_password") {
         throw new Error("The verification code could not be confirmed. Request a new code and try again.");
       }
       setStep("password");
@@ -87,11 +89,13 @@ export default function ForgotPasswordScreen() {
     setError(null);
     setLoading(true);
     try {
-      const attempt = await signIn.resetPassword({ password });
-      if (attempt.status !== "complete" || !attempt.createdSessionId) {
+      const { error: passwordError } = await signIn.resetPasswordEmailCode.submitPassword({ password });
+      if (passwordError) throw passwordError;
+      if (signIn.status !== "complete") {
         throw new Error("Password changed, but sign-in could not be completed. Please sign in with your new password.");
       }
-      await setActive({ session: attempt.createdSessionId });
+      const { error: finalizeError } = await signIn.finalize();
+      if (finalizeError) throw finalizeError;
       router.replace("/(tabs)");
     } catch (requestError) {
       setError(messageFrom(requestError));
@@ -100,7 +104,7 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  if (!isAuthLoaded || !isSignInLoaded || isSignedIn) {
+  if (!isAuthLoaded || isSignedIn) {
     return (
       <View style={styles.loadingView}>
         <ActivityIndicator />

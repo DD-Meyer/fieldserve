@@ -254,7 +254,9 @@ export default function CustomerProfile() {
               {latestScore.feature_snapshot.raw_model_probability != null &&
               latestScore.feature_snapshot.manual_adjusted_probability != null ? (
                 <Text className="text-[11px] text-green-800 mt-1 font-semibold">
-                  Raw {Math.round(latestScore.feature_snapshot.raw_model_probability * 100)}% -> adjusted {Math.round(latestScore.feature_snapshot.manual_adjusted_probability * 100)}%
+                  Raw {Math.round(latestScore.feature_snapshot.raw_model_probability * 100)}%
+                  {" -> "}
+                  adjusted {Math.round(latestScore.feature_snapshot.manual_adjusted_probability * 100)}%
                 </Text>
               ) : null}
             </View>

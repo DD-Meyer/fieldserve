@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
+import { styled } from "nativewind";
+import "../../global.css";
+import AddressAutocompleteWeb from "@/components/AddressAutocompleteWeb";
+import DateTimePickerField from "../../components/DateTimePickerField";
 import {
   ActivityIndicator,
   Alert,
@@ -9,22 +15,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
 // react-native-google-places-autocomplete triggers a "Cannot access before
 // initialization" crash in the Metro web bundle, so it's native-only here
 // the public booking page runs on web (Vercel) as well as in-app.
 let GooglePlacesAutocomplete: any = null;
 if (Platform.OS !== "web") {
-  GooglePlacesAutocomplete =
-    require("react-native-google-places-autocomplete").GooglePlacesAutocomplete;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  GooglePlacesAutocomplete = require("react-native-google-places-autocomplete").GooglePlacesAutocomplete;
 }
-import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
-import { styled } from "nativewind";
-import "../../global.css";
-import AppHeader from "@/components/AppHeader";
-
-import AddressAutocompleteWeb from "@/components/AddressAutocompleteWeb";
-import DateTimePickerField from "../../components/DateTimePickerField";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -278,7 +276,6 @@ export default function PublicBookingPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, serviceId, targetDate, email, phone]);
 
   const availableTimeSlots = useMemo(() => {
@@ -419,7 +416,7 @@ export default function PublicBookingPage() {
               Not ready to take bookings yet
             </Text>
             <Text className="text-slate-500 text-sm text-center mt-2">
-              {bizState.data.name} hasn't finished setting up online bookings. Please check back soon.
+              {bizState.data.name} hasn&apos;t finished setting up online bookings. Please check back soon.
             </Text>
           </View>
         </View>

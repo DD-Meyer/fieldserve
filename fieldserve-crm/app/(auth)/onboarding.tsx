@@ -12,17 +12,18 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  Image,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { icons } from "@/constants/icons";
-import { Image } from "react-native";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const GooglePlacesAutocomplete =
   Platform.OS === "web"
     ? null
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     : require("react-native-google-places-autocomplete")
         .GooglePlacesAutocomplete;
 
@@ -198,7 +199,10 @@ export default function OnboardingScreen() {
                   disableScroll={true} //  Fixes the VirtualizedList inside ScrollView error
                   minLength={2}
                   debounce={300}
-                  onPress={(data, details = null) => {
+                  onPress={(
+                    data: { description: string },
+                    details: { geometry?: { location?: { lat?: number; lng?: number } } } | null = null,
+                  ) => {
                     const fullAddress = data.description;
                     const lat = details?.geometry?.location?.lat;
                     const lng = details?.geometry?.location?.lng;

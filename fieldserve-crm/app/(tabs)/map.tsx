@@ -1,9 +1,7 @@
 import { View } from "react-native";
 import "../../global.css";
 
-import AppHeader, {
-  FLOATING_HEADER_CONTENT_OFFSET,
-} from "../../components/AppHeader";
+import AppHeader from "../../components/AppHeader";
 import MapFixed from "../../components/screens/MapFixed";
 import MapMobile from "../../components/screens/MapMobile";
 import { useIndustry } from "../../contexts/IndustryContext";
