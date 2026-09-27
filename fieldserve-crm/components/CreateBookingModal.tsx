@@ -35,6 +35,7 @@ import { useIndemnities } from "../lib/hooks/useIndemnities";
 import { useMe } from "../lib/hooks/useMe";
 import { useTeamMembers } from "../lib/hooks/useTeam";
 import DateTimePickerField from "./DateTimePickerField";
+import { Label } from "@react-navigation/elements";
 
 type Props = {
   visible: boolean;
@@ -662,6 +663,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 <Text className="text-sm font-semibold text-slate-900 mb-2">
                   New customer
                 </Text>
+                <Text className="text-sm font-medium text-slate-700 mb-1">
+                  Full name
+                </Text>
                 <TextInput
                   value={newCust.full_name}
                   onChangeText={(v) =>
@@ -670,6 +674,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   placeholder="Full name *"
                   className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                 />
+                <Text className="text-sm font-medium text-slate-700 mb-1">
+                  Email
+                </Text>
                 <TextInput
                   value={newCust.email}
                   onChangeText={(v) => setNewCust((s) => ({ ...s, email: v }))}
@@ -678,6 +685,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   keyboardType="email-address"
                   className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                 />
+                <Text className="text-sm font-medium text-slate-700 mb-1">
+                  Phone
+                </Text>
                 <TextInput
                   value={newCust.phone}
                   onChangeText={(v) => setNewCust((s) => ({ ...s, phone: v }))}
@@ -686,7 +696,11 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                 />
                 {isMobileBusiness ? (
+                  
                   <View className="mb-2" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+                    <Text className="text-sm font-medium text-slate-700 mb-1">
+                      Address
+                    </Text>
                     <GooglePlacesAutocomplete
                       placeholder="Search for the customer's address"
                       fetchDetails={true}
@@ -917,6 +931,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   <Text className="text-sm font-semibold text-slate-900 mb-2">
                     New service
                   </Text>
+                  <Text className="text-sm font-medium text-slate-700 mb-1">
+                    Service name
+                  </Text>
                   <TextInput
                     value={newService.name}
                     onChangeText={(v) =>
@@ -925,6 +942,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                     placeholder="Service name *"
                     className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                   />
+                  <Text className="text-sm font-medium text-slate-700 mb-1">
+                    Description
+                  </Text>
                   <TextInput
                     value={newService.description}
                     onChangeText={(v) =>
@@ -933,6 +953,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                     placeholder="Description"
                     className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                   />
+                  <Text className="text-sm font-medium text-slate-700 mb-1">
+                    Duration (minutes)
+                  </Text>
                   <TextInput
                     value={String(newService.duration_minutes)}
                     onChangeText={(v) =>
@@ -942,6 +965,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                     keyboardType="number-pad"
                     className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
                   />
+                  <Text className="text-sm font-medium text-slate-700 mb-1">
+                    Price
+                  </Text>
                   <TextInput
                     value={newService.price}
                     onChangeText={(v) => setNewService((s) => ({ ...s, price: v }))}
