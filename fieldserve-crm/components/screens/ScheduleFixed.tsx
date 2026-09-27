@@ -1,52 +1,77 @@
 import { useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import AppointmentRow, { type Appointment } from "../AppointmentRow";
-import SegmentedToggle from "../SegmentedToggle";
+import BookingCalendarCard from "../home/BookingCalendarCard";
+import { addDays, dateKey, monthBounds } from "../home/dashboardData";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useRefresh } from "@/hooks/useRefresh";
+import { useJobs } from "../../lib/hooks/useJobs";
+import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
 
-const STAFF_COLORS = {
-  Mia: "#2563eb",
-  Daniel: "#16a34a",
-  Jordan: "#7c3aed",
-} as const;
-
-const APPOINTMENTS_BY_STAFF: Appointment[] = [
-  { id: 1, time: "09:00", durationMin: 60, customer: "Olivia Hart", service: "Cut & Blow-dry", resource: "Mia", resourceColor: STAFF_COLORS.Mia, noShowRisk: "low" },
-  { id: 2, time: "10:15", durationMin: 90, customer: "Liam Park", service: "Full Colour", resource: "Daniel", resourceColor: STAFF_COLORS.Daniel, noShowRisk: "medium" },
-  { id: 3, time: "11:00", durationMin: 30, customer: "Ana Silva", service: "Beard Trim", resource: "Jordan", resourceColor: STAFF_COLORS.Jordan, noShowRisk: "low" },
-  { id: 4, time: "12:00", durationMin: 60, customer: "Noah Walsh", service: "Highlights touch-up", resource: "Mia", resourceColor: STAFF_COLORS.Mia, noShowRisk: "high" },
-  { id: 5, time: "13:30", durationMin: 45, customer: "Sophia Reyes", service: "Cut", resource: "Daniel", resourceColor: STAFF_COLORS.Daniel, noShowRisk: "low" },
-  { id: 6, time: "14:30", durationMin: 75, customer: "Ethan Vega", service: "Balayage", resource: "Mia", resourceColor: STAFF_COLORS.Mia, noShowRisk: "medium" },
-  { id: 7, time: "16:00", durationMin: 30, customer: "Maya Cole", service: "Fringe trim", resource: "Jordan", resourceColor: STAFF_COLORS.Jordan, noShowRisk: "low" },
-];
-
-const APPOINTMENTS_BY_CHAIR: Appointment[] = [
-  { id: 11, time: "09:00", durationMin: 60, customer: "Olivia Hart", service: "Cut & Blow-dry", resource: "Chair 1", resourceColor: "#2563eb", noShowRisk: "low" },
-  { id: 12, time: "10:15", durationMin: 90, customer: "Liam Park", service: "Full Colour", resource: "Chair 2", resourceColor: "#16a34a", noShowRisk: "medium" },
-  { id: 13, time: "11:00", durationMin: 30, customer: "Ana Silva", service: "Beard Trim", resource: "Chair 3", resourceColor: "#7c3aed", noShowRisk: "low" },
-  { id: 14, time: "12:00", durationMin: 60, customer: "Noah Walsh", service: "Highlights touch-up", resource: "Chair 1", resourceColor: "#2563eb", noShowRisk: "high" },
-  { id: 15, time: "13:30", durationMin: 45, customer: "Sophia Reyes", service: "Cut", resource: "Chair 2", resourceColor: "#16a34a", noShowRisk: "low" },
-  { id: 16, time: "14:30", durationMin: 75, customer: "Ethan Vega", service: "Balayage", resource: "Chair 1", resourceColor: "#2563eb", noShowRisk: "medium" },
-  { id: 17, time: "16:00", durationMin: 30, customer: "Maya Cole", service: "Fringe trim", resource: "Chair 3", resourceColor: "#7c3aed", noShowRisk: "low" },
-];
-
-const VIEW_OPTIONS = [
-  { key: "staff", label: "By Staff" },
-  { key: "chair", label: "By Chair" },
-];
+type BookingScope = "company" | "mine";
 
 export default function ScheduleFixed() {
-  const [view, setView] = useState("staff");
+  const router = useRouter();
   const tabBarSpace = useTabBarSpace();
-  const appointments =
-    view === "staff" ? APPOINTMENTS_BY_STAFF : APPOINTMENTS_BY_CHAIR;
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [scope, setScope] = useState<BookingScope>("company");
+  const business = useCurrentBusiness();
+  const isAdmin = business.data?.role === "admin";
+  const effectiveScope = isAdmin ? scope : "mine";
+  const { from, to } = monthBounds(calendarMonth);
+  const monthQuery = useJobs({
+    date_from: dateKey(from),
+    date_to: dateKey(to),
+    ordering: "scheduled_at",
+    assigned_to: effectiveScope === "mine" ? "me" : undefined,
+  });
+  const selectedDayQuery = useJobs({
+    date: dateKey(selectedDate),
+    ordering: "scheduled_at",
+    assigned_to: effectiveScope === "mine" ? "me" : undefined,
+  });
+  const selectedJobs = (selectedDayQuery.data?.results ?? []).filter(
+    (job) => job.status !== "cancelled",
+  );
+  const appointments: Appointment[] = selectedJobs.map((job) => ({
+    id: job.id,
+    time: new Date(job.scheduled_at).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    durationMin: job.duration_minutes ?? 30,
+    customer: job.customer_name || `Customer #${job.customer}`,
+    service: job.service_type || "Service",
+    resource: [job.assigned_to_first_name, job.assigned_to_last_name]
+      .filter(Boolean)
+      .join(" ") || "Unassigned",
+    resourceColor: "#2563eb",
+  }));
+  const { refreshing, onRefresh } = useRefresh([
+    monthQuery.refetch,
+    selectedDayQuery.refetch,
+  ]);
 
-  const highRiskCount = appointments.filter((a) => a.noShowRisk === "high").length;
-  const utilisationPct = 78;
-  // Demo data has nothing to refetch; the gesture still gives consistent feedback.
-  const { refreshing, onRefresh } = useRefresh([]);
+  function selectDate(date: Date) {
+    setSelectedDate(date);
+    setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+  }
+
+  function shiftSelectedDate(days: number) {
+    selectDate(addDays(selectedDate, days));
+  }
+
+  const today = dateKey(new Date());
+  const selectedDateLabel = dateKey(selectedDate) === today
+    ? "Today"
+    : selectedDate.toLocaleDateString(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      });
 
   return (
     <ScrollView
@@ -56,59 +81,101 @@ export default function ScheduleFixed() {
       }
     >
       <Text className="text-xs text-slate-500 mb-4">
-        Appointment slots, staff allocation, and no-show risk
+        Bookings ordered by scheduled time.
       </Text>
 
-      <View className="bg-blue-600 rounded-2xl p-5">
-        <Text className="text-blue-100 text-xs">Chair utilisation</Text>
-        <Text className="text-white text-3xl font-bold mt-1">{utilisationPct}%</Text>
-        <View className="flex-row mt-4 pt-4 border-t border-blue-500">
-          <View className="flex-1">
-            <Text className="text-blue-100 text-[11px]">Bookings</Text>
-            <Text className="text-white text-sm font-semibold mt-0.5">
-              {appointments.length}
-            </Text>
-          </View>
-          <View className="w-px bg-blue-500" />
-          <View className="flex-1 pl-4">
-            <Text className="text-blue-100 text-[11px]">High no-show risk</Text>
-            <Text className="text-white text-sm font-semibold mt-0.5">
-              {highRiskCount}
-            </Text>
-            <Text className="text-blue-200 text-[11px] mt-0.5">
-              Send reminders
-            </Text>
-          </View>
+      {isAdmin ? (
+        <View className="flex-row rounded-lg border border-slate-200 bg-slate-100 p-1 mb-4">
+          {([
+            ["company", "Company-wide"],
+            ["mine", "Assigned to me"],
+          ] as const).map(([key, label]) => {
+            const selected = scope === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setScope(key)}
+                className={`flex-1 items-center rounded-md py-2 ${selected ? "bg-white" : ""}`}
+              >
+                <Text className={`text-xs font-semibold ${selected ? "text-slate-900" : "text-slate-500"}`}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+      ) : null}
+
+      <View className="flex-row items-center justify-between bg-white border border-slate-200 rounded-2xl px-3 py-2 mb-4">
+        <Pressable
+          onPress={() => shiftSelectedDate(-1)}
+          className="px-3 py-1"
+          accessibilityLabel="Previous day"
+        >
+          <Text className="text-slate-600 text-lg">‹</Text>
+        </Pressable>
+        <View className="flex-1 items-center">
+          <Text className="text-sm font-semibold text-slate-900">{selectedDateLabel}</Text>
+          {dateKey(selectedDate) !== today ? (
+            <Pressable onPress={() => selectDate(new Date())}>
+              <Text className="text-[11px] text-blue-600 mt-0.5">Jump to today</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={() => shiftSelectedDate(1)}
+          className="px-3 py-1"
+          accessibilityLabel="Next day"
+        >
+          <Text className="text-slate-600 text-lg">›</Text>
+        </Pressable>
       </View>
 
-      <View className="mt-5">
-        <SegmentedToggle options={VIEW_OPTIONS} active={view} onChange={setView} />
-      </View>
+      <BookingCalendarCard
+        month={calendarMonth}
+        jobs={monthQuery.data?.results ?? []}
+        selectedDate={selectedDate}
+        onMonthChange={setCalendarMonth}
+        onSelectDate={selectDate}
+        showAgenda={false}
+      />
 
       <View className="mt-4 flex-row items-center justify-between mb-2">
         <Text className="text-base font-semibold text-slate-900">
-          Monday, 8 Jun
+          {selectedDate.toLocaleDateString(undefined, {
+            weekday: "long",
+            day: "numeric",
+            month: "short",
+          })}
         </Text>
-        <Text className="text-xs text-blue-600 font-semibold">+ Add booking</Text>
+        <Text className="text-xs text-slate-500">{appointments.length} bookings</Text>
       </View>
 
       <View className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        {appointments.map((appt, i) => (
-          <AppointmentRow
-            key={appt.id}
-            appt={appt}
-            isLast={i === appointments.length - 1}
-          />
-        ))}
-      </View>
-
-      <View className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 flex-row">
-        <Text className="text-amber-700 text-sm mr-2">ⓘ</Text>
-        <Text className="text-amber-800 text-xs leading-4 flex-1">
-          No-show risk is a model estimate based on RFM and prior cancellations.
-          High-risk customers benefit from a same-day confirmation reminder.
-        </Text>
+        {selectedDayQuery.isLoading ? (
+          <View className="py-6 items-center">
+            <ActivityIndicator />
+          </View>
+        ) : selectedDayQuery.error ? (
+          <Text className="p-4 text-xs text-red-600">Could not load bookings.</Text>
+        ) : appointments.length === 0 ? (
+          <Text className="p-4 text-xs text-slate-500">
+            No bookings scheduled for this day.
+          </Text>
+        ) : (
+          appointments.map((appt, index) => (
+            <Pressable
+              key={appt.id}
+              onPress={() => router.push(`/job/${appt.id}`)}
+              accessibilityLabel={`Open booking for ${appt.customer}`}
+            >
+              <AppointmentRow
+                appt={appt}
+                isLast={index === appointments.length - 1}
+              />
+            </Pressable>
+          ))
+        )}
       </View>
     </ScrollView>
   );

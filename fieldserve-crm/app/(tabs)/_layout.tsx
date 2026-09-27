@@ -157,7 +157,7 @@ const FieldServeTabBar = ({ state, descriptors, navigation }: BottomTabBarProps)
             onPress={onPress}
             onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
           >
-            {isCenter ? <CenterTabIcon focused={focused} icon={tab.icon} /> : <StandardTabIcon focused={focused} icon={tab.icon} />}
+            {isCenter ? <CenterTabIcon focused={focused} icon={tab.icon} /> : <StandardTabIcon focused={focused} icon={tab.icon}  />}
             {!isCenter && <Animated.Text style={[styles.label, { color: focused ? ACTIVE_GRADIENT[1] : INACTIVE_COLOR }]}>{tab.title}</Animated.Text>}
           </TabPressable>
         );

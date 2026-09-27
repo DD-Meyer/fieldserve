@@ -153,7 +153,7 @@ export default function OnboardingScreen() {
                 style={styles.input}
               />
 
-              <Text style={styles.label}>Operation Mode</Text>
+              <Text style={styles.label}>Detailing Service Mode</Text>
               <View style={styles.modeContainer}>
                 <Pressable
                   onPress={() => setIndustryMode("fixed")}
@@ -168,7 +168,7 @@ export default function OnboardingScreen() {
                       industryMode === "fixed" && styles.modeTextSelected,
                     ]}
                   >
-                    Fixed Location
+                    Fixed-location Detailing
                   </Text>
                 </Pressable>
                 <Pressable
@@ -184,7 +184,7 @@ export default function OnboardingScreen() {
                       industryMode === "mobile" && styles.modeTextSelected,
                     ]}
                   >
-                    Mobile Service
+                    Mobile Detailing
                   </Text>
                 </Pressable>
               </View>

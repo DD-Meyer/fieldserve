@@ -131,7 +131,6 @@ export default function IndemnityScreen() {
     <ScreenScaffold
       title="Indemnity Settings"
       subtitle="Published versions are attached to new bookings and remain unchanged in history."
-      rightAction={isAdmin ? { label: "New text", onPress: () => setEditorOpen(true) } : undefined}
     >
       {!isAdmin ? (
         <View className="bg-white rounded-xl border border-slate-200 p-5">
@@ -150,6 +149,12 @@ export default function IndemnityScreen() {
           <View className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
             <Text className="text-xs text-amber-900">New bookings require the currently active indemnity. Clients sign it on the staff device after the vehicle walkaround.</Text>
           </View>
+
+          <Pressable onPress={() => setEditorOpen(true)} className="border border-green-200 bg-green-50 rounded-lg py-3 items-center mb-4">
+            <Text className="text-sm font-semibold text-green-700">Create New Indemnity Version</Text>
+          </Pressable>
+
+          <Text className="text-center text-slate-500 my-2">OR</Text>
 
           <Pressable onPress={selectPdf} disabled={createPdf.isPending} className="border border-blue-200 bg-blue-50 rounded-lg py-3 items-center mb-4">
             {createPdf.isPending ? <ActivityIndicator color="#2563eb" /> : <Text className="text-sm font-semibold text-blue-700">Upload PDF version</Text>}

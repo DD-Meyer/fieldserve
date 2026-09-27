@@ -12,8 +12,8 @@ import {
 } from "../lib/hooks/useBusiness";
 
 const INDUSTRY_OPTIONS = [
-  { key: "mobile", label: "Mobile Service" },
-  { key: "fixed", label: "Fixed Location" },
+  { key: "mobile", label: "Mobile Detailing" },
+  { key: "fixed", label: "Fixed Detailing" },
 ];
 
 export default function CompanyScreen() {
@@ -86,7 +86,7 @@ export default function CompanyScreen() {
   return (
     <ScreenScaffold title="Company Info" subtitle="Business profile and branding">
       <Text className="text-[11px] uppercase tracking-wider text-slate-500 px-1 mb-2">
-        Industry type
+        Detailing service mode
       </Text>
       <View className="bg-white rounded-2xl border border-slate-200 p-4 mb-2">
         <SegmentedToggle
@@ -105,12 +105,12 @@ export default function CompanyScreen() {
         />
         <Text className="text-xs text-slate-500 mt-3 leading-4">
           {mode === "mobile"
-            ? "You travel to customers (detailing, plumbing, mobile repair). Schedule shows route optimisation; Map shows demand heat map."
-            : "Customers come to you (salon, clinic, studio). Schedule shows appointment slots; Map shows customer catchment."}
+            ? "You travel to customers for vehicle detailing. Schedule prioritises route planning; Map shows demand heat map."
+            : "Customers bring vehicles to your fixed detailing location. Schedule shows appointment slots; Map shows customer catchment."}
         </Text>
       </View>
       <Text className="text-[11px] text-slate-500 px-1 mt-1 mb-5 leading-4">
-        Changes which scheduling and demand views the app uses across all tabs.
+        Select mobile or fixed-location detailing. This updates scheduling and demand views across all tabs.
       </Text>
 
       <SettingsGroup title="Business">

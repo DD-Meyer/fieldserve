@@ -5,6 +5,8 @@ import { useRouter } from "expo-router";
 import ExpandableLeafletMap from "../ExpandableLeafletMap";
 import type { LeafletMarker } from "../leafletHtml";
 import RouteStopRow, { type RouteStop } from "../RouteStopRow";
+import BookingCalendarCard from "../home/BookingCalendarCard";
+import { monthBounds } from "../home/dashboardData";
 import { useTabBarSpace } from "@/hooks/useTabBarSpace";
 import { useRefresh } from "@/hooks/useRefresh";
 import {
@@ -32,16 +34,19 @@ function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function shiftDate(iso: string, deltaDays: number): string {
+function fromIsoDate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
+  return new Date(y, m - 1, d);
+}
+
+function shiftDate(iso: string, deltaDays: number): string {
+  const dt = fromIsoDate(iso);
   dt.setDate(dt.getDate() + deltaDays);
   return toIsoDate(dt);
 }
 
 function humanDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
+  const dt = fromIsoDate(iso);
   const today = toIsoDate(new Date());
   if (iso === today) return "Today";
   return dt.toLocaleDateString(undefined, {
@@ -99,17 +104,36 @@ export default function ScheduleMobile() {
   const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [scope, setScope] = useState<RouteScope>("company");
   const today = toIsoDate(new Date());
   const business = useCurrentBusiness();
   const isAdmin = business.data?.role === "admin";
   const effectiveScope = isAdmin ? scope : "mine";
+  const { from, to } = monthBounds(calendarMonth);
 
   const { data, isLoading, error, refetch } = useJobs({
     date: selectedDate,
     ordering: "scheduled_at",
     assigned_to: effectiveScope === "mine" ? "me" : undefined,
   });
+  const monthQuery = useJobs({
+    date_from: toIsoDate(from),
+    date_to: toIsoDate(to),
+    ordering: "scheduled_at",
+    assigned_to: effectiveScope === "mine" ? "me" : undefined,
+  });
+
+  function selectDate(date: Date) {
+    setSelectedDate(toIsoDate(date));
+    setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+  }
+
+  function shiftSelectedDate(deltaDays: number) {
+    const nextDate = shiftDate(selectedDate, deltaDays);
+    setSelectedDate(nextDate);
+    setCalendarMonth(fromIsoDate(nextDate));
+  }
 
   const jobs = useMemo(() => data?.results ?? [], [data?.results]);
   const activeJobs = useMemo(
@@ -207,7 +231,11 @@ export default function ScheduleMobile() {
 
   const mapPath = roadRoute.data?.path ?? [];
   const googleMapsUrl = useMemo(() => buildGoogleMapsUrl(routePoints), [routePoints]);
-  const { refreshing, onRefresh } = useRefresh([refetch, roadRoute.refetch]);
+  const { refreshing, onRefresh } = useRefresh([
+    refetch,
+    monthQuery.refetch,
+    roadRoute.refetch,
+  ]);
   return (
     <ScrollView
       contentContainerStyle={{ padding: 16, paddingBottom: tabBarSpace }}
@@ -249,7 +277,7 @@ export default function ScheduleMobile() {
 
       <View className="flex-row items-center justify-between bg-white border border-slate-200 rounded-2xl px-3 py-2 mb-4">
         <Pressable
-          onPress={() => setSelectedDate((d) => shiftDate(d, -1))}
+          onPress={() => shiftSelectedDate(-1)}
           className="px-3 py-1"
           accessibilityLabel="Previous day"
         >
@@ -258,19 +286,33 @@ export default function ScheduleMobile() {
         <View className="flex-1 items-center">
           <Text className="text-sm font-semibold text-slate-900">{humanDate(selectedDate)}</Text>
           {selectedDate !== today ? (
-            <Pressable onPress={() => setSelectedDate(today)}>
+            <Pressable onPress={() => selectDate(new Date())}>
               <Text className="text-[11px] text-blue-600 mt-0.5">Jump to today</Text>
             </Pressable>
           ) : null}
         </View>
         <Pressable
-          onPress={() => setSelectedDate((d) => shiftDate(d, 1))}
+          onPress={() => shiftSelectedDate(1)}
           className="px-3 py-1"
           accessibilityLabel="Next day"
         >
           <Text className="text-slate-600 text-lg">›</Text>
         </Pressable>
       </View>
+
+      <BookingCalendarCard
+        month={calendarMonth}
+        jobs={monthQuery.data?.results ?? []}
+        selectedDate={fromIsoDate(selectedDate)}
+        onMonthChange={setCalendarMonth}
+        onSelectDate={selectDate}
+        showAgenda={false}
+      />
+      {monthQuery.isLoading ? (
+        <Text className="text-[11px] text-slate-500 mt-2">Loading calendar bookings…</Text>
+      ) : monthQuery.error ? (
+        <Text className="text-[11px] text-amber-700 mt-2">Calendar bookings unavailable.</Text>
+      ) : null}
 
       <View className="bg-white border border-slate-200 rounded-2xl p-4 flex-row">
         <View className="flex-1">
