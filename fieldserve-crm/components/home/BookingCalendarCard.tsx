@@ -12,6 +12,7 @@ type Props = {
   selectedDate: Date;
   onMonthChange: (month: Date) => void;
   onSelectDate: (date: Date) => void;
+  showAgenda?: boolean;
 };
 
 const JOB_LABEL_COLOURS: Record<JobStatus, string> = {
@@ -28,7 +29,7 @@ function agendaTime(job: Job) {
   return new Date(job.scheduled_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function BookingCalendarCard({ month, jobs, selectedDate, onMonthChange, onSelectDate }: Props) {
+export default function BookingCalendarCard({ month, jobs, selectedDate, onMonthChange, onSelectDate, showAgenda = true }: Props) {
   const router = useRouter();
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
   const gridStart = addDays(firstDay, -firstDay.getDay());
@@ -69,19 +70,22 @@ export default function BookingCalendarCard({ month, jobs, selectedDate, onMonth
           );
         })}
       </View>
-      <Text style={[typography.styles.eyebrow, { marginTop: 12 }]}>{selectedDate.toDateString() === new Date().toDateString() ? "TODAY" : selectedDate.toDateString()} ({selectedJobs.length} bookings)</Text>
-      {selectedJobs.length ? selectedJobs.map((job) => (
-        <View key={job.id} className="flex-row items-center mt-2">
-          <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginRight: 8 }} />
-          <Text style={[typography.styles.caption, { width: 50, color: JOB_LABEL_COLOURS[job.status] }]}>{agendaTime(job)}</Text>
-          <Pressable
-            key={job.id}
-            onPress={() => router.push(`/job/${job.id}` as any)}
-          >
-            <Text style={[typography.styles.body, { flex: 1 }]} numberOfLines={1}>{job.customer_name || `Customer #${job.customer}`}</Text>
-          </Pressable>
-        </View>
-      )) : <Text style={[typography.styles.caption, { marginTop: 6 }]}>No bookings scheduled.</Text>}
+      {showAgenda ? (
+        <>
+          <Text style={[typography.styles.eyebrow, { marginTop: 12 }]}>{selectedDate.toDateString() === new Date().toDateString() ? "TODAY" : selectedDate.toDateString()} ({selectedJobs.length} bookings)</Text>
+          {selectedJobs.length ? selectedJobs.map((job) => (
+            <View key={job.id} className="flex-row items-center mt-2">
+              <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginRight: 8 }} />
+              <Text style={[typography.styles.caption, { width: 50, color: JOB_LABEL_COLOURS[job.status] }]}>{agendaTime(job)}</Text>
+              <Pressable
+                onPress={() => router.push(`/job/${job.id}` as any)}
+              >
+                <Text style={[typography.styles.body, { flex: 1 }]} numberOfLines={1}>{job.customer_name || `Customer #${job.customer}`}</Text>
+              </Pressable>
+            </View>
+          )) : <Text style={[typography.styles.caption, { marginTop: 6 }]}>No bookings scheduled.</Text>}
+        </>
+      ) : null}
     </View>
   );
 }

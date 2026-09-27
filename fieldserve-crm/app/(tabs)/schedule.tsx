@@ -14,7 +14,7 @@ export default function Schedule() {
   const { mode } = useIndustry();
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
-      <AppHeader title={mode === "fixed" ? "Today's Schedule" : "Today's Route"} />
+      <AppHeader title={mode === "fixed" ? "Schedule" : "Today's Route"} />
       <View style={{ flex: 1, paddingTop: 0 }}>
         {mode === "fixed" ? <ScheduleFixed /> : <ScheduleMobile />}
       </View>
