@@ -16,6 +16,7 @@ import jwt
 import requests
 from django.conf import settings
 from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientError, PyJWKError, PyJWKSetError, PyJWTError
 from rest_framework import authentication, exceptions
 
 from .models import User
@@ -121,7 +122,16 @@ class ClerkJWTAuthentication(authentication.BaseAuthentication):
             )
         except jwt.ExpiredSignatureError as exc:
             raise exceptions.AuthenticationFailed("Token expired") from exc
+        except (PyJWKClientError, PyJWKSetError, PyJWKError) as exc:
+            # Not an InvalidTokenError subclass, so it would otherwise escape as a 500.
+            # Usually means the token was issued by a different Clerk instance than
+            # CLERK_JWKS_URL points at, or the JWKS endpoint is unreachable.
+            raise exceptions.AuthenticationFailed(
+                f"Could not resolve a signing key for this token: {exc}"
+            ) from exc
         except (jwt.InvalidTokenError, requests.RequestException) as exc:
+            raise exceptions.AuthenticationFailed(f"Invalid token: {exc}") from exc
+        except PyJWTError as exc:
             raise exceptions.AuthenticationFailed(f"Invalid token: {exc}") from exc
 
     def _user_from_payload(self, payload: dict[str, Any]) -> User:
