@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +16,7 @@ import { styled } from "nativewind";
 import "../../global.css";
 
 import AppHeader from "../../components/AppHeader";
+import BottomSheetModal from "../../components/BottomSheetModal";
 import RiskBadge, { type RiskLevel } from "../../components/RiskBadge";
 import { useCustomer, useJobs } from "../../lib/hooks/useJobs";
 import { useUpdateCustomer } from "../../lib/hooks/useCustomers";
@@ -382,14 +382,12 @@ export default function CustomerProfile() {
         </View>
       </ScrollView>
 
-      <Modal
+      <BottomSheetModal
         visible={locationEditorOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setLocationEditorOpen(false)}
+        onClose={() => setLocationEditorOpen(false)}
+        scrollable
       >
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-3xl p-5">
+          <View className="p-5">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-bold text-slate-900">Edit customer</Text>
               <Pressable onPress={() => setLocationEditorOpen(false)}>
@@ -451,7 +449,6 @@ export default function CustomerProfile() {
                   container: {
                     flex: 0,
                     width: "100%",
-                    zIndex: 1000,
                   },
                   textInput: {
                     borderWidth: 1,
@@ -461,18 +458,14 @@ export default function CustomerProfile() {
                     height: 48,
                     color: "#0f172a",
                     fontSize: 14,
+                    marginBottom: 0,
                   },
                   listView: {
-                    position: "absolute",
-                    top: 50,
-                    left: 0,
-                    right: 0,
                     borderWidth: 1,
                     borderColor: "#e2e8f0",
+                    borderRadius: 12,
                     backgroundColor: "#ffffff",
-                    elevation: 1001,
-                    zIndex: 9999,
-                    maxHeight: 180,
+                    marginTop: 4,
                   },
                 }}
               />
@@ -502,17 +495,14 @@ export default function CustomerProfile() {
               )}
             </Pressable>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
+      <BottomSheetModal
         visible={retentionOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRetentionOpen(false)}
+        onClose={() => setRetentionOpen(false)}
+        scrollable
       >
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-3xl p-5">
+          <View className="p-5">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-bold text-slate-900">Record retention call</Text>
               <Pressable onPress={() => setRetentionOpen(false)}>
@@ -569,8 +559,7 @@ export default function CustomerProfile() {
               )}
             </Pressable>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </SafeAreaView>
   );
 }

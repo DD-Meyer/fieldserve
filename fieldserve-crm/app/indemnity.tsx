@@ -3,13 +3,13 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   Text,
   TextInput,
   View,
 } from "react-native";
 
+import BottomSheetModal from "../components/BottomSheetModal";
 import ScreenScaffold from "../components/ScreenScaffold";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
 import {
@@ -191,9 +191,8 @@ export default function IndemnityScreen() {
         </>
       )}
 
-      <Modal visible={editorOpen} transparent animationType="fade" onRequestClose={() => setEditorOpen(false)}>
-        <View className="flex-1 bg-black/40 justify-end">
-          <View className="bg-white rounded-t-xl p-5">
+      <BottomSheetModal visible={editorOpen} onClose={() => setEditorOpen(false)} scrollable>
+          <View className="px-5 pb-5 pt-8">
             <Text className="text-lg font-bold text-slate-900">New text indemnity</Text>
             <Text className="text-xs text-slate-500 mt-1 mb-4">Saving creates a draft version. Publish it when the wording is ready.</Text>
             <TextInput
@@ -212,8 +211,7 @@ export default function IndemnityScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </ScreenScaffold>
   );
 }

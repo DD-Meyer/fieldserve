@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from "react-native";
 
+import BottomSheetModal from "./BottomSheetModal";
 import type { Damage, Inspection } from "@/lib/hooks/useInspections";
 import { useReviewDamage } from "@/lib/hooks/useInspections";
 
@@ -12,6 +13,11 @@ const DAMAGE_LABELS = [
   "lamp_broken",
   "tire_flat",
 ] as const;
+
+// The trained model reports some classes with spaces ("lamp broken"); the API expects snake_case.
+function normaliseLabel(label: string): string {
+  return label.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
 
 type ReviewState = {
   index: number;
@@ -33,13 +39,19 @@ export default function InspectionDamageReport({ inspection }: { inspection: Ins
 
   async function saveReview(remove = false) {
     if (!review) return;
+    if (!(DAMAGE_LABELS as readonly string[]).includes(review.label)) {
+      setReviewError("Choose the correct damage label above before saving.");
+      return;
+    }
     if (!review.note.trim()) {
       setReviewError("Add a short review note before saving.");
       return;
     }
     const corrected = damages
       .map((damage, index) => (
-        index === review.index ? { ...damage, label: review.label } : damage
+        index === review.index
+          ? { ...damage, label: review.label }
+          : { ...damage, label: normaliseLabel(damage.label) }
       ))
       .filter((_damage, index) => !(remove && index === review.index));
     try {
@@ -104,7 +116,7 @@ export default function InspectionDamageReport({ inspection }: { inspection: Ins
             </Text>
             <Pressable
               onPress={() => {
-                setReview({ index, label: damage.label, note: annotation?.note ?? "" });
+                setReview({ index, label: normaliseLabel(damage.label), note: annotation?.note ?? "" });
                 setReviewError(null);
               }}
               style={{ alignSelf: "flex-start", marginTop: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#e2e8f0" }}
@@ -128,14 +140,8 @@ export default function InspectionDamageReport({ inspection }: { inspection: Ins
         Model {inspection.analysis.model_version ?? "unknown"} · Captured {new Date(inspection.created_at).toLocaleString()}
       </Text>
 
-      <Modal
-        visible={review != null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setReview(null)}
-      >
-        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" }}>
-          <View style={{ backgroundColor: "white", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+      <BottomSheetModal visible={review != null} onClose={() => setReview(null)} scrollable>
+          <View style={{ padding: 20 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <Text style={{ color: "#0f172a", fontSize: 18, fontWeight: "800" }}>Review detection</Text>
               <Pressable onPress={() => setReview(null)}>
@@ -155,7 +161,10 @@ export default function InspectionDamageReport({ inspection }: { inspection: Ins
                     return (
                       <Pressable
                         key={label}
-                        onPress={() => setReview({ ...review, label })}
+                        onPress={() => {
+                          setReview({ ...review, label });
+                          setReviewError(null);
+                        }}
                         style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: active ? "#2563eb" : "#e2e8f0", backgroundColor: active ? "#eff6ff" : "white" }}
                       >
                         <Text style={{ color: active ? "#1d4ed8" : "#475569", fontSize: 11, fontWeight: "700", textTransform: "capitalize" }}>
@@ -168,10 +177,14 @@ export default function InspectionDamageReport({ inspection }: { inspection: Ins
                 <Text style={{ color: "#475569", fontSize: 12, fontWeight: "700", marginBottom: 6 }}>Review note</Text>
                 <TextInput
                   value={review.note}
-                  onChangeText={(note) => setReview({ ...review, note })}
+                  onChangeText={(note) => {
+                    setReview({ ...review, note });
+                    if (reviewError) setReviewError(null);
+                  }}
                   placeholder="e.g. Box is correct, but damage is a scratch rather than a dent."
+                  placeholderTextColor="#94a3b8"
                   multiline
-                  style={{ minHeight: 92, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: "#0f172a", textAlignVertical: "top" }}
+                  style={{ minHeight: 92, borderWidth: 1, borderColor: reviewError && !review.note.trim() ? "#f87171" : "#e2e8f0", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: "#0f172a", textAlignVertical: "top" }}
                 />
                 {reviewError ? <Text style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>{reviewError}</Text> : null}
                 <Pressable
@@ -191,8 +204,7 @@ export default function InspectionDamageReport({ inspection }: { inspection: Ins
               </>
             ) : null}
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </View>
   );
 }

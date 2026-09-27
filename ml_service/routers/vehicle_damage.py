@@ -116,6 +116,8 @@ class _Model:
             clss = boxes.cls.tolist() if hasattr(boxes.cls, "tolist") else []
             for box, conf, cls in zip(xyxy, confs, clss):
                 label = names.get(int(cls), CARDD_LABELS[int(cls) % len(CARDD_LABELS)])
+                # Weights trained from coco_to_yolo use spaced names ("lamp broken").
+                label = str(label).strip().lower().replace(" ", "_").replace("-", "_")
                 damages.append(
                     {
                         "label": label,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -8,21 +8,39 @@ import {
   PanResponder,
   Platform,
   Pressable,
+  ScrollView,
+  TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  /** Wraps the children in a ScrollView that keeps the focused input above the keyboard. */
+  scrollable?: boolean;
 };
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 // How far (or how fast) the handle must be dragged down before it closes the sheet.
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 0.8;
+// Room left below the focused field for dropdowns such as address suggestions.
+const SUGGESTION_SPACE = 220;
+const TOP_GAP = 24;
 
-export default function BottomSheetModal({ visible, onClose, children }: Props) {
+export default function BottomSheetModal({ visible, onClose, children, scrollable = false }: Props) {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const contentRef = useRef<View>(null);
+  const scrollY = useRef(0);
+  const viewportHeight = useRef(0);
+  const lastFocused = useRef<unknown>(null);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Kept mounted through the close animation, then unmounted once it finishes.
   const [mounted, setMounted] = useState(visible);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -89,6 +107,34 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
     }),
   ).current;
 
+  const scrollToFocused = useCallback(() => {
+    const input = TextInput.State.currentlyFocusedInput();
+    lastFocused.current = input;
+    const content = contentRef.current;
+    if (!input || !content || !scrollRef.current) return;
+    input.measureLayout(
+      content as unknown as Parameters<typeof input.measureLayout>[0],
+      (_x, y, _w, h) => {
+        const viewport = viewportHeight.current;
+        const wantedBottom = y + h + SUGGESTION_SPACE;
+        if (wantedBottom > scrollY.current + viewport) {
+          scrollRef.current?.scrollTo({ y: wantedBottom - viewport, animated: true });
+        } else if (y < scrollY.current) {
+          scrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+        }
+      },
+      () => {},
+    );
+  }, []);
+
+  const scheduleScrollToFocused = useCallback(
+    (delay: number) => {
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      scrollTimer.current = setTimeout(scrollToFocused, delay);
+    },
+    [scrollToFocused],
+  );
+
   useEffect(() => {
     // KeyboardAvoidingView doesn't measure reliably inside a transparent Modal,
     // so track the keyboard directly and shift the sheet up to match.
@@ -96,13 +142,18 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
     const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const onShow = (e: { endCoordinates: { height: number }; duration?: number }) => {
+      const duration = e.duration || 220;
+      setKeyboardHeight(e.endCoordinates.height);
       Animated.timing(keyboardOffset, {
         toValue: e.endCoordinates.height,
-        duration: e.duration || 220,
+        duration,
         useNativeDriver: false,
       }).start();
+      scheduleScrollToFocused(duration + 60);
     };
     const onHide = (e: { duration?: number }) => {
+      setKeyboardHeight(0);
+      lastFocused.current = null;
       Animated.timing(keyboardOffset, {
         toValue: 0,
         duration: e?.duration || 200,
@@ -116,8 +167,9 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
     return () => {
       showSub.remove();
       hideSub.remove();
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
-  }, [keyboardOffset]);
+  }, [keyboardOffset, scheduleScrollToFocused]);
 
   useEffect(() => {
     if (visible) {
@@ -160,6 +212,10 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
 
   if (!mounted) return null;
 
+  // The keyboard covers the system navigation area, so the inset only applies while it is hidden.
+  const bottomInset = keyboardHeight > 0 ? 12 : insets.bottom + 16;
+  const maxSheetHeight = windowHeight - insets.top - keyboardHeight - TOP_GAP;
+
   return (
     <Modal
       visible
@@ -176,7 +232,41 @@ export default function BottomSheetModal({ visible, onClose, children }: Props) 
           <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Close" />
         </Animated.View>
         <Animated.View style={{ transform: [{ translateY }] }}>
-            {children}
+          <Animated.View style={{ paddingBottom: keyboardOffset }}>
+            <View
+              className="bg-white rounded-t-3xl overflow-hidden"
+              style={{ maxHeight: maxSheetHeight, paddingBottom: bottomInset }}
+            >
+              {scrollable ? (
+                <ScrollView
+                  ref={scrollRef}
+                  keyboardShouldPersistTaps="handled"
+                  scrollEventThrottle={16}
+                  onScroll={(e) => {
+                    scrollY.current = e.nativeEvent.contentOffset.y;
+                  }}
+                  onLayout={(e) => {
+                    viewportHeight.current = e.nativeEvent.layout.height;
+                  }}
+                  onTouchEnd={() => {
+                    // Moving between fields keeps the keyboard open, so no keyboard event fires.
+                    setTimeout(() => {
+                      const focused = TextInput.State.currentlyFocusedInput();
+                      if (keyboardHeight > 0 && focused && focused !== lastFocused.current) {
+                        scheduleScrollToFocused(0);
+                      }
+                    }, 80);
+                  }}
+                >
+                  <View ref={contentRef} collapsable={false}>
+                    {children}
+                  </View>
+                </ScrollView>
+              ) : (
+                children
+              )}
+            </View>
+          </Animated.View>
             <View
               {...panResponder.panHandlers}
               className="absolute top-0 left-0 right-0 items-center py-3"

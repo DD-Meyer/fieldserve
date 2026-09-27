@@ -2,17 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BottomSheetModal from "../components/BottomSheetModal";
+import FormField from "../components/FormField";
 import SlideToConfirmButton from "../components/SlideToConfirmButton";
 import ScreenScaffold from "../components/ScreenScaffold";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
+import {
+  apiFieldErrors,
+  priceError,
+  requiredError,
+  unmatchedFieldErrors,
+  useFieldValidation,
+  wholeNumberError,
+} from "../lib/validation";
 import {
   useCreateService,
   useDeleteService,
@@ -134,6 +142,13 @@ function ServiceEditor({
   );
   const [isActive, setIsActive] = useState(service?.is_active ?? true);
   const [err, setErr] = useState<string | null>(null);
+  const validation = useFieldValidation({
+    name: requiredError(name, "Name"),
+    description: null,
+    duration: wholeNumberError(duration, "Duration"),
+    price: priceError(price),
+  });
+  const { bind, reset: resetValidation } = validation;
 
   const key = state.mode === "edit" ? state.service.id : state.mode;
   const prevKey = useRef(key);
@@ -146,23 +161,22 @@ function ServiceEditor({
     setPrice(service ? String(Number(service.price).toFixed(2)) : "0.00");
     setIsActive(service?.is_active ?? true);
     setErr(null);
-  }, [key, service]);
-
-  if (state.mode === "closed") return null;
+    resetValidation();
+  }, [key, service, resetValidation]);
 
   const submit = async () => {
     setErr(null);
+    if (!validation.validate()) {
+      setErr("Fix the highlighted fields.");
+      return;
+    }
     const payload: ServiceInput = {
       name: name.trim(),
       description: description.trim(),
-      duration_minutes: Math.max(1, parseInt(duration, 10) || 60),
-      price: parseFloat(price) || 0,
+      duration_minutes: parseInt(duration, 10),
+      price: parseFloat(price),
       is_active: isActive,
     };
-    if (!payload.name) {
-      setErr("Name is required.");
-      return;
-    }
     try {
       if (state.mode === "edit") {
         await update.mutateAsync({ id: state.service.id, payload });
@@ -171,7 +185,14 @@ function ServiceEditor({
       }
       onClose();
     } catch (e: any) {
-      setErr(e?.message || "Could not save.");
+      const { fields, general } = apiFieldErrors(e, "Could not save.");
+      const { duration_minutes, ...rest } = fields;
+      validation.setServerErrors(duration_minutes ? { ...rest, duration: duration_minutes } : rest);
+      setErr(
+        [general, unmatchedFieldErrors(rest, ["name", "description", "price"])]
+          .filter(Boolean)
+          .join("\n") || "Fix the highlighted fields.",
+      );
     }
   };
 
@@ -201,9 +222,8 @@ function ServiceEditor({
   const busy = create.isPending || update.isPending || del.isPending;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/40">
-        <View className="bg-white rounded-t-3xl p-5">
+    <BottomSheetModal visible={state.mode !== "closed"} onClose={onClose} scrollable>
+        <View className="p-5">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-slate-900">
               {state.mode === "edit" ? "Edit service" : "New service"}
@@ -213,29 +233,33 @@ function ServiceEditor({
             </Pressable>
           </View>
 
-          <Field label="Name" value={name} onChange={setName} placeholder="Interior deep clean" />
-          <Field
+          <FormField
+            label="Name"
+            required
+            placeholder="Interior deep clean"
+            {...bind("name", name, setName)}
+          />
+          <FormField
             label="Description"
-            value={description}
-            onChange={setDescription}
             placeholder="What's included"
             multiline
+            {...bind("description", description, setDescription)}
           />
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Field
+              <FormField
                 label="Duration (min)"
-                value={duration}
-                onChange={setDuration}
+                required
                 keyboardType="number-pad"
+                {...bind("duration", duration, setDuration)}
               />
             </View>
             <View className="flex-1">
-              <Field
+              <FormField
                 label="Price ($)"
-                value={price}
-                onChange={setPrice}
+                required
                 keyboardType="decimal-pad"
+                {...bind("price", price, setPrice)}
               />
             </View>
           </View>
@@ -277,38 +301,6 @@ function ServiceEditor({
             </Pressable>
           </View>
         </View>
-      </View>
-    </Modal>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  keyboardType,
-  multiline,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  keyboardType?: "default" | "number-pad" | "decimal-pad";
-  multiline?: boolean;
-}) {
-  return (
-    <View className="mb-3">
-      <Text className="text-xs font-semibold text-slate-600 mb-1">{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        keyboardType={keyboardType ?? "default"}
-        multiline={multiline}
-        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
-        style={multiline ? { minHeight: 60, textAlignVertical: "top" } : undefined}
-      />
-    </View>
+    </BottomSheetModal>
   );
 }

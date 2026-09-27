@@ -19,6 +19,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { icons } from "@/constants/icons";
 import { colors } from "@/constants/theme";
 import { useMe } from "../../lib/hooks/useMe";
+import {
+  apiFieldErrors,
+  emailError,
+  MIN_PASSWORD_LENGTH,
+  passwordError,
+  requiredError,
+  useFieldValidation,
+} from "../../lib/validation";
+
+const CLERK_PARAM_TO_FIELD: Record<string, string> = {
+  email_address: "email",
+  identifier: "email",
+  password: "password",
+  first_name: "first_name",
+  last_name: "last_name",
+};
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -51,6 +67,26 @@ export default function AuthScreen() {
   const [stage, setStage] = useState<Stage>("form");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const signUpValidation = useFieldValidation({
+    first_name: requiredError(firstName, "First name"),
+    last_name: requiredError(lastName, "Last name"),
+    email: emailError(email, { required: true }),
+    password: passwordError(password),
+  });
+  const isSignUp = mode === "sign-up";
+  const fieldError = (field: "first_name" | "last_name" | "email" | "password") =>
+    isSignUp ? signUpValidation.errorFor(field) : null;
+  const bindField = (
+    field: "first_name" | "last_name" | "email" | "password",
+    value: string,
+    setter: (v: string) => void,
+  ) => {
+    const { error: fieldMessage, ...handlers } = signUpValidation.bind(field, value, setter);
+    return {
+      ...handlers,
+      style: [styles.input, isSignUp && fieldMessage ? styles.inputInvalid : null],
+    };
+  };
 
   useEffect(() => {
     if (!isAuthLoaded || !isSignedIn) return;
@@ -134,6 +170,10 @@ export default function AuthScreen() {
   const startSignUp = async () => {
     if (!signUp) return;
     setError(null);
+    if (!signUpValidation.validate()) {
+      setError("Fix the highlighted fields.");
+      return;
+    }
     setLoading(true);
     try {
       const { error: signUpError } = await signUp.password({
@@ -164,7 +204,19 @@ export default function AuthScreen() {
         return;
       }
 
-      setError(e?.errors?.[0]?.longMessage || e?.message || "Sign-up failed");
+      const { fields, general } = apiFieldErrors(e, "Sign-up failed");
+      const mapped: Record<string, string> = {};
+      const unmapped: string[] = [];
+      for (const [param, message] of Object.entries(fields)) {
+        const field = CLERK_PARAM_TO_FIELD[param];
+        if (field) mapped[field] = message;
+        else unmapped.push(message);
+      }
+      signUpValidation.setServerErrors(mapped);
+      setError(
+        [general, ...unmapped].filter(Boolean).join("\n") ||
+          (Object.keys(mapped).length ? "Fix the highlighted fields." : "Sign-up failed"),
+      );
     } finally {
       setLoading(false);
     }
@@ -218,6 +270,7 @@ export default function AuthScreen() {
   const switchMode = (newMode: "sign-in" | "sign-up") => {
     if (mode === newMode) return;
     setError(null);
+    signUpValidation.reset();
     setMode(newMode);
     setStage("form");
   };
@@ -344,50 +397,66 @@ export default function AuthScreen() {
                       style={styles.row}
                     >
                       <View style={styles.rowItem}>
-                        <Text style={styles.label}>First name</Text>
+                        <Text style={styles.label}>First name *</Text>
                         <TextInput
-                          value={firstName}
-                          onChangeText={setFirstName}
                           placeholder="Alex"
                           placeholderTextColor="#94a3b8"
-                          style={styles.input}
+                          autoComplete="given-name"
+                          {...bindField("first_name", firstName, setFirstName)}
                         />
+                        {fieldError("first_name") ? (
+                          <Text style={styles.fieldError}>{fieldError("first_name")}</Text>
+                        ) : null}
                       </View>
                       <View style={styles.rowItem}>
-                        <Text style={styles.label}>Last name</Text>
+                        <Text style={styles.label}>Last name *</Text>
                         <TextInput
-                          value={lastName}
-                          onChangeText={setLastName}
                           placeholder="Morgan"
                           placeholderTextColor="#94a3b8"
-                          style={styles.input}
+                          autoComplete="family-name"
+                          {...bindField("last_name", lastName, setLastName)}
                         />
+                        {fieldError("last_name") ? (
+                          <Text style={styles.fieldError}>{fieldError("last_name")}</Text>
+                        ) : null}
                       </View>
                     </Animated.View>
                   )}
 
-                  <Text style={styles.label}>Email</Text>
+                  <Text style={styles.label}>Email{isSignUp ? " *" : ""}</Text>
                   <TextInput
-                    value={email}
-                    onChangeText={setEmail}
                     autoCapitalize="none"
                     keyboardType="email-address"
+                    autoComplete="email"
                     placeholder="you@example.com"
                     placeholderTextColor="#94a3b8"
-                    style={styles.input}
+                    {...bindField("email", email, setEmail)}
                   />
+                  {fieldError("email") ? (
+                    <Text style={styles.fieldError}>{fieldError("email")}</Text>
+                  ) : null}
 
-                  <Text style={styles.label}>Password</Text>
+                  <Text style={styles.label}>Password{isSignUp ? " *" : ""}</Text>
                   <TextInput
-                    value={password}
-                    onChangeText={setPassword}
                     secureTextEntry
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
                     placeholder={
                       mode === "sign-up" ? "At least 8 characters" : "••••••••"
                     }
                     placeholderTextColor="#94a3b8"
-                    style={styles.input}
+                    {...bindField("password", password, setPassword)}
                   />
+                  {isSignUp ? (
+                    fieldError("password") ? (
+                      <Text style={styles.fieldError}>{fieldError("password")}</Text>
+                    ) : password.length >= MIN_PASSWORD_LENGTH ? (
+                      <Text style={styles.fieldOk}>✓ At least {MIN_PASSWORD_LENGTH} characters</Text>
+                    ) : (
+                      <Text style={styles.fieldHint}>
+                        Must be at least {MIN_PASSWORD_LENGTH} characters ({password.length}/{MIN_PASSWORD_LENGTH})
+                      </Text>
+                    )
+                  ) : null}
 
                   {mode === "sign-up" ? <View nativeID="clerk-captcha" /> : null}
 
@@ -533,6 +602,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: { fontSize: 12, color: "#dc2626", marginTop: 2, marginBottom: 8 },
+  inputInvalid: { borderColor: "#f87171", marginBottom: 4 },
+  fieldError: { fontSize: 11, color: "#dc2626", marginBottom: 12 },
+  fieldHint: { fontSize: 11, color: "#64748b", marginTop: -10, marginBottom: 12 },
+  fieldOk: { fontSize: 11, color: "#15803d", marginTop: -10, marginBottom: 12 },
   button: {
     backgroundColor: colors.primary || "#2563eb",
     borderRadius: 12,

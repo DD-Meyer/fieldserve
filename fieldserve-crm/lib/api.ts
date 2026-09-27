@@ -13,8 +13,39 @@ export class ApiError extends Error {
   }
 }
 
+export function humaniseField(field: string): string {
+  const text = field.replace(/_/g, " ").trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Flattens DRF error values (strings, lists, nested objects) into one readable line. */
+export function flattenErrorMessages(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    return value.map(flattenErrorMessages).filter(Boolean).join(" ");
+  }
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, nested]) => {
+        const text = flattenErrorMessages(nested);
+        return text ? `${humaniseField(key)}: ${text}` : "";
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+  return "";
+}
+
 function formatApiError(status: number, body: unknown): string {
-  if (body && typeof body === "object") {
+  if (typeof body === "string" && body && !body.trimStart().startsWith("<")) {
+    return body;
+  }
+  if (Array.isArray(body)) {
+    const text = flattenErrorMessages(body);
+    if (text) return text;
+  } else if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
     const detail = record.detail ?? record.status;
     if (typeof detail === "string") {
@@ -24,8 +55,14 @@ function formatApiError(status: number, body: unknown): string {
       }
       return detail;
     }
-    const firstError = Object.values(record).find((value) => typeof value === "string");
-    if (typeof firstError === "string") return firstError;
+    const messages = Object.entries(record)
+      .map(([field, value]) => {
+        const text = flattenErrorMessages(value);
+        if (!text) return "";
+        return field === "non_field_errors" ? text : `${humaniseField(field)}: ${text}`;
+      })
+      .filter(Boolean);
+    if (messages.length) return messages.join("\n");
   }
   return `Request failed with ${status}`;
 }

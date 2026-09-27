@@ -228,7 +228,33 @@ def test_approve_damage_rejects_invalid_box_label(mock_detect, api_client_auth, 
     )
 
     assert response.status_code == 400
+    assert "Box 1" in str(response.data["boxes"])
+    assert "not_a_damage" in str(response.data["boxes"])
     assert not DamageAnnotation.objects.filter(inspection_id=created.data["id"]).exists()
+
+
+@patch("inspections.serializers.detect_damage")
+def test_approve_damage_normalises_spaced_model_labels(mock_detect, api_client_auth, job):
+    mock_detect.return_value = {"damages": [], "model_version": "stub"}
+    photo = SimpleUploadedFile("front.jpg", _tiny_jpeg(), content_type="image/jpeg")
+    created = api_client_auth.post(
+        "/api/inspections/",
+        {"job": job.id, "phase": "before", "angle": "front", "photo": photo},
+        format="multipart",
+    )
+
+    response = api_client_auth.post(
+        f"/api/inspections/{created.data['id']}/approve-damage/",
+        {
+            "boxes": [{"label": "Lamp broken", "bbox": [10, 20, 40, 50]}],
+            "note": "Label left as detected.",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+    annotation = DamageAnnotation.objects.get(inspection_id=created.data["id"])
+    assert annotation.boxes[0]["label"] == "lamp_broken"
 
 
 @patch("inspections.serializers.detect_damage")

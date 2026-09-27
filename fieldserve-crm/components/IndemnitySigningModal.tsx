@@ -53,12 +53,12 @@ export default function IndemnitySigningModal({ visible, jobId, indemnityText, i
 
   return (
     <BottomSheetModal visible={visible} onClose={onClose}>
-      <View className="bg-white rounded-t-2xl px-5 pt-8 max-h-[88%]">
+      <View className="px-5 pt-8 shrink">
         <ScrollView
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
           scrollEnabled={!drawingSignature}
-          contentContainerStyle={{ paddingBottom: 96 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
         >
           <Text className="text-lg font-bold text-slate-900">Client indemnity</Text>
           <Text className="text-xs leading-5 text-slate-500 mt-1">
