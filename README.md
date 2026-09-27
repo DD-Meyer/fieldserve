@@ -85,6 +85,57 @@ npm run web
 
 Use `npm start` to launch the Expo development server for native development. Authentication and external map/address integrations require valid provider configuration.
 
+### Install a preview APK on an Android phone
+
+The current preview build is available from the [FieldServe Android build on Expo](https://expo.dev/accounts/netic-technologies-pty-ltd/projects/fieldserve-crm/builds/4e2732c7-c5b6-4a5f-86ca-4a97f29b460f). Open the build page on the phone or download its APK artifact and transfer it to the device.
+
+Build an internal preview APK from the CRM directory:
+
+```powershell
+cd fieldserve-crm
+eas build --platform android --profile preview
+```
+
+Download the APK from the EAS build page or its build link. Install only an APK produced by your own FieldServe EAS project. You can transfer it to the phone and open it, or install it over USB from Windows:
+
+```powershell
+adb devices
+adb install -r .\path\to\fieldserve-preview.apk
+adb shell monkey -p fieldserve.crm 1
+```
+
+If Android blocks the install, allow only the app you used to open the APK (for example, Chrome or Files) to install unknown apps. On most Android versions, open **Settings > Apps > Special app access > Install unknown apps**, select that source, and enable **Allow from this source**. Menu names vary by manufacturer. Turn this permission off again after installing.
+
+Some phones have an additional manufacturer blocker. On a personal Samsung device, **Settings > Security and privacy > Auto Blocker** may prevent sideloading; only if you have verified that the APK came from your own EAS build, temporarily disable that blocker for installation and re-enable it immediately. Do not turn off Google Play Protect or general device protection. Do not bypass a work/school management policy or install an APK whose source you cannot verify.
+
+### Run the app on an Android emulator from a terminal
+
+Start the backend with Docker Compose, then configure `fieldserve-crm/.env.local` for the emulator. Android emulators reach services on the development host through `10.0.2.2`, not `localhost`:
+
+```text
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_development_key
+```
+
+Create/start an Android Virtual Device (AVD). With the Android SDK tools on `PATH`, list and launch one in a terminal:
+
+```powershell
+emulator -list-avds
+emulator -avd "Pixel_8_API_35"
+```
+
+Replace `Pixel_8_API_35` with an AVD name printed by the first command.
+
+In a second terminal, start Expo and open the app on the running emulator:
+
+```powershell
+cd fieldserve-crm
+npm ci
+npm run android
+```
+
+Alternatively, after starting Metro with `npm start`, press `a` to open the Android target. The Android SDK's `adb` and `emulator` tools must be installed. If using a physical phone instead of an emulator, set `EXPO_PUBLIC_API_URL` to the development computer's LAN address and authorize USB debugging if installing with `adb`.
+
 ### Useful endpoints
 
 - Django API: `http://localhost:8000/api/`
