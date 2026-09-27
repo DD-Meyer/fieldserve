@@ -85,12 +85,11 @@ export default function OnboardingScreen() {
 
       if (!response.ok) {
         const responseText = await response.text();
-        let detail = responseText;
+        let detail = "";
         try {
-          const errData = JSON.parse(responseText);
-          detail = errData.detail || responseText;
+          detail = JSON.parse(responseText).detail ?? "";
         } catch {
-          // Keep the raw response when the server returns HTML or plain text.
+          // Server returned HTML or plain text (e.g. a Django error page).
         }
         throw new Error(detail || `Request failed (${response.status}).`);
       }
