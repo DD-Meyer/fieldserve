@@ -141,7 +141,7 @@ These screenshots are implementation and presentation evidence. They do not subs
 ## 7. Still-needed human and non-functional evidence
 
 - Two-round usability test with participant roles/recruitment, task completion, time on task, SUS, changes between rounds, and coded comments.
-- API latency/load test with stated hardware, concurrency, request mix, percentiles, and error rate.
+- **API latency/load (limited local baseline, 27 September 2026):** Windows 11 host, AMD Ryzen 5 2600 (6 cores/12 logical processors), 31.9 GiB RAM; Docker Desktop exposed 12 CPUs and 15.58 GiB. Django development server and PostgreSQL/PostGIS ran in Docker Compose. The request mix was 100% unauthenticated `GET /api/public/businesses/fieldserve-detailing/`; 100 requests at concurrency 10. Duration 2.895 s, throughput 34.54 requests/s, 100/100 HTTP 200, error rate 0%; mean latency 286.14 ms, p50 191.01 ms, p95 808.09 ms, p99 826.00 ms, maximum 1,105.55 ms. Machine-readable result: `runs/load_tests/api_public_business_100x10_20260927.json`. This is a single local public-read baseline, not a production SLA, capacity limit, mixed-workload result, or evidence for other API endpoints. Do not generalize these figures beyond this test configuration.
 - Explicit inspection-image consent, retention, access, and deletion-policy review.
 - Cross-device checks on Android, iOS, and web where claimed.
 - Security checks for authentication, tenant isolation, upload type/size limits, throttling, and unauthorised object access.
