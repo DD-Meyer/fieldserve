@@ -14,6 +14,15 @@ import { ActivityIndicator, Platform, Text, View } from "react-native";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
+// The production instance's Frontend API (clerk.fieldserve.vercel.app) can't be reached directly:
+// Vercel's *.vercel.app wildcard answers that name, so Clerk's DNS can never be attached to it.
+// Web uses the same-origin rewrite; native needs the absolute URL (@clerk/expo rejects relative
+// proxy URLs outside the browser). Leave the env var unset to talk to Clerk directly (dev instance).
+const CLERK_PROXY_URL =
+  Platform.OS === "web"
+    ? "/__clerk"
+    : process.env.EXPO_PUBLIC_CLERK_PROXY_URL?.trim() || undefined;
+
 if (__DEV__) {
   console.log(
     "[FieldServe] Clerk key present?",
@@ -133,7 +142,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
-      proxyUrl={Platform.OS === "web" ? "/__clerk" : undefined}
+      proxyUrl={CLERK_PROXY_URL}
       taskUrls={{ "choose-organization": "/onboarding" }}
       tokenCache={tokenCache}
     >
