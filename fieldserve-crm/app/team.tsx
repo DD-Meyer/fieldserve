@@ -2,16 +2,18 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   Text,
   TextInput,
   View,
 } from "react-native";
 
+import BottomSheetModal from "../components/BottomSheetModal";
+import FormField from "../components/FormField";
 import ScreenScaffold from "../components/ScreenScaffold";
 import { useCurrentBusiness } from "../lib/hooks/useBusiness";
 import { useServices } from "../lib/hooks/useServices";
+import { apiFieldErrors, emailError, useFieldValidation } from "../lib/validation";
 import {
   type TeamMember,
   useDeactivateTeamMember,
@@ -53,20 +55,31 @@ export default function TeamScreen() {
   const [configMember, setConfigMember] = useState<TeamMember | null>(null);
   const [configServices, setConfigServices] = useState<number[]>([]);
   const [configBuffer, setConfigBuffer] = useState("");
+  const inviteValidation = useFieldValidation({
+    email: emailError(email, { required: true }),
+  });
+
+  const closeInvite = () => {
+    setInviteOpen(false);
+    setError(null);
+    inviteValidation.reset();
+  };
 
   const sendInvite = async () => {
-    if (!business || !email.trim()) {
-      setError("Enter the team member's email address.");
-      return;
-    }
     setError(null);
+    if (!inviteValidation.validate() || !business) return;
     try {
       await invite.mutateAsync({ businessId: business.id, email: email.trim(), role });
       setEmail("");
       setRole("staff");
-      setInviteOpen(false);
+      closeInvite();
     } catch (requestError) {
-      setError(errorMessage(requestError));
+      const { fields, general } = apiFieldErrors(requestError, "Could not send the invitation.");
+      const { email: emailMessage, invited_email, ...rest } = fields;
+      const fieldMessage = emailMessage ?? invited_email;
+      if (fieldMessage) inviteValidation.setServerErrors({ email: fieldMessage });
+      const other = Object.values(rest).join("\n");
+      setError([general, other].filter(Boolean).join("\n") || null);
     }
   };
 
@@ -210,18 +223,18 @@ export default function TeamScreen() {
         </View>
       )}
 
-      <Modal visible={inviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>
-        <View className="flex-1 bg-black/40 justify-end">
-          <View className="bg-white rounded-t-xl p-5">
+      <BottomSheetModal visible={inviteOpen} onClose={closeInvite} scrollable>
+          <View className="p-5">
             <Text className="text-lg font-bold text-slate-900">Invite team member</Text>
             <Text className="text-xs text-slate-500 mt-1 mb-4">Clerk will send an email invitation.</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
+            <FormField
+              label="Email"
+              required
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="name@example.com"
-              className="border border-slate-200 rounded-lg px-3 py-3 text-slate-900"
+              containerClassName=""
+              {...inviteValidation.bind("email", email, setEmail)}
             />
             <View className="flex-row gap-2 mt-3">
               {(["staff", "admin"] as const).map((candidate) => (
@@ -232,7 +245,7 @@ export default function TeamScreen() {
             </View>
             {error ? <Text className="text-xs text-red-600 mt-3">{error}</Text> : null}
             <View className="flex-row gap-3 mt-5">
-              <Pressable onPress={() => setInviteOpen(false)} className="flex-1 border border-slate-200 rounded-lg py-3 items-center">
+              <Pressable onPress={closeInvite} className="flex-1 border border-slate-200 rounded-lg py-3 items-center">
                 <Text className="text-sm font-semibold text-slate-700">Cancel</Text>
               </Pressable>
               <Pressable onPress={sendInvite} disabled={invite.isPending} className="flex-1 bg-blue-600 rounded-lg py-3 items-center">
@@ -240,12 +253,10 @@ export default function TeamScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal visible={!!configMember} transparent animationType="fade" onRequestClose={() => setConfigMember(null)}>
-        <View className="flex-1 bg-black/40 justify-end">
-          <View className="bg-white rounded-t-xl p-5">
+      <BottomSheetModal visible={!!configMember} onClose={() => setConfigMember(null)} scrollable>
+          <View className="p-5">
             <Text className="text-lg font-bold text-slate-900">
               {configMember ? displayName(configMember) : ""}
             </Text>
@@ -295,8 +306,7 @@ export default function TeamScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </ScreenScaffold>
   );
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
@@ -108,23 +109,35 @@ class DamageAnnotationSerializer(serializers.ModelSerializer):
     def validate_boxes(self, boxes):
         if not isinstance(boxes, list):
             raise serializers.ValidationError("Boxes must be a list.")
-        allowed_labels = {value for value, _ in DAMAGE_LABEL_CHOICES}
+        allowed_labels = [value for value, _ in DAMAGE_LABEL_CHOICES]
+        cleaned = []
         for index, box in enumerate(boxes):
+            number = index + 1
             if not isinstance(box, dict):
-                raise serializers.ValidationError(f"Box {index} must be an object.")
-            label = box.get("label")
+                raise serializers.ValidationError(f"Box {number} must be an object.")
+            raw_label = box.get("label")
+            # The trained model emits some class names with spaces, e.g. "lamp broken".
+            label = (
+                re.sub(r"[\s-]+", "_", raw_label.strip().lower())
+                if isinstance(raw_label, str)
+                else raw_label
+            )
             if label not in allowed_labels:
-                raise serializers.ValidationError(f"Box {index} has an unsupported label.")
+                raise serializers.ValidationError(
+                    f"Box {number} has an unsupported label '{raw_label}'. "
+                    f"Choose one of: {', '.join(allowed_labels)}."
+                )
             bbox = box.get("bbox")
             if not isinstance(bbox, list) or len(bbox) != 4:
-                raise serializers.ValidationError(f"Box {index} bbox must contain four values.")
+                raise serializers.ValidationError(f"Box {number} bbox must contain four values.")
             try:
                 x1, y1, x2, y2 = [float(value) for value in bbox]
             except (TypeError, ValueError) as exc:
-                raise serializers.ValidationError(f"Box {index} bbox must be numeric.") from exc
+                raise serializers.ValidationError(f"Box {number} bbox must be numeric.") from exc
             if x2 <= x1 or y2 <= y1:
-                raise serializers.ValidationError(f"Box {index} bbox must have positive area.")
-        return boxes
+                raise serializers.ValidationError(f"Box {number} bbox must have positive area.")
+            cleaned.append({**box, "label": label})
+        return cleaned
 
 
 def run_analysis(inspection: Inspection) -> None:

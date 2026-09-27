@@ -5,14 +5,23 @@ import {
   ScrollView,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BottomSheetModal from "./BottomSheetModal";
+import FormField, { FieldMessage } from "./FormField";
+import {
+  apiFieldErrors,
+  emailError,
+  phoneError,
+  priceError,
+  requiredError,
+  unmatchedFieldErrors,
+  useFieldValidation,
+  wholeNumberError,
+} from "../lib/validation";
 import {
   useCreateJob,
   useCheckSlot,
@@ -35,7 +44,6 @@ import { useIndemnities } from "../lib/hooks/useIndemnities";
 import { useMe } from "../lib/hooks/useMe";
 import { useTeamMembers } from "../lib/hooks/useTeam";
 import DateTimePickerField from "./DateTimePickerField";
-import { Label } from "@react-navigation/elements";
 
 type Props = {
   visible: boolean;
@@ -100,28 +108,9 @@ type CustomerFormState = {
 type ServiceFormState = {
   name: string;
   description: string;
-  duration_minutes: number;
+  duration_minutes: string;
   price: string;
 };
-
-function apiErrorMessage(error: any, fallback: string): string {
-  const body = error?.body;
-  if (Array.isArray(body)) {
-    const text = body.map((v) => String(v)).join("\n");
-    if (text) return text;
-  } else if (body && typeof body === "object") {
-    if (typeof (body as any).detail === "string") return (body as any).detail;
-    const messages = Object.entries(body as Record<string, unknown>)
-      .flatMap(([field, value]) => {
-        const text = Array.isArray(value) ? value.join(" ") : String(value);
-        return text ? `${field}: ${text}` : [];
-      });
-    if (messages.length) return messages.join("\n");
-  } else if (typeof body === "string" && body) {
-    return body;
-  }
-  return error?.message || fallback;
-}
 
 const EMPTY_CUSTOMER: CustomerFormState = {
   full_name: "",
@@ -137,15 +126,13 @@ const EMPTY_CUSTOMERS: Customer[] = [];
 const EMPTY_SERVICE: ServiceFormState = {
   name: "",
   description: "",
-  duration_minutes: 60,
+  duration_minutes: "60",
   price: "",
 };
 
 
 
 export default function CreateBookingModal({ visible, onClose, onCreated }: Props) {
-  const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
   const { data: custPage } = useCustomers();
   const { data: svcPage } = useServices();
   const create = useCreateJob();
@@ -192,6 +179,33 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
   const [assignedTo, setAssignedTo] = useState<number | null>(null);
   const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
 
+  const custValidation = useFieldValidation({
+    full_name: requiredError(newCust.full_name, "Full name"),
+    email: emailError(newCust.email),
+    phone: phoneError(newCust.phone),
+    address:
+      isMobileBusiness &&
+      (!newCust.address.trim() || newCust.latitude == null || newCust.longitude == null)
+        ? "Search for the address and pick a result so the location is saved."
+        : null,
+  });
+  const serviceValidation = useFieldValidation({
+    name: requiredError(newService.name, "Service name"),
+    description: null,
+    duration_minutes: wholeNumberError(newService.duration_minutes, "Duration"),
+    price: priceError(newService.price),
+  });
+  const bookingValidation = useFieldValidation({
+    customer: customerId ? null : "Pick or create a customer.",
+    service: serviceId ? null : "Pick or create a service.",
+    assigned_to: isAdmin && !assignedTo ? "Assign a team member." : null,
+    scheduled_at: scheduledAt ? null : "Pick a date and time.",
+    notes: null,
+    price: priceError(priceOverride, { required: false, label: "Price override" }),
+  });
+  const resetCustValidation = custValidation.reset;
+  const resetServiceValidation = serviceValidation.reset;
+  const resetBookingValidation = bookingValidation.reset;
   const activeMembers = (team.data ?? []).filter(
     (member) => member.status === "active" && member.user !== null,
   );
@@ -239,9 +253,12 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setSlotState(null);
       setSuggestions([]);
       setOtherAvailable([]);
+      resetCustValidation();
+      resetServiceValidation();
+      resetBookingValidation();
     }
     wasVisible.current = visible;
-  }, [visible]);
+  }, [visible, resetCustValidation, resetServiceValidation, resetBookingValidation]);
 
   const selectedService = useMemo(
     () => visibleServices.find((s) => s.id === serviceId) ??
@@ -385,15 +402,8 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
 
   const submitNewCustomer = async () => {
     setCustErr(null);
-    if (!newCust.full_name.trim()) {
-      setCustErr("Name is required.");
-      return;
-    }
-    if (
-      isMobileBusiness &&
-      (!newCust.address.trim() || newCust.latitude == null || newCust.longitude == null)
-    ) {
-      setCustErr("Select the customer's address from the search results.");
+    if (!custValidation.validate()) {
+      setCustErr("Fix the highlighted fields.");
       return;
     }
     if (duplicateHit) {
@@ -417,26 +427,26 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setNewCustOpen(false);
       setNewCust(EMPTY_CUSTOMER);
       setCustSearch("");
+      resetCustValidation();
+      bookingValidation.clearServer("customer");
     } catch (e: any) {
-      setCustErr(apiErrorMessage(e, "Could not create customer."));
+      const { fields, general } = apiFieldErrors(e, "Could not create customer.");
+      custValidation.setServerErrors(fields);
+      setCustErr(
+        [general, unmatchedFieldErrors(fields, ["full_name", "email", "phone", "address"])]
+          .filter(Boolean)
+          .join("\n") || "Fix the highlighted fields.",
+      );
     }
   };
 
   const submitNewService = async () => {
     setServiceErr(null);
-    if (!newService.name.trim()) {
-      setServiceErr("Name is required.");
-      return;
-    }
-    if (!Number.isInteger(newService.duration_minutes) || newService.duration_minutes <= 0) {
-      setServiceErr("Duration must be a whole number greater than zero.");
+    if (!serviceValidation.validate()) {
+      setServiceErr("Fix the highlighted fields.");
       return;
     }
     const price = Number(newService.price);
-    if (!newService.price.trim() || !Number.isFinite(price) || price < 0) {
-      setServiceErr("Enter a valid price of zero or more.");
-      return;
-    }
     if (duplicateServiceHit) {
       setServiceErr(
         `"${duplicateServiceHit.name}" already exists - select it instead.`,
@@ -447,7 +457,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       const created = await createService.mutateAsync({
         name: newService.name.trim(),
         description: newService.description.trim(),
-        duration_minutes: newService.duration_minutes,
+        duration_minutes: parseInt(newService.duration_minutes, 10),
         price,
         business: business.data?.id,
       });
@@ -457,23 +467,30 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
       setNewServiceOpen(false);
       setNewService(EMPTY_SERVICE);
       setServiceErr(null);
+      resetServiceValidation();
     } catch (e: any) {
-      setServiceErr(apiErrorMessage(e, "Could not create service."));
+      const { fields, general } = apiFieldErrors(e, "Could not create service.");
+      serviceValidation.setServerErrors(fields);
+      setServiceErr(
+        [general, unmatchedFieldErrors(fields, ["name", "description", "duration_minutes", "price"])]
+          .filter(Boolean)
+          .join("\n") || "Fix the highlighted fields.",
+      );
     }
   };
 
   const submit = async () => {
     setErr(null);
-    if (!customerId) return setErr("Pick a customer.");
-    if (!selectedService) return setErr("Pick a service.");
-    if (!scheduledAt) return setErr("Enter a date/time (YYYY-MM-DDTHH:mm).");
+    if (!bookingValidation.validate()) {
+      return setErr("Fix the highlighted fields.");
+    }
+    if (!customerId || !selectedService) return;
     if (
       isMobileBusiness &&
       (selectedCustomer?.latitude == null || selectedCustomer?.longitude == null)
     ) {
       return setErr("This customer needs a saved location before a mobile booking can be created.");
     }
-    if (isAdmin && !assignedTo) return setErr("Assign a team member.");
     if (slotState && !slotState.ok) {
       return setErr(
         slotState.reason === "outside_hours"
@@ -508,17 +525,24 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
         });
         setErr("Slot unavailable - try a suggestion below.");
       } else {
-        setErr(apiErrorMessage(e, "Could not create booking."));
+        const { fields, general } = apiFieldErrors(e, "Could not create booking.");
+        const { service_type, ...rest } = fields;
+        bookingValidation.setServerErrors(service_type ? { ...rest, service: service_type } : rest);
+        setErr(
+          [
+            general,
+            unmatchedFieldErrors(rest, ["customer", "assigned_to", "scheduled_at", "notes", "price"]),
+          ]
+            .filter(Boolean)
+            .join("\n") || "Fix the highlighted fields.",
+        );
       }
     }
   };
 
   return (
-    <BottomSheetModal visible={visible} onClose={onClose}>
-      <View
-        className="bg-white rounded-t-3xl p-5"
-        style={{ paddingBottom: insets.bottom + 20 }}
-      >
+    <BottomSheetModal visible={visible} onClose={onClose} scrollable>
+      <View className="p-5">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-lg font-bold text-slate-900">New booking</Text>
             <Pressable onPress={onClose}>
@@ -526,11 +550,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             </Pressable>
           </View>
 
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            style={{ maxHeight: windowHeight * 0.7 }}
-            contentContainerStyle={{ paddingBottom: 24 }}
-          >
+          <View>
             {!indemnities.isLoading && !hasPublishedIndemnity ? (
               <Pressable
                 onPress={() => {
@@ -549,7 +569,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             ) : null}
 
             <Text className="text-xs font-semibold text-slate-600 mb-1">
-              Customer
+              Customer<Text className="text-red-600"> *</Text>
             </Text>
 
             <Pressable
@@ -557,7 +577,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 setPickerOpen((v) => !v);
                 setNewCustOpen(false);
               }}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-3 mb-2 flex-row items-center justify-between"
+              className={`bg-white border rounded-xl px-3 py-3 mb-2 flex-row items-center justify-between ${
+                bookingValidation.errorFor("customer") ? "border-red-400" : "border-slate-200"
+              }`}
             >
               <View className="flex-1 pr-2">
                 {selectedCustomer ? (
@@ -583,6 +605,11 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 {pickerOpen ? "▲" : "▼"}
               </Text>
             </Pressable>
+            {bookingValidation.errorFor("customer") ? (
+              <View className="-mt-1 mb-2">
+                <FieldMessage error={bookingValidation.errorFor("customer")} />
+              </View>
+            ) : null}
 
             {pickerOpen ? (
               <View className="border border-slate-200 rounded-xl mb-3 overflow-hidden">
@@ -663,43 +690,39 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 <Text className="text-sm font-semibold text-slate-900 mb-2">
                   New customer
                 </Text>
-                <Text className="text-sm font-medium text-slate-700 mb-1">
-                  Full name
-                </Text>
-                <TextInput
-                  value={newCust.full_name}
-                  onChangeText={(v) =>
-                    setNewCust((s) => ({ ...s, full_name: v }))
-                  }
-                  placeholder="Full name *"
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                <FormField
+                  label="Full name"
+                  required
+                  placeholder="Jane Doe"
+                  containerClassName="mb-2"
+                  {...custValidation.bind("full_name", newCust.full_name, (v) =>
+                    setNewCust((s) => ({ ...s, full_name: v })),
+                  )}
                 />
-                <Text className="text-sm font-medium text-slate-700 mb-1">
-                  Email
-                </Text>
-                <TextInput
-                  value={newCust.email}
-                  onChangeText={(v) => setNewCust((s) => ({ ...s, email: v }))}
-                  placeholder="Email"
+                <FormField
+                  label="Email"
+                  placeholder="jane@example.com"
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  containerClassName="mb-2"
+                  {...custValidation.bind("email", newCust.email, (v) =>
+                    setNewCust((s) => ({ ...s, email: v })),
+                  )}
                 />
-                <Text className="text-sm font-medium text-slate-700 mb-1">
-                  Phone
-                </Text>
-                <TextInput
-                  value={newCust.phone}
-                  onChangeText={(v) => setNewCust((s) => ({ ...s, phone: v }))}
-                  placeholder="Phone"
+                <FormField
+                  label="Phone"
+                  placeholder="+44 7700 900000"
                   keyboardType="phone-pad"
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  containerClassName="mb-2"
+                  {...custValidation.bind("phone", newCust.phone, (v) =>
+                    setNewCust((s) => ({ ...s, phone: v })),
+                  )}
                 />
                 {isMobileBusiness ? (
                   
                   <View className="mb-2" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
-                    <Text className="text-sm font-medium text-slate-700 mb-1">
-                      Address
+                    <Text className="text-xs font-semibold text-slate-600 mb-1">
+                      Address<Text className="text-red-600"> *</Text>
                     </Text>
                     <GooglePlacesAutocomplete
                       placeholder="Search for the customer's address"
@@ -717,6 +740,12 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                           latitude,
                           longitude,
                         }));
+                        custValidation.touch("address");
+                        custValidation.clearServer("address");
+                      }}
+                      textInputProps={{
+                        placeholderTextColor: "#94a3b8",
+                        onBlur: () => custValidation.touch("address"),
                       }}
                       query={{
                         key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -727,29 +756,23 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                         container: {
                           flex: 0,
                           width: "100%",
-                          zIndex: 1000,
-                          flexDirection: "column-reverse",
                         },
                         textInput: {
                           borderWidth: 1,
-                          borderColor: "#e2e8f0",
-                          borderRadius: 8,
+                          borderColor: custValidation.errorFor("address") ? "#f87171" : "#e2e8f0",
+                          borderRadius: 12,
                           paddingHorizontal: 12,
                           height: 42,
                           color: "#0f172a",
                           fontSize: 14,
+                          marginBottom: 0,
                         },
                         listView: {
-                          position: "absolute",
-                          bottom: 46,
-                          left: 0,
-                          right: 0,
                           borderWidth: 1,
                           borderColor: "#e2e8f0",
+                          borderRadius: 12,
                           backgroundColor: "#ffffff",
-                          elevation: 1001,
-                          zIndex: 9999,
-                          maxHeight: 180,
+                          marginTop: 4,
                         },
                       }}
                     />
@@ -758,15 +781,16 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                         Location selected: {newCust.address}
                       </Text>
                     ) : null}
+                    <FieldMessage error={custValidation.errorFor("address")} />
                   </View>
                 ) : (
-                  <TextInput
-                    value={newCust.address}
-                    onChangeText={(v) =>
-                      setNewCust((s) => ({ ...s, address: v }))
-                    }
-                    placeholder="Address"
-                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  <FormField
+                    label="Address"
+                    placeholder="12 Riverside Ave, London"
+                    containerClassName="mb-2"
+                    {...custValidation.bind("address", newCust.address, (v) =>
+                      setNewCust((s) => ({ ...s, address: v })),
+                    )}
                   />
                 )}
 
@@ -795,6 +819,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                     onPress={() => {
                       setNewCustOpen(false);
                       setCustErr(null);
+                      resetCustValidation();
                     }}
                     className="flex-1 py-2 rounded-full border border-slate-300"
                   >
@@ -823,7 +848,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             ) : null}
 
             <Text className="text-xs font-semibold text-slate-600 mb-1">
-              Service
+              Service<Text className="text-red-600"> *</Text>
             </Text>
             <View className="mb-3">
               <Pressable
@@ -831,7 +856,9 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   setServicePickerOpen((v) => !v);
                   setNewServiceOpen(false);
                 }}
-                className="bg-white border border-slate-200 rounded-xl px-3 py-3 mb-2 flex-row items-center justify-between"
+                className={`bg-white border rounded-xl px-3 py-3 mb-2 flex-row items-center justify-between ${
+                  bookingValidation.errorFor("service") ? "border-red-400" : "border-slate-200"
+                }`}
               >
                 <View className="flex-1 pr-2">
                   {selectedService ? (
@@ -853,6 +880,11 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   {servicePickerOpen ? "▲" : "▼"}
                 </Text>
               </Pressable>
+              {bookingValidation.errorFor("service") ? (
+                <View className="-mt-1 mb-2">
+                  <FieldMessage error={bookingValidation.errorFor("service")} />
+                </View>
+              ) : null}
 
               {servicePickerOpen ? (
                 <View className="border border-slate-200 rounded-xl mb-3 overflow-hidden">
@@ -931,49 +963,42 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                   <Text className="text-sm font-semibold text-slate-900 mb-2">
                     New service
                   </Text>
-                  <Text className="text-sm font-medium text-slate-700 mb-1">
-                    Service name
-                  </Text>
-                  <TextInput
-                    value={newService.name}
-                    onChangeText={(v) =>
-                      setNewService((s) => ({ ...s, name: v }))
-                    }
-                    placeholder="Service name *"
-                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  <FormField
+                    label="Service name"
+                    required
+                    placeholder="Interior deep clean"
+                    containerClassName="mb-2"
+                    {...serviceValidation.bind("name", newService.name, (v) =>
+                      setNewService((s) => ({ ...s, name: v })),
+                    )}
                   />
-                  <Text className="text-sm font-medium text-slate-700 mb-1">
-                    Description
-                  </Text>
-                  <TextInput
-                    value={newService.description}
-                    onChangeText={(v) =>
-                      setNewService((s) => ({ ...s, description: v }))
-                    }
-                    placeholder="Description"
-                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  <FormField
+                    label="Description"
+                    placeholder="What's included"
+                    containerClassName="mb-2"
+                    {...serviceValidation.bind("description", newService.description, (v) =>
+                      setNewService((s) => ({ ...s, description: v })),
+                    )}
                   />
-                  <Text className="text-sm font-medium text-slate-700 mb-1">
-                    Duration (minutes)
-                  </Text>
-                  <TextInput
-                    value={String(newService.duration_minutes)}
-                    onChangeText={(v) =>
-                      setNewService((s) => ({ ...s, duration_minutes: Number(v) || 0 }))
-                    }
-                    placeholder="Duration (minutes)"
+                  <FormField
+                    label="Duration (minutes)"
+                    required
+                    placeholder="60"
                     keyboardType="number-pad"
-                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                    containerClassName="mb-2"
+                    {...serviceValidation.bind("duration_minutes", newService.duration_minutes, (v) =>
+                      setNewService((s) => ({ ...s, duration_minutes: v })),
+                    )}
                   />
-                  <Text className="text-sm font-medium text-slate-700 mb-1">
-                    Price
-                  </Text>
-                  <TextInput
-                    value={newService.price}
-                    onChangeText={(v) => setNewService((s) => ({ ...s, price: v }))}
-                    placeholder="Price"
-                    keyboardType="numeric"
-                    className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 mb-2"
+                  <FormField
+                    label="Price ($)"
+                    required
+                    placeholder="45.00"
+                    keyboardType="decimal-pad"
+                    containerClassName="mb-2"
+                    {...serviceValidation.bind("price", newService.price, (v) =>
+                      setNewService((s) => ({ ...s, price: v })),
+                    )}
                   />
 
                   {duplicateServiceHit ? (
@@ -1001,6 +1026,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                       onPress={() => {
                         setNewServiceOpen(false);
                         setServiceErr(null);
+                        resetServiceValidation();
                       }}
                       className="flex-1 py-2 rounded-full border border-slate-300"
                     >
@@ -1056,6 +1082,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                       </Text>
                       <Text className="text-slate-400 text-xs">{assigneePickerOpen ? "▲" : "▼"}</Text>
                     </Pressable>
+                    <FieldMessage error={bookingValidation.errorFor("assigned_to")} />
                     {assigneePickerOpen ? (
                       <View className="border border-slate-200 rounded-xl mt-2 overflow-hidden">
                         {qualifiedMembers.map((member) => {
@@ -1082,7 +1109,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             ) : null}
 
             <Text className="text-xs font-semibold text-slate-600 mb-1">
-              Date & time
+              Date & time<Text className="text-red-600"> *</Text>
             </Text>
 
             {!effectiveAssignedTo ? (
@@ -1151,6 +1178,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 timeSlots={availableTimeSlots}
                 disabled={!effectiveAssignedTo}
               />
+              <FieldMessage error={bookingValidation.errorFor("scheduled_at")} />
             </View>
 
             {slotState && !slotState.ok ? (
@@ -1191,31 +1219,22 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
               </View>
             ) : null}
 
-            <Text className="text-xs font-semibold text-slate-600 mb-1">
-              Notes
-            </Text>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
+            <FormField
+              label="Notes"
               placeholder="Optional"
               multiline
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 mb-3"
-              style={{ minHeight: 60, textAlignVertical: "top" }}
+              {...bookingValidation.bind("notes", notes, setNotes)}
             />
 
-            <Text className="text-xs font-semibold text-slate-600 mb-1">
-              Price override ($) - optional
-            </Text>
-            <TextInput
-              value={priceOverride}
-              onChangeText={setPriceOverride}
+            <FormField
+              label="Price override ($) - optional"
               placeholder={
                 selectedService
                   ? `Default: ${Number(selectedService.price).toFixed(2)}`
                   : ""
               }
               keyboardType="decimal-pad"
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 mb-3"
+              {...bookingValidation.bind("price", priceOverride, setPriceOverride)}
             />
 
             {err ? (
@@ -1225,7 +1244,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
             <Pressable
               onPress={submit}
               disabled={create.isPending}
-              className="bg-blue-600 rounded-full py-3 items-center mt-2 mb-6"
+              className="bg-blue-600 rounded-full py-3 items-center mt-2"
               style={create.isPending ? { opacity: 0.5 } : undefined}
             >
               {create.isPending ? (
@@ -1236,7 +1255,7 @@ export default function CreateBookingModal({ visible, onClose, onCreated }: Prop
                 </Text>
               )}
             </Pressable>
-          </ScrollView>
+          </View>
         </View>
     </BottomSheetModal>
   );

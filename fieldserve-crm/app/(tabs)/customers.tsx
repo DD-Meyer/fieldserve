@@ -5,7 +5,6 @@ import {
   RefreshControl,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -14,6 +13,7 @@ import "../../global.css";
 
 import AppHeader from "../../components/AppHeader";
 import BottomSheetModal from "../../components/BottomSheetModal";
+import FormField, { FieldMessage } from "../../components/FormField";
 import CustomerChurnCard, {
   type ChurnCustomer,
 } from "../../components/CustomerChurnCard";
@@ -31,11 +31,16 @@ import {
   type Customer,
 } from "../../lib/hooks/useCustomers";
 import { useCurrentBusiness } from "../../lib/hooks/useBusiness";
-import { styled } from "nativewind";
 import {
-  SafeAreaView as RNSafeAreaVIew,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+  apiFieldErrors,
+  emailError,
+  phoneError,
+  requiredError,
+  unmatchedFieldErrors,
+  useFieldValidation,
+} from "../../lib/validation";
+import { styled } from "nativewind";
+import { SafeAreaView as RNSafeAreaVIew } from "react-native-safe-area-context";
 import CustomerBackground from "../../components/CustomerBackground";
 
 const SafeAreaView = styled(RNSafeAreaVIew);
@@ -319,12 +324,21 @@ function AddCustomerModal({
   const create = useCreateCustomer();
   const { data: business } = useCurrentBusiness();
   const isMobileBusiness = business?.industry_mode === "mobile";
-  const insets = useSafeAreaInsets();
+  const validation = useFieldValidation({
+    full_name: requiredError(fullName, "Full name"),
+    email: emailError(email),
+    phone: phoneError(phone),
+    address:
+      isMobileBusiness && (!address.trim() || latitude == null || longitude == null)
+        ? "Search for the address and pick a result so the location is saved."
+        : null,
+  });
+  const { bind } = validation;
 
   const submit = async () => {
     setErr(null);
-    if (isMobileBusiness && (!address.trim() || latitude == null || longitude == null)) {
-      setErr("Select the customer's address from the search results.");
+    if (!validation.validate()) {
+      setErr("Fix the highlighted fields.");
       return;
     }
     try {
@@ -342,18 +356,22 @@ function AddCustomerModal({
       setAddress("");
       setLatitude(null);
       setLongitude(null);
+      validation.reset();
       onCreated();
     } catch (e: any) {
-      setErr(e?.message || "Could not create customer");
+      const { fields, general } = apiFieldErrors(e, "Could not create customer.");
+      validation.setServerErrors(fields);
+      setErr(
+        [general, unmatchedFieldErrors(fields, ["full_name", "email", "phone", "address"])]
+          .filter(Boolean)
+          .join("\n") || "Fix the highlighted fields.",
+      );
     }
   };
 
   return (
-    <BottomSheetModal visible={visible} onClose={onClose}>
-      <View
-        className="bg-white rounded-t-3xl p-5"
-        style={{ paddingBottom: insets.bottom + 20 }}
-      >
+    <BottomSheetModal visible={visible} onClose={onClose} scrollable>
+      <View className="p-5">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-lg font-bold text-slate-900">New Customer</Text>
           <Pressable onPress={onClose}>
@@ -361,37 +379,33 @@ function AddCustomerModal({
           </Pressable>
         </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled">
-          <Text className="text-xs text-slate-500 mb-1">Full name *</Text>
-          <TextInput
-            value={fullName}
-            onChangeText={setFullName}
+          <FormField
+            label="Full name"
+            required
             placeholder="Jane Doe"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+            {...bind("full_name", fullName, setFullName)}
           />
 
-          <Text className="text-xs text-slate-500 mb-1">Email</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
+          <FormField
+            label="Email"
             autoCapitalize="none"
             keyboardType="email-address"
             placeholder="jane@example.com"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+            {...bind("email", email, setEmail)}
           />
 
-          <Text className="text-xs text-slate-500 mb-1">Phone</Text>
-          <TextInput
-            value={phone}
-            onChangeText={setPhone}
+          <FormField
+            label="Phone"
             keyboardType="phone-pad"
             placeholder="+44 7700 900000"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+            {...bind("phone", phone, setPhone)}
           />
 
-          <Text className="text-xs text-slate-500 mb-1">Address</Text>
           {isMobileBusiness ? (
             <View className="mb-3" style={{ position: "relative", zIndex: 1000, elevation: 1000 }}>
+              <Text className="text-xs font-semibold text-slate-600 mb-1">
+                Address<Text className="text-red-600"> *</Text>
+              </Text>
               <GooglePlacesAutocomplete
                 placeholder="Search for the customer's address"
                 fetchDetails={true}
@@ -405,6 +419,12 @@ function AddCustomerModal({
                   setAddress(data.description);
                   setLatitude(selectedLatitude);
                   setLongitude(selectedLongitude);
+                  validation.touch("address");
+                  validation.clearServer("address");
+                }}
+                textInputProps={{
+                  placeholderTextColor: "#94a3b8",
+                  onBlur: () => validation.touch("address"),
                 }}
                 query={{
                   key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -415,29 +435,23 @@ function AddCustomerModal({
                   container: {
                     flex: 0,
                     width: "100%",
-                    zIndex: 1000,
-                    flexDirection: "column-reverse",
                   },
                   textInput: {
                     borderWidth: 1,
-                    borderColor: "#e2e8f0",
+                    borderColor: validation.errorFor("address") ? "#f87171" : "#e2e8f0",
                     borderRadius: 12,
-                    paddingHorizontal: 16,
-                    height: 48,
+                    paddingHorizontal: 12,
+                    height: 44,
                     color: "#0f172a",
                     fontSize: 14,
+                    marginBottom: 0,
                   },
                   listView: {
-                    position: "absolute",
-                    bottom: 52,
-                    left: 0,
-                    right: 0,
                     borderWidth: 1,
                     borderColor: "#e2e8f0",
+                    borderRadius: 12,
                     backgroundColor: "#ffffff",
-                    elevation: 1001,
-                    zIndex: 9999,
-                    maxHeight: 180,
+                    marginTop: 4,
                   },
                 }}
               />
@@ -446,13 +460,13 @@ function AddCustomerModal({
                   Location selected: {address}
                 </Text>
               ) : null}
+              <FieldMessage error={validation.errorFor("address")} />
             </View>
           ) : (
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
+            <FormField
+              label="Address"
               placeholder="12 Riverside Ave, London"
-              className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 mb-3"
+              {...bind("address", address, setAddress)}
             />
           )}
 
@@ -460,8 +474,9 @@ function AddCustomerModal({
 
           <Pressable
             onPress={submit}
-            disabled={create.isPending || !fullName}
-            className="bg-blue-600 rounded-xl py-3.5 items-center disabled:opacity-50"
+            disabled={create.isPending}
+            className="bg-blue-600 rounded-xl py-3.5 items-center"
+            style={create.isPending ? { opacity: 0.5 } : undefined}
           >
             {create.isPending ? (
               <ActivityIndicator color="#fff" />
@@ -469,7 +484,6 @@ function AddCustomerModal({
               <Text className="text-white font-semibold">Create customer</Text>
             )}
           </Pressable>
-        </ScrollView>
       </View>
     </BottomSheetModal>
   );

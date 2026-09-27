@@ -1,5 +1,6 @@
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { useState } from "react";
+import BottomSheetModal from "../components/BottomSheetModal";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SegmentedToggle from "../components/SegmentedToggle";
 import SettingsGroup from "../components/SettingsGroup";
@@ -169,14 +170,8 @@ export default function CompanyScreen() {
         />
       </SettingsGroup>
 
-      <Modal
-        visible={businessEdit !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setBusinessEdit(null)}
-      >
-        <View className="flex-1 justify-center bg-black/40 px-6">
-          <View className="bg-white rounded-2xl p-5">
+      <BottomSheetModal visible={businessEdit !== null} onClose={() => setBusinessEdit(null)} scrollable>
+          <View className="px-5 pb-5 pt-8">
             <Text className="text-base font-semibold text-slate-900 mb-2">
               Edit {businessEdit === "address" ? "address" : businessEdit?.replace("_", " ")}
             </Text>
@@ -198,17 +193,10 @@ export default function CompanyScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        visible={schedEdit !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSchedEdit(null)}
-      >
-        <View className="flex-1 justify-center bg-black/40 px-6">
-          <View className="bg-white rounded-2xl p-5">
+      <BottomSheetModal visible={schedEdit !== null} onClose={() => setSchedEdit(null)} scrollable>
+          <View className="px-5 pb-5 pt-8">
             <Text className="text-base font-semibold text-slate-900 mb-2">
               {schedEdit === "opening"
                 ? "Opening time"
@@ -238,8 +226,7 @@ export default function CompanyScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </ScreenScaffold>
   );
 }

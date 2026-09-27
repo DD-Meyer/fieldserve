@@ -1,6 +1,7 @@
-import { Image, Modal, Pressable, Text, TextInput, View } from "react-native";
+import { Image, Pressable, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 
+import BottomSheetModal from "../components/BottomSheetModal";
 import ScreenScaffold from "../components/ScreenScaffold";
 import SettingsGroup from "../components/SettingsGroup";
 import SettingsRow from "../components/SettingsRow";
@@ -123,14 +124,8 @@ export default function ProfileScreen() {
         <SettingsRow label="Sign out" destructive onPress={handleSignOut} />
       </SettingsGroup>
 
-      <Modal
-        visible={editOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditOpen(false)}
-      >
-        <View className="flex-1 justify-center bg-black/40 px-6">
-          <View className="bg-white rounded-2xl p-5">
+      <BottomSheetModal visible={editOpen} onClose={() => setEditOpen(false)} scrollable>
+          <View className="px-5 pb-5 pt-8">
             <Text className="text-base font-semibold text-slate-900 mb-3">
               Personal details
             </Text>
@@ -164,17 +159,10 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        visible={passwordOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPasswordOpen(false)}
-      >
-        <View className="flex-1 justify-center bg-black/40 px-6">
-          <View className="bg-white rounded-2xl p-5">
+      <BottomSheetModal visible={passwordOpen} onClose={() => setPasswordOpen(false)} scrollable>
+          <View className="px-5 pb-5 pt-8">
             <Text className="text-base font-semibold text-slate-900 mb-3">
               Change password
             </Text>
@@ -210,8 +198,7 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </ScreenScaffold>
   );
 }

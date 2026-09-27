@@ -3,7 +3,10 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -122,7 +125,15 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.flex}
+      >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>Back to sign in</Text>
         </Pressable>
@@ -180,15 +191,17 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.backText}>Resend code</Text>
           </Pressable>
         ) : null}
-      </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f8fafc" },
+  flex: { flex: 1 },
   loadingView: { alignItems: "center", backgroundColor: "#f8fafc", flex: 1, justifyContent: "center" },
-  content: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
+  content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 24 },
   backButton: { alignSelf: "flex-start", marginBottom: 32 },
   backText: { color: "#2563eb", fontSize: 14, fontWeight: "600" },
   title: { color: "#0f172a", fontSize: 28, fontWeight: "700" },
