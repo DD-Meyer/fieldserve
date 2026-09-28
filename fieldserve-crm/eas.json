@@ -16,20 +16,12 @@
     "preview": {
       "distribution": "internal",
       "node": "24.13.0",
-      "env": {
-        "EXPO_PUBLIC_CLERK_PROXY_URL": "https://fieldserve.vercel.app/__clerk",
-        "EXPO_PUBLIC_API_URL": "https://fieldserve-backend.onrender.com",
-        "EXPO_PUBLIC_URL": "https://fieldserve.vercel.app"
-      }
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
       "node": "24.13.0",
-      "env": {
-        "EXPO_PUBLIC_CLERK_PROXY_URL": "https://fieldserve.vercel.app/__clerk",
-        "EXPO_PUBLIC_API_URL": "https://fieldserve-backend.onrender.com",
-        "EXPO_PUBLIC_URL": "https://fieldserve.vercel.app"
-      }
+      "environment": "production"
     }
   },
   "submit": {
