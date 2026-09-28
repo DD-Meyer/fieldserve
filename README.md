@@ -34,20 +34,50 @@ Docker Compose is the local development topology. `render.yaml` and `fieldserve-
 ### Prerequisites
 
 - Docker Desktop with Compose
-- Node.js and npm
+- Node.js 20 LTS or newer and npm
+- Expo Go installed on an Android or iOS phone
 - A Clerk development instance for authenticated app flows
 
-### Configure and start the backend
+### Download and configure the project
 
-From the repository root, create a local environment file and replace the placeholders with development values:
+Download the repository ZIP from GitHub and extract it, or clone the repository. Open PowerShell in the extracted `FieldServe` folder. Start Docker Desktop before continuing.
+
+Create the backend environment file and open it for editing:
 
 ```powershell
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
 ```
 
-At minimum, set a strong `DJANGO_SECRET_KEY` and the Clerk backend values (`CLERK_SECRET_KEY`, `CLERK_JWKS_URL`, `CLERK_ISSUER`, and `CLERK_WEBHOOK_SECRET`) for authentication and webhooks. Set `ML_INTERNAL_TOKEN` to a locally generated secret if you will use administrative ML training endpoints. Keep real values out of Git.
+To open the same file in VS Code instead, run this from the repository root:
 
-Start the local services:
+```powershell
+code .env
+```
+
+Set `DJANGO_SECRET_KEY` to a random local-only value (generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`). Configure `CLERK_SECRET_KEY`, `CLERK_JWKS_URL`, and `CLERK_ISSUER` as described in [Get the development keys](#get-the-development-keys). Keep `CLERK_WEBHOOK_SECRET` as a placeholder for the basic sign-up/login flow; it is only needed when testing Clerk webhooks. `GOOGLE_PLACES_SERVER_KEY` is optional and enables server-side address lookup. Do not commit `.env`.
+
+### Get the development keys
+
+Use a **Clerk development instance**, not production keys. The mobile publishable key and backend secret key must come from the same instance.
+
+1. Sign in to the [Clerk Dashboard](https://dashboard.clerk.com/) and create a development application. Enable the sign-in methods you want to demo, such as email and password. To demo Google sign-in, enable Google under the application's social connections as well.
+2. Open **API Keys**. Copy the **Publishable key** (`pk_test_...`) to `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in `fieldserve-crm/.env.local`. Copy the **Secret key** (`sk_test_...`) to `CLERK_SECRET_KEY` in the root `.env`. Never put the secret key in the Expo environment file or in Git.
+3. In the Clerk Dashboard, copy the development instance's Frontend API/domain URL, for example `https://example.clerk.accounts.dev`. Set `CLERK_ISSUER` to that URL without a trailing slash and `CLERK_JWKS_URL` to the same URL plus `/.well-known/jwks.json`. These two backend values and both keys must identify the same Clerk instance.
+4. Sign up in the running app using an email address you can access to complete verification. For Google sign-in, configure the Google connection in Clerk; this is separate from the Google Maps key below.
+
+For maps and address suggestions, create a Google key in the [Google Cloud Console](https://console.cloud.google.com/):
+
+1. Create or select a Google Cloud project and enable billing for that project.
+2. Under **APIs & Services > Library**, enable **Maps JavaScript API**, **Places API**, and **Geocoding API** as needed. The current autocomplete and backend address proxy call Google's legacy Places endpoints, and the backend's geocoding fallback uses Geocoding API. Enabling only **Places API (New)** is not sufficient. Google may require explicit legacy API activation for a new project; see [Google's legacy products guidance](https://developers.google.com/maps/legacy). The app does not need Directions, Distance Matrix, or Roads APIs.
+3. Under **APIs & Services > Credentials**, create a client API key and restrict it to the APIs it uses (Maps JavaScript API and Places API). Put it in `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in `fieldserve-crm/.env.local`. This value is included in the mobile bundle, so treat it as public: set quotas/budget alerts and do not reuse a production key. Expo Go uses Expo's native app identity, so an Android app restriction for FieldServe will not match Expo Go during development.
+4. Optionally create a separate server key for Places and geocoding lookups and set it as `GOOGLE_PLACES_SERVER_KEY` in the root `.env`. Restrict it to Places API and Geocoding API, and your server's IP where possible. Never put this server key in the Expo environment file. Local core sign-in and CRM screens can run without Google keys, but Google map/address features will be unavailable or fall back to the non-Google map.
+
+`.env.example` and `fieldserve-crm/.env.example` contain placeholders, not working credentials. A public GitHub ZIP cannot safely contain the Clerk secret or an unrestricted, billable Google key. If the project team provides shared development credentials, use those values in the ignored local env files; otherwise create your own development keys using the steps above. Never copy a production secret into either example file.
+
+### Start the backend
+
+From the repository root, build and start the local services. The first build can take several minutes:
 
 ```powershell
 docker compose up --build -d
@@ -60,30 +90,38 @@ docker compose ps
 docker compose logs -f backend ml
 ```
 
-The Compose file includes PostGIS, Redis, the Django backend, FastAPI ML service, Celery worker, and scheduler. OSRM is optional and is not started by the default command. To use it, prepare an OSRM-compatible map under `osrm-data/` and start the `routing` profile.
+The Compose file includes PostGIS, Redis, the Django backend, FastAPI ML service, Celery worker, and scheduler. OSRM is optional and is not started by the default command. To use it, prepare an OSRM-compatible map under `osrm-data/` and start the `routing` profile. To confirm the API is reachable from the development computer, open `http://localhost:8000/admin/` in a browser.
 
-### Start the CRM
+### Start Expo Go on a phone
 
-Create `fieldserve-crm/.env.local` with the client configuration for your environment. For example:
-
-```text
-EXPO_PUBLIC_API_URL=http://localhost:8000
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_replace_me
-```
-
-Use your machine's LAN address instead of `localhost` when testing on a physical device. Configure Clerk proxy variables for the target platform: the deployed web app uses the Vercel same-origin proxy, while native proxy URLs must be absolute. Configure Google Places/Maps keys only when enabling the related address/map features, and keep server-side keys on the backend.
-
-For EAS builds, set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` and `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in the corresponding EAS project environments (development, preview, and production); these values are intentionally no longer stored in `eas.json`. The Google Maps key was present in earlier Git commits. Rotate it and restrict the replacement to the required APIs and app origins before making the repository public. Removing a value from the current tree does not remove it from Git history.
-
-Then run:
+Create the Expo environment file from its template:
 
 ```powershell
-cd fieldserve-crm
-npm ci
-npm run web
+if (-not (Test-Path fieldserve-crm/.env.local)) { Copy-Item fieldserve-crm/.env.example fieldserve-crm/.env.local }
+notepad fieldserve-crm/.env.local
 ```
 
-Use `npm start` to launch the Expo development server for native development. Authentication and external map/address integrations require valid provider configuration.
+To edit it in VS Code instead, run this from the repository root:
+
+```powershell
+code fieldserve-crm/.env.local
+```
+
+Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` to the `pk_test_...` key from the Clerk steps above. Set `EXPO_PUBLIC_API_URL` to the development computer's LAN IPv4 address and port 8000, for example `http://192.168.1.25:8000`. Find the address with `ipconfig` and use the IPv4 address for the active Wi-Fi/Ethernet adapter, not `localhost` or a `169.254...` address. The phone and computer must be on the same Wi-Fi network. If using Google maps/address suggestions, also set `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`. Leave `EXPO_PUBLIC_CLERK_PROXY_URL` empty for a Clerk development instance.
+
+Install the JavaScript dependencies and start Expo in LAN mode:
+
+```powershell
+Set-Location fieldserve-crm
+npm ci
+npx expo start --go --lan --clear
+```
+
+When the QR code appears, open **Expo Go** on the phone and scan it. Expo Go downloads and runs the JavaScript bundle; the Django/ML services remain running on the computer. If Windows Firewall asks, allow Node.js on the private network. If LAN discovery is blocked by the network, stop the server with `Ctrl+C` and retry using `npx expo start --go --tunnel --clear`.
+
+For an Android emulator, set `EXPO_PUBLIC_API_URL=http://10.0.2.2:8000` instead; `10.0.2.2` is the emulator's route to the host computer. For a physical phone, use the host computer's LAN IPv4 address. After changing `.env.local`, restart Expo so the new values are included in the bundle.
+
+For EAS builds, set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` and `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in the corresponding EAS project environments (development, preview, and production); these values are intentionally no longer stored in `eas.json`. A Google Maps key appeared in earlier Git commits. Rotate it and restrict the replacement before using the repository publicly; deleting it from the current tree does not remove it from Git history.
 
 ### Install a preview APK on an Android phone
 
